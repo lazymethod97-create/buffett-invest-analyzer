@@ -2,31 +2,66 @@
 financial_analyzer.py
 
 役割：
-財務データをウォーレン・バフェットの投資基準で評価する。
+ウォーレン・バフェットの投資基準に基づいて
+財務指標を評価する。
 """
 
 
 class FinancialAnalyzer:
 
-    def evaluate_roe(self, roe):
+    def evaluate(self, metric, value):
+        """
+        財務指標を評価する
 
-        if roe is None:
+        戻り値
+        -------
+        (星評価, 点数)
+        """
+
+        if value is None:
             return ("評価不可", 0)
 
-        # Yahoo Finance は 0.20 = 20%
-        roe_percent = roe * 100
+        # ROE（0.20 = 20%）
+        if metric == "ROE":
+            value = value * 100
 
-        if roe_percent >= 20:
-            return ("★★★★★", 25)
+            if value >= 20:
+                return ("★★★★★", 25)
+            elif value >= 15:
+                return ("★★★★☆", 20)
+            elif value >= 10:
+                return ("★★★☆☆", 15)
+            elif value >= 5:
+                return ("★★☆☆☆", 10)
+            else:
+                return ("★☆☆☆☆", 5)
 
-        elif roe_percent >= 15:
-            return ("★★★★☆", 20)
+        # PER
+        elif metric == "PER":
 
-        elif roe_percent >= 10:
-            return ("★★★☆☆", 15)
+            if value <= 15:
+                return ("★★★★★", 20)
+            elif value <= 20:
+                return ("★★★★☆", 16)
+            elif value <= 30:
+                return ("★★★☆☆", 12)
+            elif value <= 40:
+                return ("★★☆☆☆", 8)
+            else:
+                return ("★☆☆☆☆", 4)
 
-        elif roe_percent >= 5:
-            return ("★★☆☆☆", 10)
+        # PBR
+        elif metric == "PBR":
 
-        else:
-            return ("★☆☆☆☆", 5)
+            if value <= 3:
+                return ("★★★★★", 15)
+            elif value <= 5:
+                return ("★★★★☆", 12)
+            elif value <= 8:
+                return ("★★★☆☆", 9)
+            elif value <= 10:
+                return ("★★☆☆☆", 6)
+            else:
+                return ("★☆☆☆☆", 3)
+
+        return ("未対応", 0)
