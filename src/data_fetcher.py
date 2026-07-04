@@ -1,6 +1,5 @@
 import yfinance as yf
-from utils import normalize_ticker
-
+from src.utils import normalize_ticker
 
 class StockDataFetcher:
     def __init__(self, symbol):
