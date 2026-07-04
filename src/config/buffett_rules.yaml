@@ -1,0 +1,18 @@
+
+roe:
+	excellent: 20
+	good: 15
+	average: 10
+	poor: 5
+
+per:
+	excellent: 15
+	good: 20
+	average: 30
+	poor: 40
+
+pbr:
+	excellent: 3
+	good: 5
+	average: 8
+	poor: 10
