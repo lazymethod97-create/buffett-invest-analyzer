@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from data_fetcher import get_stock_data, format_value
 from scoring_engine import calculate_buffett_score
 from report import create_radar_chart, create_score_bar
+from ai_analysis import generate_ai_analysis
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -83,7 +84,25 @@ if analyze_button and ticker_input:
     st.plotly_chart(create_radar_chart(score_result["details"]), use_container_width=True)
 
     st.divider()
+
+    st.subheader("🤖 AI定性分析")
+
+    analysis = generate_ai_analysis(data, score_result)
+
+    st.info(analysis)
+
+    st.divider()
+
     st.subheader("📋 採点詳細")
+
+    for d in score_result["details"]:
+        icon = "✅" if d["passed"] else "❌"
+        col_a, col_b, col_c, col_d = st.columns([3, 2, 1, 4])
+        col_a.write(f"{icon} **{d['item']}**")
+        col_b.write(f"📊 {d['value']}")
+        col_c.write(f"**{d['score']}/{d['max_score']}点**")
+        col_d.caption(d["comment"])
+        st.divider()
     for d in score_result["details"]:
         icon = "✅" if d["passed"] else "❌"
         col_a, col_b, col_c, col_d = st.columns([3, 2, 1, 4])
