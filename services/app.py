@@ -103,14 +103,6 @@ if analyze_button and ticker_input:
         col_c.write(f"**{d['score']}/{d['max_score']}点**")
         col_d.caption(d["comment"])
         st.divider()
-    for d in score_result["details"]:
-        icon = "✅" if d["passed"] else "❌"
-        col_a, col_b, col_c, col_d = st.columns([3, 2, 1, 4])
-        col_a.write(f"{icon} **{d['item']}**")
-        col_b.write(f"📊 {d['value']}")
-        col_c.write(f"**{d['score']}/{d['max_score']}点**")
-        col_d.caption(d["comment"])
-        st.divider()
 
 elif analyze_button and not ticker_input:
     st.warning("ティッカーシンボルを入力してください。")
