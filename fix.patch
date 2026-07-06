@@ -1,0 +1,29 @@
+diff --git a/requirements.txt b/requirements.txt
+index c66e2e9..e18369b 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,5 +1,5 @@
+ streamlit==1.35.0
+ yfinance==0.2.40
+-pandas==2.2.2
++pandas>=2.2.2
+ plotly==5.22.0
+ requests==2.32.3
+diff --git a/services/app.py b/services/app.py
+index 6e61720..2b96fb1 100644
+--- a/services/app.py
++++ b/services/app.py
+@@ -47,9 +47,10 @@ if analyze_button and ticker_input:
+         result = get_stock_data(ticker_input)
+ 
+     if not result["success"]:
+-        st.error(f"データを取得できませんでした。ティッカーシンボルを確認してください。
+-
+-エラー: {result['error']}")
++        st.error(
++            f"データを取得できませんでした。ティッカーシンボルを確認してください。\n\n"
++            f"エラー: {result['error']}"
++        )
+         st.stop()
+ 
+     data = result["data"]

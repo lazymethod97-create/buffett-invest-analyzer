@@ -47,9 +47,10 @@ if analyze_button and ticker_input:
         result = get_stock_data(ticker_input)
 
     if not result["success"]:
-        st.error(f"データを取得できませんでした。ティッカーシンボルを確認してください。
-
-エラー: {result['error']}")
+        st.error(
+            f"データを取得できませんでした。ティッカーシンボルを確認してください。\n\n"
+            f"エラー: {result['error']}"
+        )
         st.stop()
 
     data = result["data"]
