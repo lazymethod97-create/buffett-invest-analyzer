@@ -36,7 +36,7 @@ streamlit run app.py
 - ROICと自社株買いの実施有無は無料APIでは取得しづらいため、代わりにROAとPBRで代替している。
 
 ## 次にやること（Next Tasks / Version 0.4以降）
-- [ ] AI定性分析の追加
+- [×] AI定性分析の追加
 - [ ] ニュース取得・要約
 - [ ] PDFレポート出力
 - [ ] 分析履歴の保存（SQLite）
