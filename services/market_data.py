@@ -1,29 +1,15 @@
-"""
-Market data service.
+# services/market_data.py
 
-Version: 0.3.3
-"""
-
-import yfinance as yf
-
-
-def get_company_name(ticker: str) -> str:
+def get_financial_data(ticker: str):
     """
-    銘柄コードから企業名を取得する。
+    指定されたティッカーの財務データを取得する関数（テスト用スタブ）
     """
-
-    ticker = ticker.strip().upper()
-
-    # 日本株なら .T を付与
-    if ticker.isdigit():
-        ticker = f"{ticker}.T"
-
-    stock = yf.Ticker(ticker)
-
-    try:
-        info = stock.info
-
-        return info.get("longName") or info.get("shortName") or "企業名が取得できませんでした"
-
-    except Exception:
-        return "企業情報を取得できませんでした"
+    print(f"DEBUG: get_financial_data が {ticker} で呼び出されました。")
+    
+    # テスト用のダミーデータ（エラーが出なくなったら実際のAPI処理などに書き換えてください）
+    return {
+        "ticker": ticker,
+        "roe": 15.5,
+        "eps": 5.20,
+        "debt_to_equity": 0.4
+    }
