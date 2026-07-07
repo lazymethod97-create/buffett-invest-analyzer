@@ -8,6 +8,7 @@ from data_fetcher import get_stock_data, format_value
 from scoring_engine import calculate_buffett_score
 from report import create_radar_chart, create_score_bar
 from ai_analysis import generate_ai_analysis
+from news_fetcher import get_latest_news
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -54,9 +55,10 @@ if analyze_button and ticker_input:
         )
         st.stop()
 
-    data = result["data"]
-    score_result = calculate_buffett_score(data)
-    currency = "¥" if data.get("country") == "Japan" else "$"
+data = result["data"]
+score_result = calculate_buffett_score(data)
+news = get_latest_news(data["ticker"])
+currency = "¥" if data.get("country") == "Japan" else "$"
 
     st.subheader(f"🏢 {data['company_name']}")
     c1, c2, c3, c4 = st.columns(4)
@@ -85,15 +87,32 @@ if analyze_button and ticker_input:
 
     st.divider()
 
-    st.subheader("🤖 AI定性分析")
+st.subheader("🤖 AI定性分析")
 
-    analysis = generate_ai_analysis(data, score_result)
+analysis = generate_ai_analysis(data, score_result)
 
-    st.info(analysis)
+st.info(analysis)
 
-    st.divider()
+st.divider()
 
-    st.subheader("📋 採点詳細")
+st.subheader("📰 最新ニュース")
+
+if news:
+
+    for article in news:
+
+        st.markdown(f"**• {article['title']}**")
+
+        if article["publisher"]:
+            st.caption(article["publisher"])
+
+else:
+
+    st.info("ニュースは取得できませんでした。")
+
+st.divider()
+
+st.subheader("📋 採点詳細")
 
     for d in score_result["details"]:
         icon = "✅" if d["passed"] else "❌"
