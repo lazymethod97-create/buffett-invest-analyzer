@@ -94,3 +94,49 @@ def generate_rule_analysis(data, score_result):
         comments.append("現時点では慎重な判断が望まれます。")
 
     return "\n\n".join(comments)
+def generate_news_summary(news):
+
+    if not news:
+        return "ニュースは取得できませんでした。"
+
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+
+        return "OpenAI APIキーが設定されていないためニュース要約は利用できません。"
+
+    try:
+
+        client = OpenAI(api_key=api_key)
+
+        titles = ""
+
+        for article in news:
+            titles += f"- {article['title']}\n"
+
+        prompt = f"""
+あなたはプロの証券アナリストです。
+
+以下は企業の最新ニュースです。
+
+{titles}
+
+300文字以内で
+
+・最近何が起きたか
+・株価への影響
+・長期投資への影響
+
+を日本語で要約してください。
+"""
+
+        response = client.responses.create(
+            model="gpt-5",
+            input=prompt
+        )
+
+        return response.output_text
+
+    except Exception as e:
+
+        return str(e)
