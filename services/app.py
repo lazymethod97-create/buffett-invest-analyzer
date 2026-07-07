@@ -2,6 +2,10 @@ import streamlit as st
 import sys
 import os
 
+from ai_analysis import (
+    generate_ai_analysis,
+    generate_news_summary,
+)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from data_fetcher import get_stock_data, format_value
@@ -104,7 +108,14 @@ if analyze_button and ticker_input:
 				st.caption(article["publisher"])
 	else:
 		st.info("ニュースは取得できませんでした。")
+		
+	st.divider()
 
+	st.subheader("🤖 AIニュース要約")
+
+	summary = generate_news_summary(news)
+
+	st.success(summary)
 	st.divider()
 
 	st.subheader("📋 採点詳細")
