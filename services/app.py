@@ -1,3 +1,9 @@
+from dotenv import load_dotenv
+load_dotenv()  # これを追加
+
+import os
+from google import genai
+# 以下は元のコードのまま#
 import streamlit as st
 import sys
 import os
