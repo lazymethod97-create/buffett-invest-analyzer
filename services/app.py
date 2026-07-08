@@ -1,12 +1,9 @@
 from dotenv import load_dotenv
-load_dotenv()  # これを追加
+load_dotenv()
 
 import os
-from google import genai
-# 以下は元のコードのまま#
-import streamlit as st
 import sys
-import os
+import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
