@@ -30,7 +30,7 @@ Version 0.3.0
 - Python
 - Streamlit
 - yfinance
-- OpenAI API
+- GenAI API
 - pandas
 
 ---

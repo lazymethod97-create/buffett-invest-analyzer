@@ -1,21 +1,21 @@
 import os
-from openai import OpenAI
+from google import genai
 
 
 def generate_ai_analysis(data, score_result):
     """
-    OpenAI APIが設定されていればGPTで分析、
+    GEMINI APIが設定されていればgeminiで分析、
     設定されていなければルールベース分析を返す。
     """
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
     # APIキーが無い場合
     if not api_key:
         return generate_rule_analysis(data, score_result)
 
     try:
-        client = OpenAI(api_key=api_key)
+        client = genai.Client(api_key=api_key)
 
         prompt = f"""
 あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
@@ -45,12 +45,12 @@ Buffett Score：
 を日本語で説明してください。
 """
 
-        response = client.responses.create(
-            model="gpt-5",
-            input=prompt,
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
         )
 
-        return response.output_text
+        return response.text
 
     except Exception:
 
@@ -94,20 +94,22 @@ def generate_rule_analysis(data, score_result):
         comments.append("現時点では慎重な判断が望まれます。")
 
     return "\n\n".join(comments)
+
+
 def generate_news_summary(news):
 
     if not news:
         return "ニュースは取得できませんでした。"
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
 
-        return "OpenAI APIキーが設定されていないためニュース要約は利用できません。"
+        return "GEMINI APIキーが設定されていないためニュース要約は利用できません。"
 
     try:
 
-        client = OpenAI(api_key=api_key)
+        client = genai.Client(api_key=api_key)
 
         titles = ""
 
@@ -130,12 +132,12 @@ def generate_news_summary(news):
 を日本語で要約してください。
 """
 
-        response = client.responses.create(
-            model="gpt-5",
-            input=prompt
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
         )
 
-        return response.output_text
+        return response.text
 
     except Exception as e:
 
