@@ -97,51 +97,37 @@ def generate_rule_analysis(data, score_result):
 
 
 def generate_news_summary(news):
-
     if not news:
         return "ニュースは取得できませんでした。"
 
     api_key = os.getenv("GEMINI_API_KEY")
-
     if not api_key:
         return "Gemini APIキーが設定されていません。"
 
-    client = genai.Client(api_key=api_key)
+    try:
+        client = genai.Client(api_key=api_key)
+        news_text = ""
+        for article in news:
+            # for の内部は必ずインデントする（スペース4つ推奨）
+            news_text += f"タイトル: {article['title']}\n"
 
-    news_text = ""
+        prompt = f"""
+        あなたはウォーレン・バフェットの投資アナリストです。
+        以下は企業の最新ニュースです。
+        {news_text}
+        次の形式で日本語で回答してください。
+        【ニュース要約】 150文字以内
+        【株価への短期影響】
+        【長期投資への影響】
+        【Buffett視点】
+        ★★★★★で重要度も付けてください。
+        """
 
-    for article in news:
-        news_text += (
-            f"タイトル: {article['title']}\n"
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
         )
+        return response.text
 
-    prompt = f"""
-あなたはウォーレン・バフェットの投資アナリストです。
-
-以下は企業の最新ニュースです。
-
-{news_text}
-
-次の形式で日本語で回答してください。
-
-【ニュース要約】
-150文字以内
-
-【株価への短期影響】
-
-【長期投資への影響】
-
-【Buffett視点】
-
-★★★★★で重要度も付けてください。
-"""
-
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
-
-    return response.text
     except Exception as e:
-
         return str(e)
