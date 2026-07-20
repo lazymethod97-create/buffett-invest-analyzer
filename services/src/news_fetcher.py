@@ -1,32 +1,32 @@
-import yfinance as yf
+import feedparser
+from urllib.parse import quote
 
 
-def get_latest_news(ticker):
+def get_latest_news(company_name):
+	"""
+	Google News RSSから企業名でニュースを取得
+	"""
 
-    if ticker.isdigit() and len(ticker) == 4:
-        ticker += ".T"
+	query = quote(company_name)
 
-    try:
+	url = (
+		f"https://news.google.com/rss/search?"
+		f"q={query}&hl=ja&gl=JP&ceid=JP:ja"
+	)
 
-        stock = yf.Ticker(ticker)
+	feed = feedparser.parse(url)
 
-        news = stock.news
+	news = []
 
-        if not news:
-            return []
+	for entry in feed.entries[:5]:
+		news.append(
+			{
+				"title": entry.title,
+				"publisher": getattr(entry, "source", {}).get("title", ""),
+				"link": entry.link,
+			}
+		)
 
-        result = []
+	return news
 
-        for article in news[:5]:
 
-            result.append({
-                "title": article.get("title", ""),
-                "publisher": article.get("publisher", ""),
-                "link": article.get("link", "")
-            })
-
-        return result
-
-    except Exception:
-
-        return []

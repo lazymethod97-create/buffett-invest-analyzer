@@ -104,41 +104,44 @@ def generate_news_summary(news):
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
+        return "Gemini APIキーが設定されていません。"
 
-        return "GEMINI APIキーが設定されていないためニュース要約は利用できません。"
+    client = genai.Client(api_key=api_key)
 
-    try:
+    news_text = ""
 
-        client = genai.Client(api_key=api_key)
+    for article in news:
+        news_text += (
+            f"タイトル: {article['title']}\n"
+        )
 
-        titles = ""
-
-        for article in news:
-            titles += f"- {article['title']}\n"
-
-        prompt = f"""
-あなたはプロの証券アナリストです。
+    prompt = f"""
+あなたはウォーレン・バフェットの投資アナリストです。
 
 以下は企業の最新ニュースです。
 
-{titles}
+{news_text}
 
-300文字以内で
+次の形式で日本語で回答してください。
 
-・最近何が起きたか
-・株価への影響
-・長期投資への影響
+【ニュース要約】
+150文字以内
 
-を日本語で要約してください。
+【株価への短期影響】
+
+【長期投資への影響】
+
+【Buffett視点】
+
+★★★★★で重要度も付けてください。
 """
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
 
-        return response.text
-
+    return response.text
     except Exception as e:
 
         return str(e)

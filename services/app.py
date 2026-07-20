@@ -65,7 +65,7 @@ if analyze_button and ticker_input:
 
     data = result["data"]
     score_result = calculate_buffett_score(data)
-    news = get_latest_news(data["ticker"])
+    news = get_latest_news(data["company_name"])
     currency = "¥" if data.get("country") == "Japan" else "$"
 
     st.subheader(f"🏢 {data['company_name']}")
