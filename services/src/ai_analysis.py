@@ -107,19 +107,42 @@ def generate_news_summary(news):
     try:
         client = genai.Client(api_key=api_key)
         news_text = ""
-        for article in news:
-            # for の内部は必ずインデントする（スペース4つ推奨）
-            news_text += f"タイトル: {article['title']}\n"
 
+        for article in news:
+
+            news_text += f"""
+        タイトル
+        {article['title']}
+
+        本文
+        {article.get('content','')}
+
+        -----------------------
+    
+        """
         prompt = f"""
-        あなたはウォーレン・バフェットの投資アナリストです。
+        あなたはウォーレン・バフェットです。
+
         以下は企業の最新ニュースです。
+
         {news_text}
-        次の形式で日本語で回答してください。
-        【ニュース要約】 150文字以内
-        【株価への短期影響】
-        【長期投資への影響】
-        【Buffett視点】
+
+        以下の形式で回答してください。
+
+        ## ニュース要約
+
+        200文字以内
+
+        ## ポジティブ要因
+
+        ## ネガティブ要因
+
+        ## 株価への短期影響
+
+        ## 長期投資への影響
+
+        ## Buffettならどう考えるか
+
         ★★★★★で重要度も付けてください。
         """
 

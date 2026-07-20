@@ -1,32 +1,39 @@
 import feedparser
 from urllib.parse import quote
+from newspaper import Article
 
 
 def get_latest_news(company_name):
-	"""
-	Google News RSSから企業名でニュースを取得
-	"""
+    query = quote(company_name)
 
-	query = quote(company_name)
+    url = (
+        f"https://news.google.com/rss/search?"
+        f"q={query}&hl=ja&gl=JP&ceid=JP:ja"
+    )
 
-	url = (
-		f"https://news.google.com/rss/search?"
-		f"q={query}&hl=ja&gl=JP&ceid=JP:ja"
-	)
+    feed = feedparser.parse(url)
 
-	feed = feedparser.parse(url)
+    news = []
 
-	news = []
+    for entry in feed.entries[:5]:
 
-	for entry in feed.entries[:5]:
-		news.append(
-			{
-				"title": entry.title,
-				"publisher": getattr(entry, "source", {}).get("title", ""),
-				"link": entry.link,
-			}
-		)
+        article_text = ""
 
-	return news
+        try:
+            article = Article(entry.link, language="ja")
+            article.download()
+            article.parse()
+            article_text = article.text[:4000]
+        except Exception:
+            article_text = ""
 
+        news.append(
+            {
+                "title": entry.title,
+                "publisher": getattr(entry, "source", {}).get("title", ""),
+                "link": entry.link,
+                "content": article_text,
+            }
+        )
 
+    return news

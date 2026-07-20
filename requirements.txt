@@ -6,3 +6,5 @@ requests==2.32.3
 google-genai
 python-dotenv
 feedparser
+newspaper4k
+lxml_html_clean
