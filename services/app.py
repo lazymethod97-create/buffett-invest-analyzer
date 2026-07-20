@@ -10,10 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from data_fetcher import get_stock_data, format_value
 from scoring_engine import calculate_buffett_score
 from report import create_radar_chart, create_score_bar
-from ai_analysis import (
-    generate_ai_analysis,
-    generate_news_summary,
-)
+from ai_analysis import generate_news_summary
 from news_fetcher import get_latest_news
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
@@ -93,12 +90,12 @@ if analyze_button and ticker_input:
 
     st.divider()
 
-    st.subheader("🤖 AI定性分析")
+st.subheader("🤖 AI定性分析")
 
-    analysis = generate_ai_analysis(data, score_result)
+analysis = generate_ai_analysis(data, score_result)
 
-    st.info(analysis)
-
+st.info(analysis)
+    
     st.divider()
 
     st.subheader("📰 最新ニュース")
