@@ -141,4 +141,4 @@ elif analyze_button and not ticker_input:
 
 st.divider()
 st.caption("⚠️ このアプリは投資の参考情報を提供するものです。実際の投資判断はご自身の責任で行ってください。")
-st.caption("データソース: Yahoo Finance (yfinance)")
+st.caption("データソース: Google RSS")
