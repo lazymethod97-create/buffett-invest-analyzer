@@ -1,46 +1,369 @@
-# AI引継ぎ文書 / AI Handover Document
+# Buffett Investment Analyzer 引継ぎ書
 
 ## プロジェクト概要
-ウォーレン・バフェットの投資基準に基づいて株式を評価するWebアプリ。
 
-## GitHub
+GitHub
 https://github.com/lazymethod97-create/buffett-invest-analyzer
 
-## 技術スタック
-- Python 3.11+ / Streamlit / yfinance / Plotly
+目的
 
-## ファイル構成
-buffett-invest-analyzer/
-├── app.py
-├── requirements.txt
-├── src/ (__init__.py, data_fetcher.py, scoring_engine.py, report.py)
-└── docs/AI_HANDOVER.md
+「ウォーレン・バフェットならこの会社へ投資するか？」
 
-## 起動方法
-python -m venv venv
-venv\Scripts\activate （Macは source venv/bin/activate）
-pip install -r requirements.txt
-streamlit run app.py
+をAIで分析するWebアプリ。
 
-## AI開発の厳守ルール（これまでの反省から）
-1. 推測でコードを書かない。既存のファイル構成と変数名を必ず確認する。
-2. 1 Sprint = 1機能。一度に複数の機能を詰め込まない。
-3. 変更するファイルは最大2つまで。
-4. 省略記号（...）を使わず、必ずファイル全体の完成版コードを提示する。
-5. UI（app.py）とロジック（src/以下）は分離を維持する。
-6. 動作確認が取れたコードのみ提示し、確認後にGitHubへコミットする。
+対象
 
-## 既知の制限事項（次のSprintで改善予定）
-- 時価総額の表示単位は現状「B（十億）」固定。日本株は本来「兆円」表示が自然。
-- debtToEquityの値はyfinance側で単位が揺れる（100の倍率で返る場合とそうでない場合がある）ため、100超の場合のみ100で割る簡易補正をしている。
-- ROICと自社株買いの実施有無は無料APIでは取得しづらいため、代わりにROAとPBRで代替している。
+・日本株
+・米国株
 
-## 次にやること（Next Tasks / Version 0.4以降）
-- [×] AI定性分析の追加
-- [ ] ニュース取得・要約
-- [ ] PDFレポート出力
-- [ ] 分析履歴の保存（SQLite）
-- [ ] お気に入り銘柄リスト
+フレームワーク
 
-## 現在のバージョン
-v0.3.0（MVP完成版）
+Streamlit
+
+AI
+
+Gemini API (google-genai)
+
+OpenAIは使用しない。
+あなたはBuffett Investment Analyzerの主任ソフトウェアエンジニアです。
+
+このプロジェクトでは以下を厳守してください。
+
+・初心者向けに説明する
+・一度に1機能だけ作る
+・必ず完成イメージを最初に示す
+・クリックする場所まで説明する
+・GitHubへコミットするタイミングも指示する
+・AIリレー開発を前提とする
+・既存コードを壊さない
+・リファクタリングは理由を説明してから行う
+
+---
+
+# 現在の完成状況
+
+## 完成済み
+
+✅ Streamlit画面
+
+✅ yfinanceで財務取得
+
+✅ Buffett Score算出
+
+・ROE
+・営業利益率
+・D/E
+・PER
+・PBR
+・ROA
+・FCF
+・売上成長率
+
+100点満点評価
+
+---
+
+✅ レーダーチャート
+
+Plotly
+
+---
+
+✅ スコアバー
+
+---
+
+✅ Gemini API連携
+
+google-genai使用
+
+.envから
+
+GEMINI_API_KEY
+
+を取得。
+
+---
+
+✅ AI企業分析
+
+generate_ai_analysis()
+
+Geminiへ
+
+・会社概要
+・財務指標
+・Buffett Score
+
+を渡して日本語分析を返す。
+
+APIキーが無い場合は
+
+generate_rule_analysis()
+
+へフォールバック。
+
+---
+
+✅ AIニュース要約
+
+generate_news_summary()
+
+Geminiで要約。
+
+---
+
+# 現在の問題
+
+ニュース取得
+
+現在
+
+news_fetcher.py
+
+では
+
+yfinance
+
+stock.news
+
+を利用していたが、
+
+2025以降かなり不安定。
+
+日本株はほぼ取得できない。
+
+そのため
+
+news
+
+が空になる。
+
+Geminiは正常動作している。
+
+つまり
+
+APIキー
+
+Gemini
+
+には問題無し。
+
+---
+
+# 次に実装する内容
+
+yfinanceニュース取得を廃止。
+
+Google News RSSへ変更。
+
+---
+
+news_fetcher.py
+
+Google News RSS
+
+↓
+
+企業名検索
+
+↓
+
+タイトル取得
+
+↓
+
+記事URL取得
+
+↓
+
+記事本文取得(newspaper4k)
+
+↓
+
+Geminiへ本文も渡す
+
+---
+
+希望する流れ
+
+Google News RSS
+
+↓
+
+newspaper4k
+
+↓
+
+記事本文抽出
+
+↓
+
+Gemini
+
+↓
+
+ニュース要約
+
+↓
+
+Buffettコメント
+
+---
+
+# プロジェクト構成
+
+buffett-invest-analyzer
+
+├── .env
+
+├── .gitignore
+
+├── services
+
+│   ├── app.py
+
+│   └── src
+
+│        ├── ai_analysis.py
+
+│        ├── news_fetcher.py
+
+│        ├── data_fetcher.py
+
+│        ├── scoring_engine.py
+
+│        ├── report.py
+
+│        └── ...
+
+└── docs
+
+---
+
+# .env
+
+プロジェクトルート
+
+/.env
+
+のみ使用。
+
+内容
+
+GEMINI_API_KEY=xxxxxxxxxxxxxxxx
+
+---
+
+# .gitignore
+
+.env
+
+を除外。
+
+GitHubへAPIキーはアップロードしない。
+
+---
+
+# requirements.txt
+
+必要
+
+streamlit
+
+yfinance
+
+pandas
+
+plotly
+
+google-genai
+
+python-dotenv
+
+feedparser
+
+newspaper4k
+
+lxml_html_clean
+
+---
+
+# app.py
+
+ニュース取得は
+
+news = get_latest_news(data["company_name"])
+
+を使用。
+
+ティッカーではなく会社名検索。
+
+---
+
+# 今後のロードマップ
+
+Version1.0
+
+・Google News RSS
+・Geminiニュース要約
+・AI企業分析
+・Buffett Score
+・レーダーチャート
+・PDF出力
+
+Version1.1
+
+・記事本文取得
+
+・MOAT評価
+
+・ブランド力
+
+・価格決定力
+
+・経営者評価
+
+・Buffettなら買うか
+
+Version2.0
+
+・決算短信読込
+
+・有価証券報告書読込
+
+・適正株価
+
+・DCF
+
+・ROIC
+
+・業界比較
+
+・ランキング
+
+・ウォッチリスト
+
+・お気に入り銘柄
+
+---
+
+# 開発方針
+
+コードは必ず
+
+「コピペでそのまま動く完成コード」
+
+を提示すること。
+
+部分修正ではなく
+
+ファイル全体を書き換えられる形で提示する。
+
+初心者でも作業できるよう
+
+変更箇所と理由を説明する。
+
+OpenAI APIは使用しない。
+
+Gemini APIのみ使用する。
