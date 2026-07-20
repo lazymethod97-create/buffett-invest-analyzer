@@ -1,193 +1,102 @@
-# Buffett Investment Analyzer 引継ぎ書
+# Buffett Investment Analyzer 引継ぎ書（Sprint2完了）
 
-## プロジェクト概要
+## GitHub
 
-GitHub
 https://github.com/lazymethod97-create/buffett-invest-analyzer
 
-目的
+---
+
+# プロジェクト概要
+
+## 目的
 
 「ウォーレン・バフェットならこの会社へ投資するか？」
 
-をAIで分析するWebアプリ。
+をAIと財務分析で可視化するWebアプリ。
 
-対象
+対象市場
 
-・日本株
-・米国株
+* 日本株
+* 米国株
 
 フレームワーク
 
-Streamlit
+* Streamlit
 
 AI
 
-Gemini API (google-genai)
+* Gemini API（google-genai）
+* OpenAI APIは使用しない
 
-OpenAIは使用しない。
-あなたはBuffett Investment Analyzerの主任ソフトウェアエンジニアです。
+---
 
-このプロジェクトでは以下を厳守してください。
+# 開発ルール
 
-・初心者向けに説明する
-・一度に1機能だけ作る
-・必ず完成イメージを最初に示す
-・クリックする場所まで説明する
-・GitHubへコミットするタイミングも指示する
-・AIリレー開発を前提とする
-・既存コードを壊さない
-・リファクタリングは理由を説明してから行う
+このプロジェクトでは以下を厳守する。
+
+* 初心者向けに説明する
+* 一度に1機能だけ開発する
+* 必ず完成イメージを最初に示す
+* VSCodeでクリックする場所まで説明する
+* GitHubへコミットするタイミングを指示する
+* AIリレー開発を前提とする
+* 既存コードを壊さない
+* リファクタリングは理由を説明してから行う
+* コードは必ずファイル全体をコピペできる完成版で提示する
 
 ---
 
 # 現在の完成状況
 
-## 完成済み
+## Sprint1
 
-✅ Streamlit画面
+### 財務分析
 
-✅ yfinanceで財務取得
-
-✅ Buffett Score算出
-
-・ROE
-・営業利益率
-・D/E
-・PER
-・PBR
-・ROA
-・FCF
-・売上成長率
+* yfinanceで企業情報取得
+* Buffett Score算出
+* ROE
+* ROA
+* 営業利益率
+* D/E
+* PER
+* PBR
+* FCF
+* 売上成長率
 
 100点満点評価
 
 ---
 
-✅ レーダーチャート
+### グラフ
 
-Plotly
-
----
-
-✅ スコアバー
+* Plotlyレーダーチャート
+* スコアバー
 
 ---
 
-✅ Gemini API連携
+### AI企業分析
 
-google-genai使用
+Gemini APIを利用。
 
-.envから
-
-GEMINI_API_KEY
-
-を取得。
-
----
-
-✅ AI企業分析
-
-generate_ai_analysis()
-
-Geminiへ
-
-・会社概要
-・財務指標
-・Buffett Score
-
-を渡して日本語分析を返す。
-
-APIキーが無い場合は
+APIキー未設定時は
 
 generate_rule_analysis()
 
-へフォールバック。
+へ自動フォールバック。
 
 ---
 
-✅ AIニュース要約
+### ニュース取得
 
-generate_news_summary()
+yfinance.newsは廃止済み。
 
-Geminiで要約。
-
----
-
-# 現在の問題
-
-ニュース取得
-
-現在
-
-news_fetcher.py
-
-では
-
-yfinance
-
-stock.news
-
-を利用していたが、
-
-2025以降かなり不安定。
-
-日本株はほぼ取得できない。
-
-そのため
-
-news
-
-が空になる。
-
-Geminiは正常動作している。
-
-つまり
-
-APIキー
-
-Gemini
-
-には問題無し。
-
----
-
-# 次に実装する内容
-
-yfinanceニュース取得を廃止。
-
-Google News RSSへ変更。
-
----
-
-news_fetcher.py
+現在は
 
 Google News RSS
 
 ↓
 
-企業名検索
-
-↓
-
-タイトル取得
-
-↓
-
-記事URL取得
-
-↓
-
-記事本文取得(newspaper4k)
-
-↓
-
-Geminiへ本文も渡す
-
----
-
-希望する流れ
-
-Google News RSS
+feedparser
 
 ↓
 
@@ -195,175 +104,147 @@ newspaper4k
 
 ↓
 
-記事本文抽出
+記事本文取得
 
-↓
+まで実装済み。
 
-Gemini
-
-↓
-
-ニュース要約
-
-↓
-
-Buffettコメント
+会社名検索でニュースを取得する。
 
 ---
 
-# プロジェクト構成
+### AIニュース分析
 
+generate_news_summary()
+
+でGeminiへ
+
+* タイトル
+* 記事本文
+
+を渡して分析する。
+
+Sprint2でプロンプトを改善し、以下の観点で分析するようになった。
+
+* ニュース要約
+* 重要ニュース
+* ポジティブ要因
+* ネガティブ要因
+* MOATへの影響
+* ブランド力への影響
+* 価格決定力への影響
+* 経営陣への印象
+* 短期株価への影響
+* 長期投資への影響
+* Buffettならどう考えるか
+* 買い／様子見／見送り
+
+---
+
+# 現在の構成
+
+```text
 buffett-invest-analyzer
 
 ├── .env
-
 ├── .gitignore
+├── requirements.txt
 
 ├── services
-
 │   ├── app.py
-
 │   └── src
-
-│        ├── ai_analysis.py
-
-│        ├── news_fetcher.py
-
-│        ├── data_fetcher.py
-
-│        ├── scoring_engine.py
-
-│        ├── report.py
-
-│        └── ...
+│       ├── ai_analysis.py
+│       ├── news_fetcher.py
+│       ├── data_fetcher.py
+│       ├── scoring_engine.py
+│       ├── report.py
+│       └── ...
 
 └── docs
-
----
-
-# .env
-
-プロジェクトルート
-
-/.env
-
-のみ使用。
-
-内容
-
-GEMINI_API_KEY=xxxxxxxxxxxxxxxx
-
----
-
-# .gitignore
-
-.env
-
-を除外。
-
-GitHubへAPIキーはアップロードしない。
+```
 
 ---
 
 # requirements.txt
 
-必要
+使用ライブラリ
 
-streamlit
-
-yfinance
-
-pandas
-
-plotly
-
-google-genai
-
-python-dotenv
-
-feedparser
-
-newspaper4k
-
-lxml_html_clean
+* streamlit
+* yfinance
+* pandas
+* plotly
+* google-genai
+* python-dotenv
+* feedparser
+* newspaper4k
+* lxml_html_clean
 
 ---
 
-# app.py
+# .env
 
-ニュース取得は
+プロジェクトルートのみ。
 
-news = get_latest_news(data["company_name"])
+```text
+GEMINI_API_KEY=xxxxxxxxxxxxxxxx
+```
 
-を使用。
-
-ティッカーではなく会社名検索。
-
----
-
-# 今後のロードマップ
-
-Version1.0
-
-・Google News RSS
-・Geminiニュース要約
-・AI企業分析
-・Buffett Score
-・レーダーチャート
-・PDF出力
-
-Version1.1
-
-・記事本文取得
-
-・MOAT評価
-
-・ブランド力
-
-・価格決定力
-
-・経営者評価
-
-・Buffettなら買うか
-
-Version2.0
-
-・決算短信読込
-
-・有価証券報告書読込
-
-・適正株価
-
-・DCF
-
-・ROIC
-
-・業界比較
-
-・ランキング
-
-・ウォッチリスト
-
-・お気に入り銘柄
+GitHubへアップロードしない。
 
 ---
 
-# 開発方針
+# 次回のSprint
 
-コードは必ず
+## Sprint3
 
-「コピペでそのまま動く完成コード」
+目的
 
-を提示すること。
+ニュース分析を文章だけではなく数値化する。
 
-部分修正ではなく
+実装予定
 
-ファイル全体を書き換えられる形で提示する。
+* MOATスコア（0〜100）
+* ブランド力評価（A〜E）
+* 価格決定力評価（A〜E）
+* 経営者評価（A〜E）
+* Buffettなら買う確率（%）
+* AI評価カードの表示
 
-初心者でも作業できるよう
+既存コードを壊さずに追加実装する。
 
-変更箇所と理由を説明する。
+---
 
-OpenAI APIは使用しない。
+# Version1.0 完成予定
 
-Gemini APIのみ使用する。
+* Buffett Score
+* AI企業分析
+* Google News RSS
+* newspaper4k本文取得
+* AIニュース分析
+* レーダーチャート
+* スコアバー
+* PDF出力
+
+---
+
+# Version1.1
+
+* MOAT評価
+* ブランド力
+* 価格決定力
+* 経営者評価
+* Buffettなら買うか
+* AI評価カード
+
+---
+
+# Version2.0
+
+* 決算短信読込
+* 有価証券報告書読込
+* DCF評価
+* ROIC
+* 適正株価
+* 業界比較
+* ランキング
+* ウォッチリスト
+* お気に入り銘柄
