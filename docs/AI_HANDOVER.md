@@ -1,96 +1,50 @@
-# Buffett Investment Analyzer 引継ぎ書（Sprint2完了）
+# AI_HANDOVER.md
 
-## GitHub
+# Buffett Investment Analyzer 引継ぎ書
 
-https://github.com/lazymethod97-create/buffett-invest-analyzer
+## 現在のバージョン
 
----
+Version 2 開発開始
 
-# プロジェクト概要
-
-## 目的
-
-「ウォーレン・バフェットならこの会社へ投資するか？」
-
-をAIと財務分析で可視化するWebアプリ。
-
-対象市場
-
-* 日本株
-* 米国株
-
-フレームワーク
-
-* Streamlit
-
-AI
-
-* Gemini API（google-genai）
-* OpenAI APIは使用しない
+Version1 基本機能は完成。
 
 ---
 
-# 開発ルール
+# Version1 完成済み
 
-このプロジェクトでは以下を厳守する。
+## 財務分析
 
-* 初心者向けに説明する
-* 一度に1機能だけ開発する
-* 必ず完成イメージを最初に示す
-* VSCodeでクリックする場所まで説明する
-* GitHubへコミットするタイミングを指示する
-* AIリレー開発を前提とする
-* 既存コードを壊さない
-* リファクタリングは理由を説明してから行う
-* コードは必ずファイル全体をコピペできる完成版で提示する
-
----
-
-# 現在の完成状況
-
-## Sprint1
-
-### 財務分析
-
-* yfinanceで企業情報取得
-* Buffett Score算出
+* Buffett Score
 * ROE
 * ROA
-* 営業利益率
-* D/E
 * PER
 * PBR
-* FCF
+* D/E
+* 営業利益率
+* フリーキャッシュフロー
 * 売上成長率
-
-100点満点評価
 
 ---
 
-### グラフ
+## 可視化
 
-* Plotlyレーダーチャート
+* レーダーチャート
+
 * スコアバー
 
 ---
 
-### AI企業分析
+## AI分析
 
-Gemini APIを利用。
+Gemini API
 
-APIキー未設定時は
+企業分析
 
-generate_rule_analysis()
-
-へ自動フォールバック。
+ニュース分析
 
 ---
 
-### ニュース取得
-
-yfinance.newsは廃止済み。
-
-現在は
+## ニュース
 
 Google News RSS
 
@@ -106,145 +60,169 @@ newspaper4k
 
 記事本文取得
 
-まで実装済み。
+↓
 
-会社名検索でニュースを取得する。
+Gemini分析
 
 ---
 
-### AIニュース分析
+## AIニュース分析
 
-generate_news_summary()
-
-でGeminiへ
-
-* タイトル
-* 記事本文
-
-を渡して分析する。
-
-Sprint2でプロンプトを改善し、以下の観点で分析するようになった。
+分析内容
 
 * ニュース要約
-* 重要ニュース
 * ポジティブ要因
 * ネガティブ要因
 * MOATへの影響
 * ブランド力への影響
 * 価格決定力への影響
-* 経営陣への印象
-* 短期株価への影響
-* 長期投資への影響
+* 経営者評価
+* 短期影響
+* 長期影響
 * Buffettならどう考えるか
-* 買い／様子見／見送り
 
 ---
 
-# 現在の構成
+# Version2
 
-```text
-buffett-invest-analyzer
-
-├── .env
-├── .gitignore
-├── requirements.txt
-
-├── services
-│   ├── app.py
-│   └── src
-│       ├── ai_analysis.py
-│       ├── news_fetcher.py
-│       ├── data_fetcher.py
-│       ├── scoring_engine.py
-│       ├── report.py
-│       └── ...
-
-└── docs
-```
+現在開発中
 
 ---
 
-# requirements.txt
+## Sprint1
 
-使用ライブラリ
+Buffett Investment Checklist
 
-* streamlit
-* yfinance
-* pandas
-* plotly
-* google-genai
-* python-dotenv
-* feedparser
-* newspaper4k
-* lxml_html_clean
+未実装
+
+最優先で開発する。
 
 ---
 
-# .env
+## Sprint2
 
-プロジェクトルートのみ。
+MOAT評価
 
-```text
-GEMINI_API_KEY=xxxxxxxxxxxxxxxx
-```
-
-GitHubへアップロードしない。
+未実装
 
 ---
-
-# 次回のSprint
 
 ## Sprint3
 
-目的
+ブランド力評価
 
-ニュース分析を文章だけではなく数値化する。
-
-実装予定
-
-* MOATスコア（0〜100）
-* ブランド力評価（A〜E）
-* 価格決定力評価（A〜E）
-* 経営者評価（A〜E）
-* Buffettなら買う確率（%）
-* AI評価カードの表示
-
-既存コードを壊さずに追加実装する。
+未実装
 
 ---
 
-# Version1.0 完成予定
+## Sprint4
 
-* Buffett Score
-* AI企業分析
-* Google News RSS
-* newspaper4k本文取得
-* AIニュース分析
-* レーダーチャート
-* スコアバー
-* PDF出力
+経営者評価
+
+未実装
 
 ---
 
-# Version1.1
+## Sprint5
 
-* MOAT評価
-* ブランド力
-* 価格決定力
-* 経営者評価
-* Buffettなら買うか
-* AI評価カード
+Red Team AI
+
+未実装
 
 ---
 
-# Version2.0
+## Sprint6
 
-* 決算短信読込
-* 有価証券報告書読込
-* DCF評価
-* ROIC
-* 適正株価
-* 業界比較
-* ランキング
-* ウォッチリスト
-* お気に入り銘柄
+投資仮説管理
+
+未実装
+
+---
+
+## Sprint7
+
+ニュース→確認項目
+
+未実装
+
+---
+
+## Sprint8
+
+判断賞味期限
+
+未実装
+
+---
+
+## Sprint9
+
+投資メモ
+
+未実装
+
+---
+
+## Sprint10
+
+ウォッチリスト
+
+未実装
+
+---
+
+# 次回最初に行うこと
+
+Sprint1
+
+Buffett Investment Checklist
+
+を実装する。
+
+変更予定ファイル
+
+* ai_analysis.py
+* app.py
+* report.py（必要なら）
+
+既存コードは壊さない。
+
+まずChecklistを画面へ表示する。
+
+---
+
+# Git
+
+Sprintごとにコミットする。
+
+例
+
+feat: add Buffett Investment Checklist
+
+---
+
+# AIへの指示
+
+このファイルを読んだら
+
+最初に
+
+1. 現在の完成状況
+
+2. 次Sprint
+
+3. 変更するファイル
+
+4. 完成イメージ
+
+5. 既存コードへ影響しない理由
+
+を説明すること。
+
+ユーザーが
+
+**「進めて」**
+
+と言うまでコードを書いてはいけない。
+
+承認を得てから実装すること。
