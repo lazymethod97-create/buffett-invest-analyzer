@@ -6,26 +6,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = genai.Client(
-	api_key=os.getenv("GEMINI_API_KEY")
+    api_key=os.getenv("GEMINI_API_KEY")
 )
 
 
 def generate_ai_analysis(data, score_result):
-	"""
-	GEMINI APIが設定されていればgeminiで分析、
-	設定されていなければルールベース分析を返す。
-	"""
+    """
+    GEMINI APIが設定されていればgeminiで分析、
+    設定されていなければルールベース分析を返す。
+    """
 
-	api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
 
-	# APIキーが無い場合
-	if not api_key:
-		return generate_rule_analysis(data, score_result)
+    # APIキーが無い場合
+    if not api_key:
+        return generate_rule_analysis(data, score_result)
 
-	try:
-		client = genai.Client(api_key=api_key)
+    try:
+        client = genai.Client(api_key=api_key)
 
-		prompt = f"""
+        prompt = f"""
 あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
 
 以下の企業を分析してください。
@@ -53,71 +53,71 @@ Buffett Score：
 を日本語で説明してください。
 """
 
-		response = client.models.generate_content(
-			model="gemini-2.5-flash",
-			contents=prompt
-		)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
 
-		return response.text
+        return response.text
 
-	except Exception:
+    except Exception:
 
-		return generate_rule_analysis(data, score_result)
+        return generate_rule_analysis(data, score_result)
 
 
 def generate_rule_analysis(data, score_result):
 
-	comments = []
+    comments = []
 
-	roe = data.get("roe")
-	if roe is not None:
-		if roe >= 0.20:
-			comments.append("ROEが非常に高く、資本効率に優れています。")
-		elif roe >= 0.15:
-			comments.append("ROEは良好な水準です。")
-		else:
-			comments.append("ROEはバフェット基準を下回っています。")
+    roe = data.get("roe")
+    if roe is not None:
+        if roe >= 0.20:
+            comments.append("ROEが非常に高く、資本効率に優れています。")
+        elif roe >= 0.15:
+            comments.append("ROEは良好な水準です。")
+        else:
+            comments.append("ROEはバフェット基準を下回っています。")
 
-	op = data.get("operating_margin")
-	if op is not None:
-		if op >= 0.20:
-			comments.append("営業利益率が高く、競争優位性が期待できます。")
-		elif op < 0.10:
-			comments.append("営業利益率が低く、収益性に課題があります。")
+    op = data.get("operating_margin")
+    if op is not None:
+        if op >= 0.20:
+            comments.append("営業利益率が高く、競争優位性が期待できます。")
+        elif op < 0.10:
+            comments.append("営業利益率が低く、収益性に課題があります。")
 
-	fcf = data.get("free_cashflow")
-	if fcf is not None:
-		if fcf > 0:
-			comments.append("フリーキャッシュフローはプラスで、現金創出力があります。")
-		else:
-			comments.append("フリーキャッシュフローがマイナスです。")
+    fcf = data.get("free_cashflow")
+    if fcf is not None:
+        if fcf > 0:
+            comments.append("フリーキャッシュフローはプラスで、現金創出力があります。")
+        else:
+            comments.append("フリーキャッシュフローがマイナスです。")
 
-	score = score_result["total_score"]
+    score = score_result["total_score"]
 
-	if score >= 75:
-		comments.append("総合的には長期投資候補として有望と考えられます。")
-	elif score >= 55:
-		comments.append("追加調査を行ったうえで投資判断することをおすすめします。")
-	else:
-		comments.append("現時点では慎重な判断が望まれます。")
+    if score >= 75:
+        comments.append("総合的には長期投資候補として有望と考えられます。")
+    elif score >= 55:
+        comments.append("追加調査を行ったうえで投資判断することをおすすめします。")
+    else:
+        comments.append("現時点では慎重な判断が望まれます。")
 
-	return "\n\n".join(comments)
+    return "\n\n".join(comments)
 
 
 def generate_news_summary(news):
-	if not news:
-		return "ニュースは取得できませんでした。"
+    if not news:
+        return "ニュースは取得できませんでした。"
 
-	api_key = os.getenv("GEMINI_API_KEY")
-	if not api_key:
-		return "Gemini APIキーが設定されていません。"
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "Gemini APIキーが設定されていません。"
 
-	try:
-		client = genai.Client(api_key=api_key)
-		news_text = ""
+    try:
+        client = genai.Client(api_key=api_key)
+        news_text = ""
 
-		for article in news:
-			news_text += f"""
+        for article in news:
+            news_text += f"""
 タイトル
 {article['title']}
 
@@ -127,7 +127,7 @@ def generate_news_summary(news):
 -----------------------
 """
 
-		prompt = f"""
+        prompt = f"""
 あなたはウォーレン・バフェットの投資哲学を熟知した長期投資アナリストです。
 
 以下は企業に関する最新ニュースです。
@@ -188,29 +188,29 @@ def generate_news_summary(news):
 
 """
 
-		response = client.models.generate_content(
-			model="gemini-2.5-flash",
-			contents=prompt,
-		)
-		return response.text
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        return response.text
 
-	except Exception as e:
-		return str(e)
+    except Exception as e:
+        return str(e)
 
 
 def generate_buffett_checklist(data, score_result):
-	"""
-	Buffett Investment Checklist を生成する。
-	APIキーがあればGeminiに依頼し、なければルールベースで返す。
-	"""
-	api_key = os.getenv("GEMINI_API_KEY")
-	if not api_key:
-		return _generate_rule_checklist(data, score_result)
+    """
+    Buffett Investment Checklist を生成する。
+    APIキーがあればGeminiに依頼し、なければルールベースで返す。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_checklist(data, score_result)
 
-	try:
-		client = genai.Client(api_key=api_key)
+    try:
+        client = genai.Client(api_key=api_key)
 
-		prompt = f"""
+        prompt = f"""
 あなたはウォーレン・バフェットの投資哲学を熟知したアナリストです。
 以下の企業について、バフェットの投資チェックリスト6項目を評価してください。
 
@@ -246,170 +246,420 @@ Buffett Score：{score_result["total_score"]}/100
 ]
 """
 
-		response = client.models.generate_content(
-			model="gemini-2.5-flash",
-			contents=prompt
-		)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
 
-		text = response.text.strip()
-		if text.startswith("```json"):
-			text = text[7:]
-		if text.startswith("```"):
-			text = text[3:]
-		if text.endswith("```"):
-			text = text[:-3]
-		text = text.strip()
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
 
-		return json.loads(text)
+        return json.loads(text)
 
-	except Exception:
-		return _generate_rule_checklist(data, score_result)
+    except Exception:
+        return _generate_rule_checklist(data, score_result)
 
 
 def _generate_rule_checklist(data, score_result):
-	"""ルールベースでチェックリストを生成する（APIキー未設定時のフォールバック）"""
-	checklist = []
+    """ルールベースでチェックリストを生成する（APIキー未設定時のフォールバック）"""
+    checklist = []
 
-	# 1. 経営圏
-	sector = data.get("sector", "")
-	understandable_sectors = [
-		"Consumer Defensive", "Consumer Cyclical", "Utilities",
-		"Financial Services", "Industrials", "Real Estate"
-	]
-	if sector in understandable_sectors:
-		checklist.append({
-			"item": "経営圏（Understandable Business）",
-			"status": "pass",
-			"reason": "シンプルで理解しやすい業種です。"
-		})
-	else:
-		checklist.append({
-			"item": "経営圏（Understandable Business）",
-			"status": "warning",
-			"reason": "専門的な業種のため、深い理解が必要です。"
-		})
+    # 1. 経営圏
+    sector = data.get("sector", "")
+    understandable_sectors = [
+        "Consumer Defensive", "Consumer Cyclical", "Utilities",
+        "Financial Services", "Industrials", "Real Estate"
+    ]
+    if sector in understandable_sectors:
+        checklist.append({
+            "item": "経営圏（Understandable Business）",
+            "status": "pass",
+            "reason": "シンプルで理解しやすい業種です。"
+        })
+    else:
+        checklist.append({
+            "item": "経営圏（Understandable Business）",
+            "status": "warning",
+            "reason": "専門的な業種のため、深い理解が必要です。"
+        })
 
-	# 2. 競争優位性（MOAT）
-	roe = data.get("roe") or 0
-	op = data.get("operating_margin") or 0
-	if roe >= 0.15 and op >= 0.15:
-		checklist.append({
-			"item": "競争優位性（MOAT）",
-			"status": "pass",
-			"reason": "高いROEと利益率から、強い競争優位性が考えられます。"
-		})
-	elif roe >= 0.10 or op >= 0.10:
-		checklist.append({
-			"item": "競争優位性（MOAT）",
-			"status": "warning",
-			"reason": "一定の優位性はありますが、強いMOATは確認できません。"
-		})
-	else:
-		checklist.append({
-			"item": "競争優位性（MOAT）",
-			"status": "fail",
-			"reason": "利益率が低く、競争優位性が弱い可能性があります。"
-		})
+    # 2. 競争優位性（MOAT）
+    roe = data.get("roe") or 0
+    op = data.get("operating_margin") or 0
+    if roe >= 0.15 and op >= 0.15:
+        checklist.append({
+            "item": "競争優位性（MOAT）",
+            "status": "pass",
+            "reason": "高いROEと利益率から、強い競争優位性が考えられます。"
+        })
+    elif roe >= 0.10 or op >= 0.10:
+        checklist.append({
+            "item": "競争優位性（MOAT）",
+            "status": "warning",
+            "reason": "一定の優位性はありますが、強いMOATは確認できません。"
+        })
+    else:
+        checklist.append({
+            "item": "競争優位性（MOAT）",
+            "status": "fail",
+            "reason": "利益率が低く、競争優位性が弱い可能性があります。"
+        })
 
-	# 3. 財務健全性
-	de = data.get("debt_to_equity")
-	if de is not None:
-		if de > 100:
-			de = de / 100
-		if de <= 0.5:
-			checklist.append({
-				"item": "財務健全性（Conservative Debt）",
-				"status": "pass",
-				"reason": "負債が少なく、保守的な財務です。"
-			})
-		elif de <= 1.0:
-			checklist.append({
-				"item": "財務健全性（Conservative Debt）",
-				"status": "warning",
-				"reason": "負債は許容範囲ですが、やや注意が必要です。"
-			})
-		else:
-			checklist.append({
-				"item": "財務健全性（Conservative Debt）",
-				"status": "fail",
-				"reason": "負債が多く、バフェットの基準を超えています。"
-			})
-	else:
-		checklist.append({
-			"item": "財務健全性（Conservative Debt）",
-			"status": "warning",
-			"reason": "財務データが取得できませんでした。"
-		})
+    # 3. 財務健全性
+    de = data.get("debt_to_equity")
+    if de is not None:
+        if de > 100:
+            de = de / 100
+        if de <= 0.5:
+            checklist.append({
+                "item": "財務健全性（Conservative Debt）",
+                "status": "pass",
+                "reason": "負債が少なく、保守的な財務です。"
+            })
+        elif de <= 1.0:
+            checklist.append({
+                "item": "財務健全性（Conservative Debt）",
+                "status": "warning",
+                "reason": "負債は許容範囲ですが、やや注意が必要です。"
+            })
+        else:
+            checklist.append({
+                "item": "財務健全性（Conservative Debt）",
+                "status": "fail",
+                "reason": "負債が多く、バフェットの基準を超えています。"
+            })
+    else:
+        checklist.append({
+            "item": "財務健全性（Conservative Debt）",
+            "status": "warning",
+            "reason": "財務データが取得できませんでした。"
+        })
 
-	# 4. 収益性
-	if op >= 0.20:
-		checklist.append({
-			"item": "収益性（High Margin）",
-			"status": "pass",
-			"reason": "営業利益率が高く、強い収益性です。"
-		})
-	elif op >= 0.10:
-		checklist.append({
-			"item": "収益性（High Margin）",
-			"status": "warning",
-			"reason": "利益率は平均的です。"
-		})
-	else:
-		checklist.append({
-			"item": "収益性（High Margin）",
-			"status": "fail",
-			"reason": "利益率が低く、収益性に課題があります。"
-		})
+    # 4. 収益性
+    if op >= 0.20:
+        checklist.append({
+            "item": "収益性（High Margin）",
+            "status": "pass",
+            "reason": "営業利益率が高く、強い収益性です。"
+        })
+    elif op >= 0.10:
+        checklist.append({
+            "item": "収益性（High Margin）",
+            "status": "warning",
+            "reason": "利益率は平均的です。"
+        })
+    else:
+        checklist.append({
+            "item": "収益性（High Margin）",
+            "status": "fail",
+            "reason": "利益率が低く、収益性に課題があります。"
+        })
 
-	# 5. 経営者
-	fcf = data.get("free_cashflow")
-	if fcf is not None and fcf > 0 and roe >= 0.10:
-		checklist.append({
-			"item": "経営者（Management Quality）",
-			"status": "pass",
-			"reason": "FCFがプラスで資本効率も高く、優秀な経営と考えられます。"
-		})
-	elif fcf is not None and fcf > 0:
-		checklist.append({
-			"item": "経営者（Management Quality）",
-			"status": "warning",
-			"reason": "現金創出力はありますが、資本効率に改善余地があります。"
-		})
-	else:
-		checklist.append({
-			"item": "経営者（Management Quality）",
-			"status": "fail",
-			"reason": "FCFがマイナスまたは資本効率が低く、経営に懸念があります。"
-		})
+    # 5. 経営者
+    fcf = data.get("free_cashflow")
+    if fcf is not None and fcf > 0 and roe >= 0.10:
+        checklist.append({
+            "item": "経営者（Management Quality）",
+            "status": "pass",
+            "reason": "FCFがプラスで資本効率も高く、優秀な経営と考えられます。"
+        })
+    elif fcf is not None and fcf > 0:
+        checklist.append({
+            "item": "経営者（Management Quality）",
+            "status": "warning",
+            "reason": "現金創出力はありますが、資本効率に改善余地があります。"
+        })
+    else:
+        checklist.append({
+            "item": "経営者（Management Quality）",
+            "status": "fail",
+            "reason": "FCFがマイナスまたは資本効率が低く、経営に懸念があります。"
+        })
 
-	# 6. 安全余裕
-	pe = data.get("pe_ratio")
-	pb = data.get("pb_ratio")
-	if pe is not None and pb is not None and pe > 0 and pb > 0:
-		if pe <= 15 and pb <= 1.5:
-			checklist.append({
-				"item": "安全余裕（Margin of Safety）",
-				"status": "pass",
-				"reason": "PERとPBR共に割安で、安全余裕があります。"
-			})
-		elif pe <= 25 and pb <= 3.0:
-			checklist.append({
-				"item": "安全余裕（Margin of Safety）",
-				"status": "warning",
-				"reason": "適正価格帯ですが、強い安全余裕はありません。"
-			})
-		else:
-			checklist.append({
-				"item": "安全余裕（Margin of Safety）",
-				"status": "fail",
-				"reason": "割高で、安全余裕が不足しています。"
-			})
-	else:
-		checklist.append({
-			"item": "安全余裕（Margin of Safety）",
-			"status": "warning",
-			"reason": "適正株価を評価するデータが不足しています。"
-		})
+    # 6. 安全余裕
+    pe = data.get("pe_ratio")
+    pb = data.get("pb_ratio")
+    if pe is not None and pb is not None and pe > 0 and pb > 0:
+        if pe <= 15 and pb <= 1.5:
+            checklist.append({
+                "item": "安全余裕（Margin of Safety）",
+                "status": "pass",
+                "reason": "PERとPBR共に割安で、安全余裕があります。"
+            })
+        elif pe <= 25 and pb <= 3.0:
+            checklist.append({
+                "item": "安全余裕（Margin of Safety）",
+                "status": "warning",
+                "reason": "適正価格帯ですが、強い安全余裕はありません。"
+            })
+        else:
+            checklist.append({
+                "item": "安全余裕（Margin of Safety）",
+                "status": "fail",
+                "reason": "割高で、安全余裕が不足しています。"
+            })
+    else:
+        checklist.append({
+            "item": "安全余裕（Margin of Safety）",
+            "status": "warning",
+            "reason": "適正株価を評価するデータが不足しています。"
+        })
 
-	return checklist
+    return checklist
 
+
+def generate_moat_analysis(data, score_result):
+    """
+    MOAT（持続的競争優位性）を評価する。
+    定量指標と定性分析の両面からWide / Narrow / Noneを判定する。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_moat(data, score_result)
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知したアナリストです。
+以下の企業の「経済的堀（MOAT）」を評価してください。
+
+会社名：{data.get("company_name")}
+セクター：{data.get("sector")}
+ROE：{data.get("roe")}
+ROA：{data.get("roa")}
+営業利益率：{data.get("operating_margin")}
+PER：{data.get("pe_ratio")}
+PBR：{data.get("pb_ratio")}
+フリーキャッシュフロー：{data.get("free_cashflow")}
+売上成長率：{data.get("revenue_growth")}
+負債比率（D/E）：{data.get("debt_to_equity")}
+
+以下の6つの観点で、それぞれ strong / moderate / weak のいずれかを判定し、40文字以内で理由を述べてください。
+企業に当てはまらない観点は weak としてください。
+
+1. ブランド力（Intangible Assets / Brand）：消費者がブランド名でプレミアムを支払うか
+2. 規模の経済（Cost Advantages / Scale）：コスト面での絶対的優位性があるか
+3. 価格決定力（Pricing Power）：値上げしても顧客が離れない力があるか
+4. ネットワーク効果（Network Effect）：利用者が増えるほど価値が増すか
+5. スイッチングコスト（Switching Costs）：乗り換えにコスト・手間がかかるか
+6. 規制・ライセンス（Regulatory / Legal Barriers）：参入を規制する法的障壁があるか
+
+さらに、総合判定として以下の形式で回答してください。
+
+rating: "wide" または "narrow" または "none"
+stars: 1〜5の整数
+summary: 100文字以内の総合所見
+
+回答は以下のJSON形式のみで出力してください。余計な文章は不要です。
+{{
+  "rating": "wide",
+  "stars": 4,
+  "quantitative": {{
+    "roe_evidence": "ROEが高く...",
+    "margin_evidence": "営業利益率が...",
+    "fcf_evidence": "FCFが...",
+    "growth_evidence": "売上成長率が...",
+    "score": 85
+  }},
+  "qualitative": [
+    {{"type": "ブランド力", "strength": "strong", "reason": "..."}},
+    {{"type": "規模の経済", "strength": "moderate", "reason": "..."}},
+    {{"type": "価格決定力", "strength": "strong", "reason": "..."}},
+    {{"type": "ネットワーク効果", "strength": "weak", "reason": "..."}},
+    {{"type": "スイッチングコスト", "strength": "weak", "reason": "..."}},
+    {{"type": "規制・ライセンス", "strength": "weak", "reason": "..."}}
+  ],
+  "summary": "..."
+}}
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        return json.loads(text)
+
+    except Exception:
+        return _generate_rule_moat(data, score_result)
+
+
+def _generate_rule_moat(data, score_result):
+    """ルールベースでMOATを評価する（APIキー未設定時のフォールバック）"""
+    roe = data.get("roe") or 0
+    op = data.get("operating_margin") or 0
+    fcf = data.get("free_cashflow")
+    rg = data.get("revenue_growth") or 0
+    pe = data.get("pe_ratio")
+    pb = data.get("pb_ratio")
+
+    # 定量スコア（100点満点）
+    q_score = 0
+
+    if roe >= 0.20:
+        q_score += 25
+        roe_evidence = "ROEが20%以上で、極めて高い資本効率。強い競争優位性の証左です。"
+    elif roe >= 0.15:
+        q_score += 15
+        roe_evidence = "ROEが15%以上で、良好な資本効率。一定の優位性が考えられます。"
+    elif roe >= 0.10:
+        q_score += 5
+        roe_evidence = "ROEは平均的。突出した優位性は見られません。"
+    else:
+        roe_evidence = "ROEが低く、資本効率に課題があります。"
+
+    if op >= 0.20:
+        q_score += 25
+        margin_evidence = "営業利益率が20%以上で、非常に強い価格決定力とコスト優位性を示唆します。"
+    elif op >= 0.15:
+        q_score += 15
+        margin_evidence = "営業利益率が15%以上で、強い収益性。価格決定力に一定の優位性があります。"
+    elif op >= 0.10:
+        q_score += 5
+        margin_evidence = "営業利益率は平均的。業界特有の競争が激しい可能性があります。"
+    else:
+        margin_evidence = "営業利益率が低く、価格決定力やコスト優位性に乏しい可能性があります。"
+
+    if fcf is not None and fcf > 0:
+        q_score += 20
+        fcf_evidence = "フリーキャッシュフローがプラスで、実際に現金を創出しています。"
+    else:
+        fcf_evidence = "FCFがマイナスまたは取得できません。現金創出力に疑問があります。"
+
+    if rg >= 0.10:
+        q_score += 20
+        growth_evidence = "売上が10%以上成長。競争優位性を活かした力強い拡大です。"
+    elif rg >= 0.05:
+        q_score += 10
+        growth_evidence = "売上が5%以上成長。優位性を活かした安定した成長です。"
+    elif rg >= 0:
+        q_score += 5
+        growth_evidence = "売上は横ばい。新たな成長ドライバーが必要です。"
+    else:
+        growth_evidence = "売上が減少。競争優位性が弱まっている可能性があります。"
+
+    if pe is not None and 0 < pe <= 15:
+        q_score += 10
+    elif pe is not None and 0 < pe <= 25:
+        q_score += 5
+
+    if pb is not None and 0 < pb <= 1.5:
+        q_score += 10
+    elif pb is not None and 0 < pb <= 3.0:
+        q_score += 5
+
+    # 総合判定
+    if q_score >= 80:
+        rating = "wide"
+        stars = 5 if q_score >= 90 else 4
+    elif q_score >= 50:
+        rating = "narrow"
+        stars = 3 if q_score >= 65 else 2
+    else:
+        rating = "none"
+        stars = 1
+
+    # 定性評価（簡易的なセクター推定）
+    sector = data.get("sector", "")
+    qualitative = []
+
+    brand_sectors = ["Consumer Defensive", "Consumer Cyclical", "Communication Services"]
+    if sector in brand_sectors:
+        qualitative.append({
+            "type": "ブランド力",
+            "strength": "moderate",
+            "reason": "消費者向けセクターのため、ブランドによる差別化が期待できます。"
+        })
+    else:
+        qualitative.append({
+            "type": "ブランド力",
+            "strength": "weak",
+            "reason": "ブランドが主な競争力にならない業種です。"
+        })
+
+    scale_sectors = ["Industrials", "Energy", "Materials", "Utilities"]
+    if sector in scale_sectors:
+        qualitative.append({
+            "type": "規模の経済",
+            "strength": "moderate",
+            "reason": "設備投資型の業種のため、規模によるコスト優位性が期待できます。"
+        })
+    else:
+        qualitative.append({
+            "type": "規模の経済",
+            "strength": "weak",
+            "reason": "軽資産型の業種のため、規模のメリットは限定的です。"
+        })
+
+    if op >= 0.20:
+        qualitative.append({
+            "type": "価格決定力",
+            "strength": "strong",
+            "reason": "高い営業利益率から、強い価格決定力が読み取れます。"
+        })
+    elif op >= 0.10:
+        qualitative.append({
+            "type": "価格決定力",
+            "strength": "moderate",
+            "reason": "標準的な利益率。価格決定力は平均的です。"
+        })
+    else:
+        qualitative.append({
+            "type": "価格決定力",
+            "strength": "weak",
+            "reason": "低い利益率から、価格決定力は弱いと考えられます。"
+        })
+
+    # ネットワーク効果・スイッチングコスト・規制は業界情報がないためweakとする
+    qualitative.append({
+        "type": "ネットワーク効果",
+        "strength": "weak",
+        "reason": "公開情報からネットワーク効果の証拠は確認できません。"
+    })
+    qualitative.append({
+        "type": "スイッチングコスト",
+        "strength": "weak",
+        "reason": "公開情報から高いスイッチングコストは確認できません。"
+    })
+    qualitative.append({
+        "type": "規制・ライセンス",
+        "strength": "weak",
+        "reason": "業界特有の規制・ライセンス障壁の情報はありません。"
+    })
+
+    if rating == "wide":
+        summary = "財務指標から強い競争優位性が読み取れます。バフェットが好む「広い堀」を持つ可能性が高いです。"
+    elif rating == "narrow":
+        summary = "一定の競争優位性はありますが、業界変化に応じて堀が狭まるリスクに注意が必要です。"
+    else:
+        summary = "現時点では持続的な競争優位性が認められにくい。事業の差別化要因が弱い可能性があります。"
+
+    return {
+        "rating": rating,
+        "stars": stars,
+        "quantitative": {
+            "roe_evidence": roe_evidence,
+            "margin_evidence": margin_evidence,
+            "fcf_evidence": fcf_evidence,
+            "growth_evidence": growth_evidence,
+            "score": q_score
+        },
+        "qualitative": qualitative,
+        "summary": summary
+    }

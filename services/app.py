@@ -13,11 +13,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from data_fetcher import get_stock_data, format_value
 from scoring_engine import calculate_buffett_score
-from report import create_radar_chart, create_score_bar, create_checklist_display
+from report import create_radar_chart, create_score_bar, create_checklist_display, create_moat_display
 from ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
     generate_buffett_checklist,
+    generate_moat_analysis,
 )
 from news_fetcher import get_latest_news
 
@@ -132,6 +133,13 @@ if analyze_button and ticker_input:
 
     checklist = generate_buffett_checklist(data, score_result)
     st.markdown(create_checklist_display(checklist))
+
+    st.divider()
+
+    st.subheader("🏰 MOAT評価（経済的堀）")
+
+    moat = generate_moat_analysis(data, score_result)
+    st.markdown(create_moat_display(moat))
 
     st.divider()
 
