@@ -1,20 +1,23 @@
 import os
 import sys
+
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 load_dotenv(os.path.join(BASE_DIR, ".env"))
+
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from data_fetcher import get_stock_data, format_value
 from scoring_engine import calculate_buffett_score
-from report import create_radar_chart, create_score_bar
+from report import create_radar_chart, create_score_bar, create_checklist_display
 from ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
+    generate_buffett_checklist,
 )
 from news_fetcher import get_latest_news
 
@@ -122,6 +125,13 @@ if analyze_button and ticker_input:
         st.success(summary)
     else:
         st.info("要約するニュースがありません。")
+
+    st.divider()
+
+    st.subheader("📋 Buffett Investment Checklist")
+
+    checklist = generate_buffett_checklist(data, score_result)
+    st.markdown(create_checklist_display(checklist))
 
     st.divider()
 

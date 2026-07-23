@@ -42,3 +42,28 @@ def create_score_bar(total_score: int, max_score: int) -> go.Figure:
     ))
     fig.update_layout(height=300)
     return fig
+
+
+def create_checklist_display(checklist: list) -> str:
+    """
+    チェックリストをMarkdown形式で整形する。
+    """
+    if not checklist:
+        return "チェックリストを取得できませんでした。"
+
+    lines = []
+    status_map = {
+        "pass": "✅",
+        "warning": "⚠️",
+        "fail": "❌"
+    }
+
+    for item in checklist:
+        status = item.get("status", "warning")
+        icon = status_map.get(status, "⚠️")
+        title = item.get("item", "")
+        reason = item.get("reason", "")
+
+        lines.append(f"{icon} **{title}**  \n　　→ {reason}")
+
+    return "\n\n".join(lines)
