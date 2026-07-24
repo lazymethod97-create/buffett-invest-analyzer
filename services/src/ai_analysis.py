@@ -663,3 +663,188 @@ def _generate_rule_moat(data, score_result):
         "qualitative": qualitative,
         "summary": summary
     }
+
+
+def generate_brand_analysis(data, score_result):
+    """
+    ブランド力（Brand Power）を独立して評価する。
+    定量指標と定性分析から、バフェット的視点でのブランド力スコアを算出する。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_brand(data, score_result)
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知したアナリストです。
+以下の企業の「ブランド力」を深掘り評価してください。
+
+会社名：{data.get("company_name")}
+セクター：{data.get("sector")}
+ROE：{data.get("roe")}
+ROA：{data.get("roa")}
+営業利益率：{data.get("operating_margin")}
+PER：{data.get("pe_ratio")}
+PBR：{data.get("pb_ratio")}
+フリーキャッシュフロー：{data.get("free_cashflow")}
+売上成長率：{data.get("revenue_growth")}
+負債比率（D/E）：{data.get("debt_to_equity")}
+
+以下の項目で評価し、JSON形式のみで出力してください。
+
+1. stars: 1〜5の整数（ブランド力総合スコア）
+2. brand_type: ブランドの種類（製品ブランド / 企業ブランド / プラットフォームブランド / B2Bブランド / 弱い）
+3. pricing_power: strong / moderate / weak（価格弾力性）
+4. loyalty: strong / moderate / weak（顧客ロイヤルティ）
+5. recognition: strong / moderate / weak（世界的認知度）
+6. maintenance_cost: low / moderate / high（ブランド維持コスト）
+7. sustainability: 長期的にブランド力が維持されるか（50文字以内）
+8. buffet_view: バフェット的視点から100文字以内の所見
+9. quantitative:
+   - margin_evidence: 営業利益率から読み取れるブランド力（50文字以内）
+   - growth_evidence: 売上成長率から読み取れるブランド力（50文字以内）
+   - score: 定量ブランドスコア（0-100の整数）
+
+回答は以下のJSON形式のみで出力してください。余計な文章は不要です。
+{{
+  "stars": 4,
+  "brand_type": "製品ブランド",
+  "pricing_power": "strong",
+  "loyalty": "strong",
+  "recognition": "strong",
+  "maintenance_cost": "low",
+  "sustainability": "長期的に維持される見込み。",
+  "buffet_view": "寝ても覚めても使われるブランドで、強い価格決定力がある。",
+  "quantitative": {{
+    "margin_evidence": "営業利益率35%はプレミアム価格の証拠。",
+    "growth_evidence": "売上成長12%はブランド吸引力の証拠。",
+    "score": 85
+  }}
+}}
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        return json.loads(text)
+
+    except Exception:
+        return _generate_rule_brand(data, score_result)
+
+
+def _generate_rule_brand(data, score_result):
+    """ルールベースでブランド力を評価する（APIキー未設定時のフォールバック）"""
+    op = data.get("operating_margin") or 0
+    rg = data.get("revenue_growth") or 0
+    roe = data.get("roe") or 0
+    sector = data.get("sector", "")
+
+    # 定量スコア
+    q_score = 0
+
+    if op >= 0.25:
+        q_score += 40
+        margin_evidence = "営業利益率が25%以上で、強いブランドによるプレミアム価格が読み取れます。"
+    elif op >= 0.15:
+        q_score += 25
+        margin_evidence = "営業利益率が15%以上で、ブランドによる価格決定力が一定あります。"
+    elif op >= 0.10:
+        q_score += 10
+        margin_evidence = "営業利益率は平均的。ブランドによる付加価値は限定的です。"
+    else:
+        margin_evidence = "営業利益率が低く、ブランドによる価格決定力は弱いと考えられます。"
+
+    if rg >= 0.10:
+        q_score += 30
+        growth_evidence = "売上が10%以上成長。ブランドの吸引力が需要拡大を牽引しています。"
+    elif rg >= 0.05:
+        q_score += 15
+        growth_evidence = "売上が5%以上成長。ブランドは安定的な需要を確保しています。"
+    elif rg >= 0:
+        q_score += 5
+        growth_evidence = "売上は横ばい。ブランドの新たな魅力が必要です。"
+    else:
+        growth_evidence = "売上が減少。ブランド力が弱まっている可能性があります。"
+
+    if roe >= 0.20:
+        q_score += 30
+    elif roe >= 0.15:
+        q_score += 20
+    elif roe >= 0.10:
+        q_score += 10
+
+    # 星評価
+    if q_score >= 80:
+        stars = 5
+    elif q_score >= 65:
+        stars = 4
+    elif q_score >= 50:
+        stars = 3
+    elif q_score >= 30:
+        stars = 2
+    else:
+        stars = 1
+
+    # ブランドタイプ推定
+    brand_type = "弱い"
+    if sector in ["Consumer Defensive", "Consumer Cyclical", "Communication Services"]:
+        brand_type = "製品ブランド"
+    elif sector in ["Technology", "Software"]:
+        brand_type = "プラットフォームブランド"
+    elif sector in ["Industrials", "Materials", "Energy"]:
+        brand_type = "B2Bブランド"
+
+    if stars <= 2:
+        brand_type = "弱い"
+
+    # 定性推定
+    if stars >= 4:
+        pricing_power = "strong"
+        loyalty = "strong"
+        recognition = "moderate"
+        maintenance_cost = "low"
+        sustainability = "高い利益率と成長から、ブランド力は長期的に維持される見込みです。"
+        buffet_view = "強い価格決定力と顧客ロイヤルティが、経済的堀の中核を成している。バフェットも好むタイプ。"
+    elif stars >= 3:
+        pricing_power = "moderate"
+        loyalty = "moderate"
+        recognition = "moderate"
+        maintenance_cost = "moderate"
+        sustainability = "一定のブランド力はあるが、競合の攻勢に注意が必要です。"
+        buffet_view = "ブランドは一定の価値があるが、さらに深い堀が必要と考えられる。"
+    else:
+        pricing_power = "weak"
+        loyalty = "weak"
+        recognition = "weak"
+        maintenance_cost = "high"
+        sustainability = "現時点ではブランドによる持続的優位性は認めにくい。"
+        buffet_view = "ブランドが主な投資理由にはなりづらい。別のMOAT要因を探る必要がある。"
+
+    return {
+        "stars": stars,
+        "brand_type": brand_type,
+        "pricing_power": pricing_power,
+        "loyalty": loyalty,
+        "recognition": recognition,
+        "maintenance_cost": maintenance_cost,
+        "sustainability": sustainability,
+        "buffet_view": buffet_view,
+        "quantitative": {
+            "margin_evidence": margin_evidence,
+            "growth_evidence": growth_evidence,
+            "score": q_score
+        }
+    }

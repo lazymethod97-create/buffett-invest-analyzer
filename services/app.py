@@ -13,12 +13,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from data_fetcher import get_stock_data, format_value
 from scoring_engine import calculate_buffett_score
-from report import create_radar_chart, create_score_bar, create_checklist_display, create_moat_display
+from report import (
+    create_radar_chart,
+    create_score_bar,
+    create_checklist_display,
+    create_moat_display,
+    create_brand_display,
+)
 from ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
     generate_buffett_checklist,
     generate_moat_analysis,
+    generate_brand_analysis,
 )
 from news_fetcher import get_latest_news
 
@@ -140,6 +147,13 @@ if analyze_button and ticker_input:
 
     moat = generate_moat_analysis(data, score_result)
     st.markdown(create_moat_display(moat))
+
+    st.divider()
+
+    st.subheader("🏷️ ブランド力評価")
+
+    brand = generate_brand_analysis(data, score_result)
+    st.markdown(create_brand_display(brand))
 
     st.divider()
 
