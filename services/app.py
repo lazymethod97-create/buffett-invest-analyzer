@@ -19,6 +19,7 @@ from report import (
     create_checklist_display,
     create_moat_display,
     create_brand_display,
+    create_management_display,
 )
 from ai_analysis import (
     generate_ai_analysis,
@@ -26,6 +27,7 @@ from ai_analysis import (
     generate_buffett_checklist,
     generate_moat_analysis,
     generate_brand_analysis,
+    generate_management_analysis,
 )
 from news_fetcher import get_latest_news
 
@@ -154,6 +156,13 @@ if analyze_button and ticker_input:
 
     brand = generate_brand_analysis(data, score_result)
     st.markdown(create_brand_display(brand))
+
+    st.divider()
+
+    st.subheader("👔 経営者評価")
+
+    mgmt = generate_management_analysis(data, score_result)
+    st.markdown(create_management_display(mgmt))
 
     st.divider()
 

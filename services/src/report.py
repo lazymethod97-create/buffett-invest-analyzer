@@ -190,3 +190,81 @@ def create_brand_display(brand_result: dict) -> str:
     lines.append(f"\n**🧠 バフェット的視点**\n{buffet_view}")
 
     return "\n".join(lines)
+
+
+def create_management_display(mgmt_result: dict) -> str:
+    """
+    経営者評価結果をMarkdown形式で整形する。
+    """
+    if not mgmt_result:
+        return "経営者評価を取得できませんでした。"
+
+    stars = mgmt_result.get("stars", 0)
+    capital_allocation = mgmt_result.get("capital_allocation", "average")
+    transparency = mgmt_result.get("transparency", "moderate")
+    long_term = mgmt_result.get("long_term", "partial")
+    self_interest = mgmt_result.get("self_interest", "moderate")
+    founder_led = mgmt_result.get("founder_led", "unknown")
+    debt_management = mgmt_result.get("debt_management", "moderate")
+    buffet_view = mgmt_result.get("buffet_view", "")
+    conclusion = mgmt_result.get("conclusion", "")
+    quantitative = mgmt_result.get("quantitative", {})
+
+    star_str = "★" * stars + "☆" * (5 - stars)
+
+    # 評価ラベル
+    alloc_map = {
+        "excellent": "✅ 優秀",
+        "good": "🟢 良好",
+        "average": "⚠️ 普通",
+        "poor": "❌ 不十分"
+    }
+    tri_map = {
+        "high": "✅ 高い",
+        "moderate": "⚠️ 普通",
+        "low": "❌ 低い"
+    }
+    yn_map = {
+        "yes": "✅ はい",
+        "partial": "⚠️ 一部",
+        "no": "❌ いいえ",
+        "unknown": "⚪ 不明"
+    }
+    debt_map = {
+        "conservative": "✅ 保守的",
+        "moderate": "⚠️ バランス型",
+        "aggressive": "❌ 積極的"
+    }
+
+    lines = []
+    lines.append(f"### 👔 経営者評価：{star_str}（{stars}/5）\n")
+
+    # 定量評価
+    q_score = quantitative.get("score", 0)
+    lines.append("**📊 定量評価（資本効率と配分能力）**")
+    lines.append(f"経営者定量スコア：{q_score}/100点\n")
+
+    for key in ["roe_evidence", "fcf_evidence", "dividend_evidence"]:
+        val = quantitative.get(key, "")
+        if val:
+            lines.append(f"• {val}")
+
+    lines.append("\n---\n")
+    lines.append("**🔍 定性評価（AI分析）**\n")
+
+    lines.append(f"**{alloc_map.get(capital_allocation, '⚪ 不明')}**　資本配分能力（Capital Allocation）")
+    lines.append(f"　　→ 再投資と株主還元のバランスが {alloc_map.get(capital_allocation, '不明').replace('✅ ', '').replace('🟢 ', '').replace('⚠️ ', '').replace('❌ ', '')}。")
+
+    lines.append(f"**{debt_map.get(debt_management, '⚪ 不明')}**　負債管理（Debt Management）")
+    lines.append(f"**{tri_map.get(transparency, '⚪ 不明')}**　情報開示の透明性（Transparency）")
+    lines.append(f"**{yn_map.get(long_term, '⚪ 不明')}**　長期視点（Long-term Perspective）")
+    lines.append(f"**{tri_map.get(self_interest, '⚪ 不明')}**　自己利益志向（Self-interest）")
+    lines.append(f"**{yn_map.get(founder_led, '⚪ 不明')}**　創業者経営（Founder-led）")
+
+    lines.append("\n---\n")
+    lines.append(f"**🧠 バフェット的視点**\n{buffet_view}")
+
+    if conclusion:
+        lines.append(f"\n**💡 結論**\n{conclusion}")
+
+    return "\n".join(lines)

@@ -848,3 +848,206 @@ def _generate_rule_brand(data, score_result):
             "score": q_score
         }
     }
+
+
+def generate_management_analysis(data, score_result):
+    """
+    経営者（Management Quality）を独立して評価する。
+    資本配分能力・透明性・長期視点などを定量と定性で評価する。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_management(data, score_result)
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知したアナリストです。
+以下の企業の「経営者力」を深掘り評価してください。
+
+会社名：{data.get("company_name")}
+ROE：{data.get("roe")}
+ROA：{data.get("roa")}
+営業利益率：{data.get("operating_margin")}
+PER：{data.get("pe_ratio")}
+PBR：{data.get("pb_ratio")}
+フリーキャッシュフロー：{data.get("free_cashflow")}
+売上成長率：{data.get("revenue_growth")}
+負債比率（D/E）：{data.get("debt_to_equity")}
+配当利回り：{data.get("dividend_yield")}
+
+以下の項目で評価し、JSON形式のみで出力してください。
+
+1. stars: 1〜5の整数（経営者総合スコア）
+2. capital_allocation: excellent / good / average / poor（資本配分能力：再投資と還元のバランス）
+3. transparency: high / moderate / low（情報開示の透明性）
+4. long_term: yes / partial / no（長期視点の有無）
+5. self_interest: low / moderate / high（自己利益 vs 株主利益）
+6. founder_led: yes / no / unknown（創業者経営の有無）
+7. debt_management: conservative / moderate / aggressive（負債管理の保守性）
+8. buffet_view: バフェット的視点から100文字以内の所見
+9. quantitative:
+   - roe_evidence: ROEから読み取れる経営能力（50文字以内）
+   - fcf_evidence: FCFから読み取れる経営能力（50文字以内）
+   - dividend_evidence: 配当から読み取れる経営姿勢（50文字以内）
+   - score: 定量経営者スコア（0-100の整数）
+
+回答は以下のJSON形式のみで出力してください。余計な文章は不要です。
+{{
+  "stars": 4,
+  "capital_allocation": "good",
+  "transparency": "high",
+  "long_term": "yes",
+  "self_interest": "low",
+  "founder_led": "no",
+  "debt_management": "conservative",
+  "buffet_view": "余剰キャッシュを株主還元に回し、自己資本を効率的に活用している。",
+  "quantitative": {{
+    "roe_evidence": "ROE 20%で優れた資本効率を維持。",
+    "fcf_evidence": "FCFがプラスで現金創出能力が高い。",
+    "dividend_evidence": "配当継続で株主重視の姿勢が見える。",
+    "score": 82
+  }}
+}}
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        return json.loads(text)
+
+    except Exception:
+        return _generate_rule_management(data, score_result)
+
+
+def _generate_rule_management(data, score_result):
+    """ルールベースで経営者を評価する（APIキー未設定時のフォールバック）"""
+    roe = data.get("roe") or 0
+    fcf = data.get("free_cashflow")
+    de = data.get("debt_to_equity")
+    dy = data.get("dividend_yield")
+    rg = data.get("revenue_growth") or 0
+
+    # 定量スコア（100点満点）
+    q_score = 0
+
+    # ROE維持力
+    if roe >= 0.20:
+        q_score += 30
+        roe_evidence = "ROEが20%以上を維持。優れた資本効率の管理が見られます。"
+    elif roe >= 0.15:
+        q_score += 20
+        roe_evidence = "ROEが15%以上。資本効率の管理は良好です。"
+    elif roe >= 0.10:
+        q_score += 10
+        roe_evidence = "ROEは平均的。資本効率に改善の余地があります。"
+    else:
+        roe_evidence = "ROEが低く、資本効率の管理に課題があります。"
+
+    # FCF創出
+    if fcf is not None and fcf > 0:
+        q_score += 25
+        fcf_evidence = "フリーキャッシュフローがプラス。株主還元原資の確保ができています。"
+    else:
+        fcf_evidence = "FCFがマイナスまたは取得できません。現金創出能力に懸念があります。"
+
+    # 負債管理
+    if de is not None:
+        if de > 100:
+            de = de / 100
+        if de <= 0.5:
+            q_score += 20
+            debt_management = "conservative"
+            debt_evidence = "負債比率が低く、保守的な財務運営が見られます。"
+        elif de <= 1.0:
+            q_score += 10
+            debt_management = "moderate"
+            debt_evidence = "負債は許容範囲で、バランスの取れた財務運営です。"
+        else:
+            debt_management = "aggressive"
+            debt_evidence = "負債が多く、やや積極的すぎる財務運営の可能性があります。"
+    else:
+        debt_management = "moderate"
+        debt_evidence = "負債データが取得できませんでした。"
+
+    # 配当継続性（配当利回りがあれば加点）
+    if dy is not None and dy > 0:
+        q_score += 15
+        dividend_evidence = "配当を継続しており、株主還元への意識が見られます。"
+    else:
+        dividend_evidence = "配当データがないか、配当を実施していない可能性があります。"
+
+    # 成長の質
+    if rg >= 0.05:
+        q_score += 10
+        growth_evidence = "売上が成長しており、経営者が市場機会を活かしている可能性があります。"
+    else:
+        growth_evidence = "成長が鈍い。新たな成長戦略が必要かもしれません。"
+
+    # 星評価
+    if q_score >= 85:
+        stars = 5
+    elif q_score >= 70:
+        stars = 4
+    elif q_score >= 55:
+        stars = 3
+    elif q_score >= 40:
+        stars = 2
+    else:
+        stars = 1
+
+    # 定性推定
+    if stars >= 4:
+        capital_allocation = "good"
+        transparency = "high"
+        long_term = "yes"
+        self_interest = "low"
+        founder_led = "unknown"
+        buffet_view = "余剰キャッシュを効率的に配分し、自己資本を高い水準で維持している。バフェットが好むタイプの経営者。"
+        conclusion = "🟢 バフェットが好むタイプの経営者。長期保有に値する。"
+    elif stars >= 3:
+        capital_allocation = "average"
+        transparency = "moderate"
+        long_term = "partial"
+        self_interest = "moderate"
+        founder_led = "unknown"
+        buffet_view = "一定の資本配分能力はあるが、さらなる株主還元や長期投資の深化が望まれる。"
+        conclusion = "🟡 まずまずの経営者。追加調査で資本配分の姿勢を確認すること。"
+    else:
+        capital_allocation = "poor"
+        transparency = "low"
+        long_term = "no"
+        self_interest = "high"
+        founder_led = "unknown"
+        buffet_view = "資本効率や財務運営に懸念があり、バフェット基準を下回る可能性が高い。"
+        conclusion = "🔴 経営者の質に懸念。現時点では慎重な判断が望まれる。"
+
+    return {
+        "stars": stars,
+        "capital_allocation": capital_allocation,
+        "transparency": transparency,
+        "long_term": long_term,
+        "self_interest": self_interest,
+        "founder_led": founder_led,
+        "debt_management": debt_management,
+        "buffet_view": buffet_view,
+        "conclusion": conclusion,
+        "quantitative": {
+            "roe_evidence": roe_evidence,
+            "fcf_evidence": fcf_evidence,
+            "dividend_evidence": dividend_evidence,
+            "score": q_score
+        }
+    }
