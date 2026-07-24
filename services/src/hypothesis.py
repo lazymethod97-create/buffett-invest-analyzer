@@ -4,6 +4,7 @@
 """
 
 import json
+import streamlit as st
 from dataclasses import dataclass, field
 from typing import List
 from enum import Enum
@@ -36,6 +37,10 @@ class InvestmentHypothesis:
     status: HypothesisStatus = HypothesisStatus.UNVERIFIED
     source: str = "ai"  # "ai" or "user"
 
+    @property
+    def status_icon(self) -> str:
+        return STATUS_ICON_MAP.get(self.status, "⚪")
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -49,13 +54,18 @@ class InvestmentHypothesis:
 
     @classmethod
     def from_dict(cls, d: dict) -> "InvestmentHypothesis":
+        try:
+            status = HypothesisStatus(d.get("status", "未検証"))
+        except ValueError:
+            status = HypothesisStatus.UNVERIFIED
+
         return cls(
             id=d["id"],
             title=d["title"],
             rationale=d["rationale"],
             evidence=d.get("evidence", []),
             verification_items=d.get("verification_items", []),
-            status=HypothesisStatus(d.get("status", "未検証")),
+            status=status,
             source=d.get("source", "ai"),
         )
 
@@ -65,7 +75,6 @@ class HypothesisManager:
         self.session_state_key = session_state_key
 
     def _get_list(self) -> List[InvestmentHypothesis]:
-        import streamlit as st
         if self.session_state_key not in st.session_state:
             st.session_state[self.session_state_key] = []
         return st.session_state[self.session_state_key]
@@ -74,7 +83,6 @@ class HypothesisManager:
         return self._get_list()
 
     def clear(self):
-        import streamlit as st
         st.session_state[self.session_state_key] = []
 
     def add(self, hypothesis: InvestmentHypothesis) -> InvestmentHypothesis:
@@ -107,7 +115,6 @@ class HypothesisManager:
         return json.dumps([h.to_dict() for h in hypotheses], ensure_ascii=False, indent=2)
 
     def load_from_json(self, json_str: str):
-        import streamlit as st
         data = json.loads(json_str)
         st.session_state[self.session_state_key] = [
             InvestmentHypothesis.from_dict(d) for d in data
@@ -187,7 +194,7 @@ def generate_default_hypotheses(
     # 仮説2: MOAT
     moat_rating = moat.get("rating", "none") if isinstance(moat, dict) else "none"
     if moat_rating == "wide":
-        stars = moat.get('stars', 0)
+        stars = moat.get('stars', 0) or 0
         hypotheses.append(InvestmentHypothesis(
             id=2,
             title="広い経済的堀（Wide MOAT）による長期競争優位性",
@@ -222,7 +229,7 @@ def generate_default_hypotheses(
         ))
 
     # 仮説3: ブランド
-    brand_stars = brand.get("stars", 0) if isinstance(brand, dict) else 0
+    brand_stars = (brand.get("stars", 0) or 0) if isinstance(brand, dict) else 0
     if brand_stars >= 4:
         hypotheses.append(InvestmentHypothesis(
             id=3,
@@ -242,7 +249,7 @@ def generate_default_hypotheses(
         ))
 
     # 仮説4: 経営者
-    mgmt_stars = mgmt.get("stars", 0) if isinstance(mgmt, dict) else 0
+    mgmt_stars = (mgmt.get("stars", 0) or 0) if isinstance(mgmt, dict) else 0
     if mgmt_stars >= 4:
         hypotheses.append(InvestmentHypothesis(
             id=4,
