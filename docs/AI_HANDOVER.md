@@ -1,57 +1,275 @@
-# AI_HANDOVER.md
+```markdown
+# Buffett Investment Analyzer
+# AI 引継ぎ書（Sprint6完了時点）
+Version: 2.0
+Date: 2026-07-25
 
-# Buffett Investment Analyzer 引継ぎ書
+---
+# プロジェクト概要
 
-## 現在のバージョン
+本プロジェクトは
 
-Version 2 Sprint1 完了
+**「ウォーレン・バフェットならこの会社に投資するか？」**
 
-Version1 基本機能は完成。
-Version2 Sprint1「Buffett Investment Checklist」は実装済み。
+をAIで分析するWebアプリ。
+
+フレームワーク
+
+- Streamlit
+- Gemini API
+- yfinance
+- Google News RSS
+- newspaper4k
+
+Github
+
+https://github.com/lazymethod97-create/buffett-invest-analyzer
 
 ---
 
-# Version1 完成済み
+# 開発ルール
 
-## 財務分析
+必ず守ること
 
-* Buffett Score
-* ROE
-* ROA
-* PER
-* PBR
-* D/E
-* 営業利益率
-* フリーキャッシュフロー
-* 売上成長率
+①初心者でも分かる説明を行う
 
----
+②1Sprint = 1機能
 
-## 可視化
+③既存コードを壊さない
 
-* レーダーチャート
+④リファクタリングする場合は理由を説明
 
-* スコアバー
+⑤コピペだけで動くコードを書く
+
+⑥完成イメージを最初に見せる
+
+⑦Gitへコミットするタイミングを教える
+
+⑧必ずapp.py全体との整合性を確認する
 
 ---
 
-## AI分析
+# ディレクトリ
 
-Gemini API
+services/
 
-企業分析
+app.py
 
-ニュース分析
+ai_analysis.py
+
+data_fetcher.py
+
+news_fetcher.py
+
+scoring_engine.py
+
+report.py
+
+hypothesis.py
 
 ---
 
-## ニュース
+# 完了済みSprint
+
+## Sprint1
+
+Buffett Score
+
+・財務データ取得
+
+・100点評価
+
+・判定コメント
+
+完了
+
+---
+
+## Sprint2
+
+AI定性分析
+
+Gemini
+
+完了
+
+---
+
+## Sprint3
 
 Google News RSS
 
+記事本文取得
+
+ニュース要約
+
+完了
+
+---
+
+## Sprint4
+
+Buffett Checklist
+
+AIチェックリスト
+
+完了
+
+---
+
+## Sprint5
+
+MOAT分析
+
+ブランド分析
+
+経営者分析
+
+Red Team AI
+
+完了
+
+---
+
+## Sprint6
+
+投資仮説管理
+
+実装済
+
+内容
+
+・HypothesisManager
+
+・InvestmentHypothesis
+
+・HypothesisStatus
+
+・AIによる仮説生成
+
+・手動追加
+
+・状態変更
+
+・削除
+
+・JSON保存
+
+・JSON読込
+
+・企業変更時に仮説リセット
+
+完了
+
+---
+
+# app.py
+
+最新版
+
+Sprint6対応済
+
+現在の構成
+
+会社情報
+
 ↓
 
-feedparser
+Buffett Score
+
+↓
+
+レーダーチャート
+
+↓
+
+AI分析
+
+↓
+
+ニュース
+
+↓
+
+ニュース要約
+
+↓
+
+Checklist
+
+↓
+
+MOAT
+
+↓
+
+ブランド
+
+↓
+
+経営者
+
+↓
+
+Red Team
+
+↓
+
+投資仮説管理
+
+↓
+
+採点詳細
+
+↓
+
+終了
+
+---
+
+# hypothesis.py
+
+完成済
+
+クラス
+
+InvestmentHypothesis
+
+HypothesisManager
+
+HypothesisStatus
+
+JSON対応済
+
+---
+
+# report.py
+
+現在は
+
+create_hypothesis_display()
+
+は未使用
+
+表示はapp.pyで行っている
+
+削除しなくてよい
+
+---
+
+# AI分析
+
+Gemini使用
+
+OpenAIは使用しない
+
+ニュース本文もGeminiへ渡している
+
+---
+
+# ニュース取得
+
+Google RSS
 
 ↓
 
@@ -63,186 +281,120 @@ newspaper4k
 
 ↓
 
-Gemini分析
+Gemini要約
 
 ---
 
-## AIニュース分析
+# 次Sprint
 
-分析内容
+Sprint7
 
-* ニュース要約
-* ポジティブ要因
-* ネガティブ要因
-* MOATへの影響
-* ブランド力への影響
-* 価格決定力への影響
-* 経営者評価
-* 短期影響
-* 長期影響
-* Buffettならどう考えるか
+テーマ
 
----
+ニュースから
 
-# Version2 Sprint1 完了
+AIが
 
-## Buffett Investment Checklist
+「確認すべきポイント」
 
-実装済み。
-
-以下の6項目を画面に表示する。
-
-1. 経営圏（Understandable Business）
-2. 競争優位性（MOAT）
-3. 財務健全性（Conservative Debt）
-4. 収益性（High Margin）
-5. 経営者（Management Quality）
-6. 安全余裕（Margin of Safety）
-
-各項目は pass / warning / fail で判定。
-Gemini API あり → AI判定
-Gemini API なし → ルールベース判定
-
-表示場所：AIニュース要約と採点詳細の間。
-
----
-
-# Version2 残Sprint
-
-現在開発中
-
----
-
-## Sprint2
-
-MOAT評価
-
-未実装
-
-最優先で開発する。
-
----
-
-## Sprint3
-
-ブランド力評価
-
-未実装
-
----
-
-## Sprint4
-
-経営者評価
-
-未実装
-
----
-
-## Sprint5
-
-Red Team AI
-
-未実装
-
----
-
-## Sprint6
-
-投資仮説管理
-
-未実装
-
----
-
-## Sprint7
-
-ニュース→確認項目
-
-未実装
-
----
-
-## Sprint8
-
-判断賞味期限
-
-未実装
-
----
-
-## Sprint9
-
-投資メモ
-
-未実装
-
----
-
-## Sprint10
-
-ウォッチリスト
-
-未実装
-
----
-
-# 次回最初に行うこと
-
-Sprint2
-
-MOAT評価
-
-を実装する。
-
-変更予定ファイル
-
-* ai_analysis.py
-* app.py
-* report.py（必要なら）
-
-既存コードは壊さない。
-
-まずMOAT評価を画面へ表示する。
-
----
-
-# Git
-
-Sprintごとにコミットする。
+を自動生成する
 
 例
 
-feat: add Buffett Investment Checklist
+決算確認項目
 
-次は
+リスクイベント
 
-feat: add MOAT evaluation
+競合動向
+
+設備投資
+
+規制
+
+為替
+
+など
+
+Checklistへ統合予定
+
+---
+
+# 将来実装予定
+
+□ PDFレポート
+
+□ Excel出力
+
+□ DCF分析
+
+□ Owner Earnings
+
+□ Buffett Intrinsic Value
+
+□ 10年財務推移
+
+□ ROIC
+
+□ Insider Ownership
+
+□ SEC EDGAR
+
+□ 有価証券報告書解析
+
+□ 決算説明資料解析
+
+□ AIチャット
+
+□ Portfolio管理
+
+□ WatchList
+
+□ 比較分析
+
+□ AI投資日誌
 
 ---
 
 # AIへの指示
 
-このファイルを読んだら
+あなたは
 
-最初に
+Buffett Investment Analyzer
 
-1. 現在の完成状況
+主任ソフトウェアエンジニア
 
-2. 次Sprint
+として開発すること。
 
-3. 変更するファイル
+必ず
 
-4. 完成イメージ
+既存コードを壊さず
 
-5. 既存コードへ影響しない理由
+1Sprintずつ進めること。
 
-を説明すること。
+app.py全体を確認してから修正すること。
 
-ユーザーが
+コードは必ず
 
-**「進めて」**
+コピペだけで動く完成版を書くこと。
 
-と言うまでコードを書いてはいけない。
+部分コードではなく
 
-承認を得てから実装すること。
+完成コードを書くこと。
+
+---
+
+Git Commit
+
+feat: complete Sprint6 Investment Hypothesis Manager
+
+---
+
+現在Version
+
+Ver2.0
+
+Sprint6完了
+
+次回はSprint7から開始する
+
+```
