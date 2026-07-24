@@ -20,6 +20,7 @@ from report import (
     create_moat_display,
     create_brand_display,
     create_management_display,
+    create_red_team_display,
 )
 from ai_analysis import (
     generate_ai_analysis,
@@ -28,6 +29,7 @@ from ai_analysis import (
     generate_moat_analysis,
     generate_brand_analysis,
     generate_management_analysis,
+    generate_red_team_analysis,
 )
 from news_fetcher import get_latest_news
 
@@ -163,6 +165,13 @@ if analyze_button and ticker_input:
 
     mgmt = generate_management_analysis(data, score_result)
     st.markdown(create_management_display(mgmt))
+
+    st.divider()
+
+    st.subheader("🔴 Red Team AI（反対意見）")
+
+    red_team = generate_red_team_analysis(data, score_result, checklist, moat, brand, mgmt)
+    st.markdown(create_red_team_display(red_team))
 
     st.divider()
 

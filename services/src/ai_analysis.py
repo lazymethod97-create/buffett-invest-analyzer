@@ -1051,3 +1051,254 @@ def _generate_rule_management(data, score_result):
             "score": q_score
         }
     }
+
+
+def generate_red_team_analysis(data, score_result, checklist, moat, brand, mgmt):
+    """
+    Red Team AI（反対意見・Devil's Advocate）を生成する。
+    既存の分析結果を受け取り、投資の反対側からの疑問とリスクを提示する。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_red_team(data, score_result, checklist, moat, brand, mgmt)
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        # 既存分析結果をテキスト化してプロンプトに渡す
+        checklist_text = json.dumps(checklist, ensure_ascii=False) if isinstance(checklist, list) else str(checklist)
+        moat_text = json.dumps(moat, ensure_ascii=False) if isinstance(moat, dict) else str(moat)
+        brand_text = json.dumps(brand, ensure_ascii=False) if isinstance(brand, dict) else str(brand)
+        mgmt_text = json.dumps(mgmt, ensure_ascii=False) if isinstance(mgmt, dict) else str(mgmt)
+
+        prompt = f"""
+あなたは「バフェット投資の悪魔の代弁者」です。
+これまでの分析が「買い」に傾きがちなバイアスを持つことを自覚し、
+あえて「この企業を買わない理由」「分析の盲点」を提示してください。
+
+以下は現在の分析結果です。
+
+【財務スコア】
+Buffett Score: {score_result.get("total_score", 0)}/100
+判定: {score_result.get("verdict", "不明")}
+
+【企業データ】
+ROE: {data.get("roe")}
+ROA: {data.get("roa")}
+営業利益率: {data.get("operating_margin")}
+PER: {data.get("pe_ratio")}
+PBR: {data.get("pb_ratio")}
+FCF: {data.get("free_cashflow")}
+売上成長率: {data.get("revenue_growth")}
+D/E: {data.get("debt_to_equity")}
+
+【チェックリスト】
+{checklist_text}
+
+【MOAT評価】
+{moat_text}
+
+【ブランド力評価】
+{brand_text}
+
+【経営者評価】
+{mgmt_text}
+
+以下の観点で、それぞれ「この企業を買わない理由」を簡潔に（各40文字以内）述べてください。
+JSON形式のみで出力。余計な文章は不要です。
+
+1. financial_skepticism: 財務指標への疑問（ROEはレバレッジによるか？利益率は持続可能か？）
+2. moat_vulnerability: MOATの脆弱性（技術変化、規制、競合で堀が埋まるリスク）
+3. brand_demand_risk: ブランド・需要リスク（若年層離反、嗜好変化、維持コスト増大）
+4. management_blindspot: 経営者・組織の盲点（後継者、M&A失敗、キャッシュの無駄遣い）
+5. valuation_concern: バリュエーションの過大評価（PER/PBRの割高感、安全余裕の不足）
+6. conclusion: バフェットが静観する理由（100文字以内）
+
+回答は以下のJSON形式のみで出力してください。
+{{
+  "financial_skepticism": "...",
+  "moat_vulnerability": "...",
+  "brand_demand_risk": "...",
+  "management_blindspot": "...",
+  "valuation_concern": "...",
+  "conclusion": "..."
+}}
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        return json.loads(text)
+
+    except Exception:
+        return _generate_rule_red_team(data, score_result, checklist, moat, brand, mgmt)
+
+
+def _generate_rule_red_team(data, score_result, checklist, moat, brand, mgmt):
+    """ルールベースでRed Team（反対意見）を生成する（APIキー未設定時のフォールバック）"""
+    concerns = []
+
+    roe = data.get("roe")
+    de = data.get("debt_to_equity")
+    if de is not None and de > 100:
+        de = de / 100
+
+    # 財務の疑問
+    if roe is not None and roe >= 0.20 and de is not None and de >= 1.0:
+        financial_skepticism = "ROEは高いが、負債比率も高いためレバレッジによる可能性が高い。実質的な資本効率は見かけ倒れかもしれない。"
+    elif roe is not None and roe < 0.10:
+        financial_skepticism = "ROEが低く、資本効率に根本的な疑問がある。高いROEでなければ、バフェットは投資しない。"
+    else:
+        financial_skepticism = "財務指標は良好に見えるが、1年分のデータに過度に依存していないか？長期トレンドの確認が必要。"
+
+    # MOATの脆弱性
+    moat_rating = moat.get("rating", "none") if isinstance(moat, dict) else "none"
+    if moat_rating == "none":
+        moat_vulnerability = "MOATが認められない。競合に容易に模倣され、価格競争に巻き込まれるリスクが高い。"
+    elif moat_rating == "narrow":
+        moat_vulnerability = "MOATはあるが狭い。テクノロジー変化や規制緩和で、数年で消失する可能性がある。"
+    else:
+        moat_vulnerability = "広いMOATを持つと評価したが、過去の優位性が未来に通用するとは限らない。変化の速度に注意。"
+
+    # ブランドリスク
+    brand_stars = brand.get("stars", 0) if isinstance(brand, dict) else 0
+    if brand_stars <= 2:
+        brand_demand_risk = "ブランド力が弱い。製品差別化が困難で、コモディティ化のリスクが高い。"
+    else:
+        brand_demand_risk = "ブランドは強いと評価したが、次世代の消費者（Z世代）の嗜好に合致しているか疑問。維持コストの増大も懸念。"
+
+    # 経営者の盲点
+    mgmt_stars = mgmt.get("stars", 0) if isinstance(mgmt, dict) else 0
+    if mgmt_stars <= 2:
+        management_blindspot = "経営者の質に懸念。資本配分の失敗や、自己利益優先の可能性が否定できない。"
+    else:
+        management_blindspot = "経営者は優秀と評価したが、創業者依存・後継者不在のリスク、または過去の大規模M&A失敗の有無を確認すべき。"
+
+    # バリュエーション
+    pe = data.get("pe_ratio")
+    pb = data.get("pb_ratio")
+    if pe is not None and pe > 30:
+        valuation_concern = f"PERが{pe:.1f}倍と極めて高い。将来の成長を過大に織り込み、安全余裕がない。バフェットは待つだろう。"
+    elif pe is not None and pe > 25:
+        valuation_concern = f"PERが{pe:.1f}倍と高め。まだ許容範囲だが、成長鈍化時の下振れリスクは大きい。"
+    elif pb is not None and pb > 5.0:
+        valuation_concern = f"PBRが{pb:.1f}倍と高い。帳簿価値に対して大きなプレミアムがついており、割安感は乏しい。"
+    else:
+        valuation_concern = "バリュエーションは適正に見えるが、市場全体が楽観的な場合、相対的に割高になっている可能性に注意。"
+
+    # 結論
+    total_score = score_result.get("total_score", 0)
+    if total_score >= 75:
+        conclusion = "各種スコアは高いが、優良企業は誰もが知っている。現在の株価に「安全余裕」があるかが最大の疑問。バフェットは「待つ」か「買い増し」で迷う。"
+    elif total_score >= 55:
+        conclusion = "一定の魅力は認められるが、複数の懸念材料が重なる。バフェットは「もっと調べてから」と言うだろう。"
+    else:
+        conclusion = "財務スコアが低い。買う理由より買わない理由の方が多い。バフェットは即座に見送るタイプ。"
+
+    return {
+        "financial_skepticism": financial_skepticism,
+        "moat_vulnerability": moat_vulnerability,
+        "brand_demand_risk": brand_demand_risk,
+        "management_blindspot": management_blindspot,
+        "valuation_concern": valuation_concern,
+        "conclusion": conclusion
+    }
+
+
+def generate_investment_hypothesis(data, score_result, checklist, moat, brand, mgmt, red_team):
+    """
+    投資仮説を自動生成する。
+    APIキーがあればGeminiに依頼し、なければルールベースで返す。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        from hypothesis import generate_default_hypotheses
+        return generate_default_hypotheses(data, score_result, checklist, moat, brand, mgmt, red_team)
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        checklist_text = json.dumps(checklist, ensure_ascii=False) if isinstance(checklist, list) else str(checklist)
+        moat_text = json.dumps(moat, ensure_ascii=False) if isinstance(moat, dict) else str(moat)
+        brand_text = json.dumps(brand, ensure_ascii=False) if isinstance(brand, dict) else str(brand)
+        mgmt_text = json.dumps(mgmt, ensure_ascii=False) if isinstance(mgmt, dict) else str(mgmt)
+        red_team_text = json.dumps(red_team, ensure_ascii=False) if isinstance(red_team, dict) else str(red_team)
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知したアナリストです。
+以下の分析結果を基に、投資仮説（Investment Hypothesis）を3〜5個生成してください。
+
+【企業データ】
+会社名: {data.get("company_name")}
+ROE: {data.get("roe")}
+営業利益率: {data.get("operating_margin")}
+PER: {data.get("pe_ratio")}
+PBR: {data.get("pb_ratio")}
+FCF: {data.get("free_cashflow")}
+D/E: {data.get("debt_to_equity")}
+
+【Buffett Score】
+{score_result.get("total_score", 0)}/100
+
+【各種評価】
+Checklist: {checklist_text}
+MOAT: {moat_text}
+Brand: {brand_text}
+Management: {mgmt_text}
+Red Team: {red_team_text}
+
+各仮説は以下のJSON形式で出力してください。余計な文章は不要です。
+statusは「未検証」「検証中」「成立」「却下」「保留」のいずれか。
+
+[
+  {{"id": 1, "title": "...", "rationale": "...", "evidence": ["...", "..."], "verification_items": ["...", "..."], "status": "未検証", "source": "ai"}},
+  {{"id": 2, "title": "...", "rationale": "...", "evidence": ["...", "..."], "verification_items": ["...", "..."], "status": "未検証", "source": "ai"}}
+]
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        raw_list = json.loads(text)
+
+        # dict から dataclass へ変換
+        from hypothesis import InvestmentHypothesis, HypothesisStatus
+        hypotheses = []
+        for idx, d in enumerate(raw_list, start=1):
+            d["id"] = idx
+            hypotheses.append(InvestmentHypothesis(
+                id=d["id"],
+                title=d["title"],
+                rationale=d["rationale"],
+                evidence=d.get("evidence", []),
+                verification_items=d.get("verification_items", []),
+                status=HypothesisStatus(d.get("status", "未検証")),
+                source="ai",
+            ))
+        return hypotheses
+
+    except Exception:
+        from hypothesis import generate_default_hypotheses
+        return generate_default_hypotheses(data, score_result, checklist, moat, brand, mgmt, red_team)
