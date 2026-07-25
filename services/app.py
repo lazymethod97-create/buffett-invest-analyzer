@@ -37,6 +37,7 @@ from ai_analysis import (
 	generate_brand_analysis,
 	generate_management_analysis,
 	generate_red_team_analysis,
+	generate_investment_hypothesis,
 )
 from news_fetcher import get_latest_news
 
@@ -220,15 +221,16 @@ if "current_data" in st.session_state and "current_score_result" in st.session_s
 	st.subheader("📋 投資仮説管理")
 
 	if len(hypothesis_manager.get_all()) == 0:
-		defaults = generate_default_hypotheses(
-			data,
-			score_result,
-			checklist,
-			moat,
-			brand,
-			mgmt,
-			red_team,
-		)
+		with st.spinner("🤖 AIが投資仮説を生成中..."):
+			defaults = generate_investment_hypothesis(
+				data,
+				score_result,
+				checklist,
+				moat,
+				brand,
+				mgmt,
+				red_team,
+			)
 		for h in defaults:
 			hypothesis_manager.add(h)
 
