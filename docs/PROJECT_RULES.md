@@ -1,9 +1,8 @@
-```markdown
 <!-- This file contains the project rules for the Buffett Investment Analyzer -->
 
 # PROJECT_RULES.md
 # Buffett Investment Analyzer 開発ルール
-Version 2.1
+Version 3.0
 Last Update: 2026-07-25
 
 ---
@@ -23,7 +22,7 @@ Last Update: 2026-07-25
 ・ニュース分析
 ・経済的堀（MOAT）
 ・投資仮説管理
-・ニュース確認ポイント生成
+・PDFレポート出力
 
 まで行うことを目標とする。
 
@@ -98,6 +97,16 @@ Last Update: 2026-07-25
 ・どう確認するか
 
 を説明する。
+
+---
+
+## 6. 新規モジュールの配置場所を必ず確認する
+
+新しい.pyファイルを追加する場合、必ず既存モジュール（report.py, ai_analysis.py, hypothesis.py, data_fetcher.py, news_fetcher.py, scoring_engine.py）と同じフォルダに配置するよう指示する。
+
+配置場所を誤るとModuleNotFoundErrorが発生する（Sprint8で実際に発生した事例あり）。
+
+不明な場合は先にディレクトリ構成の確認をユーザーに依頼する。
 
 ---
 
@@ -237,6 +246,10 @@ button_delete
 
 button_update
 
+button_generate_pdf
+
+button_download_pdf
+
 ---
 
 ## TextInput
@@ -263,6 +276,8 @@ API
 
 通信
 
+PDF生成
+
 は例外処理を書く。
 
 ---
@@ -276,6 +291,8 @@ Gemini
 のみ
 
 OpenAIへ戻さない。
+
+各AI関数はGemini APIキー未設定・APIエラー時にルールベース関数へ自動フォールバックする設計を維持する。
 
 ---
 
@@ -297,7 +314,7 @@ Gemini分析
 
 ↓
 
-Gemini確認ポイント生成（Sprint7〜）
+Gemini確認ポイント生成（Sprint7）
 
 ---
 
@@ -355,7 +372,7 @@ AI分析
 
 ↓
 
-ニュース確認ポイント（Sprint7追加）
+ニュース確認ポイント（Sprint7）
 
 ↓
 
@@ -379,11 +396,15 @@ Red Team
 
 ↓
 
+採点詳細
+
+↓
+
 投資仮説
 
 ↓
 
-採点詳細
+PDFレポート（Sprint8）
 
 ↓
 
@@ -401,7 +422,9 @@ Sprint終了時
 
 例
 
-feat: Sprint7 AI news confirmation points
+feat: Sprint7 AI confirmation items
+
+feat: Sprint8 PDF report output
 
 fix: hypothesis manager
 
@@ -447,8 +470,6 @@ python-dotenv
 
 requests
 
-Sprint8で追加予定
-
 reportlab
 
 ---
@@ -470,6 +491,8 @@ yfinanceニュースへ戻すこと
 未完成コード提出
 
 構文エラーのあるコード提出
+
+新規モジュールを既存モジュールと異なるフォルダへ配置すること
 
 ---
 
@@ -497,13 +520,11 @@ yfinanceニュースへ戻すこと
 
 □ Git Commitメッセージ作成
 
+□ 新規モジュールの配置フォルダ確認
+
 ---
 
 # 今後のロードマップ
-
-Sprint8
-
-PDFレポート
 
 Sprint9
 
@@ -573,12 +594,6 @@ Buffett Investment Analyzer
 
 ・Gitコミットを提案する
 
+・新規モジュールの配置場所を明示する
+
 以上を徹底すること。
-```
-
-## 補足
-
-- 元の`PROJECT_RULES.md`アップロード版自体、冒頭のコメント行の後にコードフェンス（```）が中途半端に入っていて、Markdownとしても崩れた構造でした。今回それを解消し、先頭コメントを通常のHTMLコメント行として本文内に含める形にしています。
-- 内容・項目・文言は一切変更していません（フェンス構造の修正のみ）。
-- `AI_HANDOVER.md`の方は元から単一フェンスで問題なかったので、そちらは変更不要です。
-

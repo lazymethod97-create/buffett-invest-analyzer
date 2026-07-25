@@ -314,3 +314,28 @@ def create_confirmation_points_display(points: List[Dict[str, Any]]) -> str:
 		md += "\n"
 
 	return md
+def create_dcf_display(dcf: Dict[str, Any]) -> str:
+	"""
+	dcf: calculate_dcf() の戻り値
+	"""
+	if not dcf.get("success"):
+		return f"*{dcf.get('error', 'DCF評価を計算できませんでした。')}*\n"
+
+	a = dcf["assumptions"]
+	md = "#### 前提条件\n"
+	md += f"- FCF成長率: {a['growth_rate']*100:.1f}%（{a['projection_years']}年間）\n"
+	md += f"- 割引率（WACC簡易値）: {a['discount_rate']*100:.1f}%\n"
+	md += f"- 永久成長率: {a['terminal_growth']*100:.1f}%\n\n"
+
+	md += "#### 将来FCF予測（1株あたり）\n"
+	md += "| 年 | 予測FCF | 現在価値 |\n|:---:|---:|---:|\n"
+	for p in dcf["projections"]:
+		md += f"| {p['year']}年後 | {p['fcf_per_share']:.2f} | {p['present_value']:.2f} |\n"
+	md += "\n"
+
+	md += f"**ターミナルバリュー（現在価値）:** {dcf['terminal_value_pv']:.2f}\n\n"
+	md += f"### 💰 理論株価（Intrinsic Value）: {dcf['intrinsic_value_per_share']:.2f}\n"
+	md += f"**現在株価:** {dcf['current_price']:.2f}\n\n"
+	md += f"**安全余裕（Margin of Safety）:** {dcf['margin_of_safety_pct']:+.1f}%\n\n"
+	md += f"**判定:** {dcf['verdict']}\n"
+	return md

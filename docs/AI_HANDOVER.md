@@ -1,6 +1,6 @@
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint7完了時点）
-Version: 2.1
+# AI 引継ぎ書（Sprint8完了時点）
+Version: 3.0
 Date: 2026-07-25
 
 ---
@@ -19,6 +19,7 @@ Date: 2026-07-25
 - yfinance
 - Google News RSS
 - newspaper4k
+- ReportLab（PDFレポート出力）
 
 Github
 
@@ -65,6 +66,8 @@ scoring_engine.py
 report.py
 
 hypothesis.py
+
+pdf_report.py
 
 ---
 
@@ -144,7 +147,7 @@ Red Team AI
 
 ・HypothesisStatus
 
-・AIによる仮説生成
+・AIによる仮説生成（generate_investment_hypothesis／Gemini連携、未設定時はルールベースへ自動フォールバック）
 
 ・手動追加
 
@@ -160,11 +163,7 @@ Red Team AI
 
 完了
 
-補足（Sprint7時点で修正）
-
-初回実装時、ai_analysis.py内のgenerate_investment_hypothesis()（Gemini版仮説生成）がapp.pyからimportされておらず、常にルールベース（generate_default_hypotheses）のみが呼ばれる状態だった。
-
-app.pyのimportおよび呼び出し箇所を修正し、GEMINI_API_KEY設定時はAIが仮説生成、未設定・エラー時はルールベースへ自動フォールバックする構成に修正済み。
+※初版ではAI仮説生成関数がapp.pyから未接続だったが、修正済み。現在はGemini APIキー設定時、Geminiが企業データ・MOAT・ブランド・経営者・Red Team評価を踏まえて動的に仮説を生成する。
 
 ---
 
@@ -176,33 +175,49 @@ app.pyのimportおよび呼び出し箇所を修正し、GEMINI_API_KEY設定時
 
 内容
 
-・generate_news_confirmation_points()（ai_analysis.py）
+・generate_news_confirmation_points（ai_analysis.py）
 
-・_generate_rule_confirmation_points()（APIキー未設定時フォールバック）
+・ニュース本文を踏まえ「決算確認項目」「リスクイベント」「競合動向」「設備投資」「規制」「為替」等のカテゴリ別に確認事項を生成
 
-・create_confirmation_points_display()（report.py）
+・優先度（high/medium/low）付き
 
-・app.py「📝 AIニュース要約」の直後に「🔍 ニュースから確認すべきポイント」セクションを追加
+・Gemini未設定時はルールベース（_generate_rule_confirmation_points）へ自動フォールバック
 
-生成される確認ポイントのカテゴリ
+・create_confirmation_points_display（report.py）でカテゴリ別・優先度アイコン付き表示
 
-・決算確認項目
-
-・リスクイベント
-
-・競合動向
-
-・設備投資
-
-・規制
-
-・為替
-
-各ポイントに優先度（high / medium / low）を付与し、カテゴリ別にグルーピングして表示。
-
-Checklistへの統合は未実施（表示は独立セクションとして追加、Checklist本体のロジック・UIは変更していない）。
+・UI配置：「📝 AIニュース要約」の直後、「📋 Buffett Investment Checklist」の直前
 
 完了
+
+---
+
+## Sprint8
+
+PDFレポート出力
+
+実装済
+
+内容
+
+・pdf_report.py 新規作成（services/配下、他モジュールと同階層）
+
+・ReportLab使用、日本語はCIDフォント（HeiseiKakuGo-W5／HeiseiMin-W3）使用のためフォントファイル不要
+
+・generate_pdf_report()で以下を1つのPDFに集約
+
+　会社情報／Buffett Score／採点詳細／AI定性分析／ニュース要約／
+
+　ニュース確認ポイント（Sprint7）／Checklist／MOAT／ブランド／
+
+　経営者／Red Team／投資仮説一覧
+
+・app.py側：「📄 PDFレポートを生成」ボタン→生成後「⬇️ PDFをダウンロード」ボタン表示
+
+・依存追加：reportlab（requirements.txtへの追記が必要）
+
+完了
+
+※注意：pdf_report.pyは他のモジュール（report.py, ai_analysis.py等）と必ず同じフォルダに置くこと。別フォルダに置くとModuleNotFoundErrorになる（実際に発生し、配置修正で解決済み）。
 
 ---
 
@@ -210,7 +225,7 @@ Checklistへの統合は未実施（表示は独立セクションとして追�
 
 最新版
 
-Sprint7対応済
+Sprint8対応済
 
 現在の構成
 
@@ -238,7 +253,7 @@ AI分析
 
 ↓
 
-ニュース確認ポイント（Sprint7追加）
+ニュース確認ポイント（Sprint7）
 
 ↓
 
@@ -262,11 +277,15 @@ Red Team
 
 ↓
 
+採点詳細
+
+↓
+
 投資仮説管理
 
 ↓
 
-採点詳細
+PDFレポート（Sprint8）
 
 ↓
 
@@ -288,29 +307,61 @@ HypothesisStatus
 
 JSON対応済
 
-Sprint7での変更なし
-
----
-
-# report.py
-
-Sprint7でcreate_confirmation_points_display()を追加。
-
-create_hypothesis_display()
-
-は引き続き未使用
-
-表示はapp.pyで行っている
-
-削除しなくてよい
+generate_default_hypotheses はGemini未設定時／APIエラー時のフォールバックとして ai_analysis.py 経由で使用される（app.pyから直接は呼ばない）
 
 ---
 
 # ai_analysis.py
 
-Sprint7でgenerate_news_confirmation_points()、_generate_rule_confirmation_points()を追加。
+完成済
 
-既存関数（generate_ai_analysis〜generate_investment_hypothesis）は変更なし。
+含まれる関数
+
+generate_ai_analysis
+
+generate_news_summary
+
+generate_buffett_checklist
+
+generate_moat_analysis
+
+generate_brand_analysis
+
+generate_management_analysis
+
+generate_red_team_analysis
+
+generate_investment_hypothesis（Sprint6・AI仮説生成）
+
+generate_news_confirmation_points（Sprint7・ニュース確認ポイント）
+
+いずれもGemini APIキー未設定・APIエラー時はルールベース関数へ自動フォールバックする設計で統一されている。
+
+---
+
+# report.py
+
+現在は
+
+create_hypothesis_display()
+
+は未使用
+
+表示はapp.pyで行っている
+
+削除しなくてよい
+
+Sprint7でcreate_confirmation_points_displayを追加済み
+
+---
+
+# pdf_report.py
+
+Sprint8で新規追加
+
+PDFBuilderクラスでページ送り・文字折り返しを管理
+
+generate_pdf_report()が唯一の公開関数
 
 ---
 
@@ -321,8 +372,6 @@ Gemini使用
 OpenAIは使用しない
 
 ニュース本文もGeminiへ渡している
-
-ニュース確認ポイント生成もニュース本文を基にGeminiへ渡している
 
 ---
 
@@ -344,37 +393,35 @@ Gemini要約
 
 ↓
 
-Gemini確認ポイント生成（Sprint7追加）
+Gemini確認ポイント生成（Sprint7）
 
 ---
 
 # 次Sprint
 
-Sprint8
+Sprint9
 
 テーマ
 
-PDFレポート出力
+DCF分析（Discounted Cash Flow）
 
-内容想定
+内容予定
 
-・ReportLabを使用
+・将来FCF予測
 
-・Buffett Score、Checklist、MOAT、ブランド、経営者、Red Team、投資仮説をPDF化
+・割引率（WACC）設定
 
-・ダウンロードボタンで出力
+・現在価値算出
 
-・Version 1.0完成に向けた最終Sprint候補
+・理論株価との比較表示
 
 ---
 
 # 将来実装予定
 
-□ PDFレポート（Sprint8で着手予定）
-
 □ Excel出力
 
-□ DCF分析
+□ DCF分析（Sprint9予定）
 
 □ Owner Earnings
 
@@ -430,20 +477,22 @@ app.py全体を確認してから修正すること。
 
 完成コードを書くこと。
 
+新規モジュールを作成する場合は、必ず既存モジュール（report.py等）と同じフォルダに配置するよう指示すること。
+
 ---
 
 Git Commit
 
-fix: wire AI-based hypothesis generation into app.py (Sprint6 completion)
-
 feat: Sprint7 AI news confirmation points
+
+feat: Sprint8 PDF report output via ReportLab
 
 ---
 
 現在Version
 
-Ver2.1
+Ver3.0
 
-Sprint7完了
+Sprint8完了
 
-次回はSprint8（PDFレポート）から開始する
+次回はSprint9（DCF分析）から開始する

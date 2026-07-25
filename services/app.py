@@ -23,6 +23,7 @@ from report import (
 	create_management_display,
 	create_red_team_display,
 	create_confirmation_points_display,
+	create_dcf_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -43,6 +44,7 @@ from ai_analysis import (
 )
 from news_fetcher import get_latest_news
 from pdf_report import generate_pdf_report
+from dcf_analysis import calculate_dcf
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -350,7 +352,40 @@ if "current_data" in st.session_state and "current_score_result" in st.session_s
 			key="button_download_pdf",
 		)
 
-elif analyze_button and not ticker_input:
+	st.divider()
+
+	####################################################
+	# Sprint9 DCF分析（理論株価）
+	####################################################
+	st.subheader("💰 DCF分析（理論株価）")
+	st.caption("フリーキャッシュフローを将来に投影し、現在価値に割り引いて理論株価を算出します。")
+
+	dcf_col1, dcf_col2, dcf_col3 = st.columns(3)
+	with dcf_col1:
+		dcf_growth_rate = st.slider(
+			"FCF成長率（年率）", 0.0, 0.20, 0.05, step=0.005,
+			format="%.1f%%", key="slider_dcf_growth",
+		)
+	with dcf_col2:
+		dcf_discount_rate = st.slider(
+			"割引率（WACC簡易値）", 0.05, 0.20, 0.10, step=0.005,
+			format="%.1f%%", key="slider_dcf_discount",
+		)
+	with dcf_col3:
+		dcf_terminal_growth = st.slider(
+			"永久成長率", 0.0, 0.05, 0.025, step=0.005,
+			format="%.1f%%", key="slider_dcf_terminal",
+		)
+
+	dcf_result = calculate_dcf(
+		data,
+		growth_rate=dcf_growth_rate,
+		discount_rate=dcf_discount_rate,
+		terminal_growth=dcf_terminal_growth,
+	)
+	st.markdown(create_dcf_display(dcf_result))
+
+elif analyze_button and not ticker_input:	
 	st.warning("ティッカーシンボルを入力してください。")
 
 st.divider()
