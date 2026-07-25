@@ -1302,3 +1302,146 @@ statusは「未検証」「検証中」「成立」「却下」「保留」の�
     except Exception:
         from hypothesis import generate_default_hypotheses
         return generate_default_hypotheses(data, score_result, checklist, moat, brand, mgmt, red_team)
+
+def generate_news_confirmation_points(data, news, score_result):
+    """
+    Sprint7: ニュースから「次に確認すべきポイント」をAIが自動生成する。
+    APIキーがあればGeminiに依頼し、なければルールベースで返す。
+    """
+    if not news:
+        return []
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_confirmation_points(data, news, score_result)
+
+    try:
+        client = genai.Client(api_key=api_key)
+        news_text = ""
+        for article in news:
+            news_text += f"""
+タイトル
+{article['title']}
+
+本文
+{article.get('content','')}
+
+-----------------------
+"""
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した長期投資アナリストです。
+
+以下は企業に関する最新ニュースと基本情報です。
+
+会社名：{data.get("company_name")}
+セクター：{data.get("sector")}
+Buffett Score：{score_result.get("total_score", 0)}/100
+
+【ニュース】
+{news_text}
+
+このニュースを踏まえて、投資判断の前に「次に確認すべきポイント」を5〜8個、
+以下のカテゴリの中から該当するものを選んで提示してください。
+
+カテゴリ例：
+決算確認項目 / リスクイベント / 競合動向 / 設備投資 / 規制 / 為替 / その他
+
+各ポイントについて、以下を判定してください。
+- category: 上記カテゴリのいずれか
+- point: 確認すべき内容（60文字以内）
+- priority: "high" / "medium" / "low"（緊急度・重要度）
+
+回答は以下のJSON形式のみで出力してください。余計な文章は不要です。
+[
+  {{"category": "決算確認項目", "point": "...", "priority": "high"}},
+  {{"category": "リスクイベント", "point": "...", "priority": "medium"}}
+]
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        return json.loads(text)
+
+    except Exception:
+        return _generate_rule_confirmation_points(data, news, score_result)
+
+
+def _generate_rule_confirmation_points(data, news, score_result):
+    """ルールベースで確認ポイントを生成する（APIキー未設定時・エラー時のフォールバック）"""
+    points = []
+
+    # 決算確認項目：財務スコアに応じて
+    total_score = score_result.get("total_score", 0)
+    if total_score < 75:
+        points.append({
+            "category": "決算確認項目",
+            "point": "次期決算で主要指標（ROE・営業利益率）が改善しているか確認する。",
+            "priority": "high"
+        })
+    else:
+        points.append({
+            "category": "決算確認項目",
+            "point": "次期決算で高水準の指標が維持されているか確認する。",
+            "priority": "medium"
+        })
+
+    # リスクイベント：ニュース件数から一般的な注意喚起
+    points.append({
+        "category": "リスクイベント",
+        "point": f"直近ニュース{len(news)}件の内容が一時的要因か構造的変化かを見極める。",
+        "priority": "medium"
+    })
+
+    # 競合動向
+    points.append({
+        "category": "競合動向",
+        "point": "同業他社の決算・新製品動向と比較し、相対的な優位性を確認する。",
+        "priority": "medium"
+    })
+
+    # 設備投資
+    fcf = data.get("free_cashflow")
+    if fcf is not None and fcf < 0:
+        points.append({
+            "category": "設備投資",
+            "point": "FCFがマイナスのため、設備投資の規模と回収見込みを確認する。",
+            "priority": "high"
+        })
+    else:
+        points.append({
+            "category": "設備投資",
+            "point": "設備投資が将来の成長にどう寄与するか確認する。",
+            "priority": "low"
+        })
+
+    # 規制
+    sector = data.get("sector", "")
+    if sector in ["Financial Services", "Utilities", "Healthcare", "Energy"]:
+        points.append({
+            "category": "規制",
+            "point": f"{sector}セクターは規制変更の影響を受けやすいため、関連法規の動向を確認する。",
+            "priority": "medium"
+        })
+
+    # 為替
+    if data.get("country") and data.get("country") != "Japan":
+        points.append({
+            "category": "為替",
+            "point": "為替変動が業績・株価に与える影響を確認する。",
+            "priority": "low"
+        })
+
+    return points

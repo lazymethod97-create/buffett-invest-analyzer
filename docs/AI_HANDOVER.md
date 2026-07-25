@@ -1,7 +1,6 @@
-```markdown
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint6完了時点）
-Version: 2.0
+# AI 引継ぎ書（Sprint7完了時点）
+Version: 2.1
 Date: 2026-07-25
 
 ---
@@ -161,13 +160,57 @@ Red Team AI
 
 完了
 
+補足（Sprint7時点で修正）
+
+初回実装時、ai_analysis.py内のgenerate_investment_hypothesis()（Gemini版仮説生成）がapp.pyからimportされておらず、常にルールベース（generate_default_hypotheses）のみが呼ばれる状態だった。
+
+app.pyのimportおよび呼び出し箇所を修正し、GEMINI_API_KEY設定時はAIが仮説生成、未設定・エラー時はルールベースへ自動フォールバックする構成に修正済み。
+
+---
+
+## Sprint7
+
+ニュース確認ポイント自動生成
+
+実装済
+
+内容
+
+・generate_news_confirmation_points()（ai_analysis.py）
+
+・_generate_rule_confirmation_points()（APIキー未設定時フォールバック）
+
+・create_confirmation_points_display()（report.py）
+
+・app.py「📝 AIニュース要約」の直後に「🔍 ニュースから確認すべきポイント」セクションを追加
+
+生成される確認ポイントのカテゴリ
+
+・決算確認項目
+
+・リスクイベント
+
+・競合動向
+
+・設備投資
+
+・規制
+
+・為替
+
+各ポイントに優先度（high / medium / low）を付与し、カテゴリ別にグルーピングして表示。
+
+Checklistへの統合は未実施（表示は独立セクションとして追加、Checklist本体のロジック・UIは変更していない）。
+
+完了
+
 ---
 
 # app.py
 
 最新版
 
-Sprint6対応済
+Sprint7対応済
 
 現在の構成
 
@@ -192,6 +235,10 @@ AI分析
 ↓
 
 ニュース要約
+
+↓
+
+ニュース確認ポイント（Sprint7追加）
 
 ↓
 
@@ -241,19 +288,29 @@ HypothesisStatus
 
 JSON対応済
 
+Sprint7での変更なし
+
 ---
 
 # report.py
 
-現在は
+Sprint7でcreate_confirmation_points_display()を追加。
 
 create_hypothesis_display()
 
-は未使用
+は引き続き未使用
 
 表示はapp.pyで行っている
 
 削除しなくてよい
+
+---
+
+# ai_analysis.py
+
+Sprint7でgenerate_news_confirmation_points()、_generate_rule_confirmation_points()を追加。
+
+既存関数（generate_ai_analysis〜generate_investment_hypothesis）は変更なし。
 
 ---
 
@@ -264,6 +321,8 @@ Gemini使用
 OpenAIは使用しない
 
 ニュース本文もGeminiへ渡している
+
+ニュース確認ポイント生成もニュース本文を基にGeminiへ渡している
 
 ---
 
@@ -283,45 +342,35 @@ newspaper4k
 
 Gemini要約
 
+↓
+
+Gemini確認ポイント生成（Sprint7追加）
+
 ---
 
 # 次Sprint
 
-Sprint7
+Sprint8
 
 テーマ
 
-ニュースから
+PDFレポート出力
 
-AIが
+内容想定
 
-「確認すべきポイント」
+・ReportLabを使用
 
-を自動生成する
+・Buffett Score、Checklist、MOAT、ブランド、経営者、Red Team、投資仮説をPDF化
 
-例
+・ダウンロードボタンで出力
 
-決算確認項目
-
-リスクイベント
-
-競合動向
-
-設備投資
-
-規制
-
-為替
-
-など
-
-Checklistへ統合予定
+・Version 1.0完成に向けた最終Sprint候補
 
 ---
 
 # 将来実装予定
 
-□ PDFレポート
+□ PDFレポート（Sprint8で着手予定）
 
 □ Excel出力
 
@@ -385,16 +434,16 @@ app.py全体を確認してから修正すること。
 
 Git Commit
 
-feat: complete Sprint6 Investment Hypothesis Manager
+fix: wire AI-based hypothesis generation into app.py (Sprint6 completion)
+
+feat: Sprint7 AI news confirmation points
 
 ---
 
 現在Version
 
-Ver2.0
+Ver2.1
 
-Sprint6完了
+Sprint7完了
 
-次回はSprint7から開始する
-
-```
+次回はSprint8（PDFレポート）から開始する

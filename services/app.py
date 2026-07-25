@@ -22,6 +22,7 @@ from report import (
 	create_brand_display,
 	create_management_display,
 	create_red_team_display,
+	create_confirmation_points_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -38,8 +39,10 @@ from ai_analysis import (
 	generate_management_analysis,
 	generate_red_team_analysis,
 	generate_investment_hypothesis,
+	generate_news_confirmation_points,
 )
 from news_fetcher import get_latest_news
+from pdf_report import generate_pdf_report
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -167,11 +170,21 @@ if "current_data" in st.session_state and "current_score_result" in st.session_s
 	st.divider()
 
 	st.subheader("📝 AIニュース要約")
+	summary = ""
 	if news:
 		summary = generate_news_summary(news)
 		st.success(summary)
 	else:
 		st.info("要約するニュースがありません。")
+		
+	st.divider()
+
+	####################################################
+	# Sprint7 ニュース確認ポイント
+	####################################################
+	st.subheader("🔍 ニュースから確認すべきポイント")
+	confirmation_points = generate_news_confirmation_points(data, news, score_result)
+	st.markdown(create_confirmation_points_display(confirmation_points))
 
 	st.divider()
 
@@ -307,6 +320,35 @@ if "current_data" in st.session_state and "current_score_result" in st.session_s
 			st.rerun()
 		except Exception as e:
 			st.error(f"JSONの読み込みに失敗しました。\n{e}")
+
+	st.divider()
+
+	####################################################
+	# Sprint8 PDFレポート出力
+	####################################################
+	st.subheader("📄 PDFレポート")
+	if st.button("📄 PDFレポートを生成", key="button_generate_pdf"):
+		with st.spinner("PDFを生成中..."):
+			pdf_bytes = generate_pdf_report(
+				data,
+				score_result,
+				analysis,
+				summary,
+				checklist,
+				moat,
+				brand,
+				mgmt,
+				red_team,
+				confirmation_points,
+				hypothesis_manager.get_all(),
+			)
+		st.download_button(
+			"⬇️ PDFをダウンロード",
+			data=pdf_bytes,
+			file_name=f"{data.get('company_name', 'report')}_buffett_report.pdf",
+			mime="application/pdf",
+			key="button_download_pdf",
+		)
 
 elif analyze_button and not ticker_input:
 	st.warning("ティッカーシンボルを入力してください。")

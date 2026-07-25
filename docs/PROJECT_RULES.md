@@ -1,9 +1,9 @@
 ```markdown
 <!-- This file contains the project rules for the Buffett Investment Analyzer -->
-```
+
 # PROJECT_RULES.md
 # Buffett Investment Analyzer 開発ルール
-Version 2.0
+Version 2.1
 Last Update: 2026-07-25
 
 ---
@@ -23,6 +23,7 @@ Last Update: 2026-07-25
 ・ニュース分析
 ・経済的堀（MOAT）
 ・投資仮説管理
+・ニュース確認ポイント生成
 
 まで行うことを目標とする。
 
@@ -294,6 +295,10 @@ newspaper4k
 
 Gemini分析
 
+↓
+
+Gemini確認ポイント生成（Sprint7〜）
+
 ---
 
 # Buffett Score
@@ -350,6 +355,10 @@ AI分析
 
 ↓
 
+ニュース確認ポイント（Sprint7追加）
+
+↓
+
 Checklist
 
 ↓
@@ -392,7 +401,7 @@ Sprint終了時
 
 例
 
-feat: Sprint7 AI confirmation items
+feat: Sprint7 AI news confirmation points
 
 fix: hypothesis manager
 
@@ -437,6 +446,10 @@ google-genai
 python-dotenv
 
 requests
+
+Sprint8で追加予定
+
+reportlab
 
 ---
 
@@ -487,10 +500,6 @@ yfinanceニュースへ戻すこと
 ---
 
 # 今後のロードマップ
-
-Sprint7
-
-ニュース確認ポイント生成
 
 Sprint8
 
@@ -566,3 +575,10 @@ Buffett Investment Analyzer
 
 以上を徹底すること。
 ```
+
+## 補足
+
+- 元の`PROJECT_RULES.md`アップロード版自体、冒頭のコメント行の後にコードフェンス（```）が中途半端に入っていて、Markdownとしても崩れた構造でした。今回それを解消し、先頭コメントを通常のHTMLコメント行として本文内に含める形にしています。
+- 内容・項目・文言は一切変更していません（フェンス構造の修正のみ）。
+- `AI_HANDOVER.md`の方は元から単一フェンスで問題なかったので、そちらは変更不要です。
+

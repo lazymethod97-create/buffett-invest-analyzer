@@ -285,3 +285,32 @@ def create_hypothesis_display(hypotheses: List[Dict[str, Any]]) -> str:
             md += "\n"
 
     return md
+
+def create_confirmation_points_display(points: List[Dict[str, Any]]) -> str:
+	"""
+	points: [{"category": str, "point": str, "priority": "high"/"medium"/"low"}, ...]
+	"""
+	if not points:
+		return "*確認すべきポイントはありません（ニュースが取得できなかった可能性があります）。*\n"
+
+	priority_icon = {
+		"high": "🔴 高",
+		"medium": "🟡 中",
+		"low": "🟢 低",
+	}
+
+	# カテゴリごとにグルーピング
+	grouped = {}
+	for p in points:
+		cat = p.get("category", "その他")
+		grouped.setdefault(cat, []).append(p)
+
+	md = ""
+	for cat, items in grouped.items():
+		md += f"#### 📌 {cat}\n"
+		for item in items:
+			icon = priority_icon.get(item.get("priority", ""), "⚪ -")
+			md += f"- **[{icon}]** {item.get('point', '')}\n"
+		md += "\n"
+
+	return md
