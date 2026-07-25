@@ -110,7 +110,7 @@ def generate_news_summary(news):
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return "Gemini APIキーが設定されていません。"
+        return _generate_rule_news_summary(news)
 
     try:
         client = genai.Client(api_key=api_key)
@@ -194,9 +194,20 @@ def generate_news_summary(news):
         )
         return response.text
 
-    except Exception as e:
-        return str(e)
+    except Exception:
+        return _generate_rule_news_summary(news)
 
+
+def _generate_rule_news_summary(news):
+    """ルールベースでニュース要約を生成する（APIキー未設定時・クォータ超過時のフォールバック）"""
+    lines = ["⚠️ AI要約は現在利用できません（APIクォータ超過、または未設定）。以下は取得済みニュースの一覧です。\n"]
+    lines.append("# ニュース一覧\n")
+    for article in news:
+        title = article.get("title", "")
+        publisher = article.get("publisher", "")
+        lines.append(f"- {title}" + (f"（{publisher}）" if publisher else ""))
+    lines.append("\n※ AI分析を利用するには、しばらく時間を置いてから再実行するか、Gemini APIのプラン・クォータをご確認ください。")
+    return "\n".join(lines)
 
 def generate_buffett_checklist(data, score_result):
     """
