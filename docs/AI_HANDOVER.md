@@ -1,5 +1,5 @@
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint11完了時点）
+# AI 引継ぎ書（Sprint12完了時点）
 Version: 4.0
 Date: 2026-07-26
 
@@ -47,7 +47,7 @@ https://github.com/lazymethod97-create/buffett-invest-analyzer
 
 ⑧必ずapp.py全体との整合性を確認する
 
-※UIルールはPROJECT_RULES.md Ver4.0で「タブの並び順」「タブ内の並び順」の2階層に改訂済み（Sprint11対応）。
+詳細はPROJECT_RULES.md（Ver4.1）を参照。
 
 ---
 
@@ -71,37 +71,51 @@ hypothesis.py
 
 pdf_report.py
 
-dcf_analysis.py（Sprint9で追加）
+dcf_analysis.py（Sprint9）
 
 ---
 
 # 完了済みSprint
 
-## Sprint1〜Sprint8
+## Sprint1〜8
 
-Ver3.0時点までに完了済み（Buffett Score／AI定性分析／ニュース取得＋要約／Checklist／MOAT・ブランド・経営者・Red Team分析／投資仮説管理／ニュース確認ポイント／PDFレポート出力）。詳細はVer3.0の引継ぎ書を参照。
+Ver3.0のAI_HANDOVER.mdを参照。概要：
+
+- Sprint1: Buffett Score（財務データ取得・100点評価・判定コメント）
+- Sprint2: AI定性分析（Gemini）
+- Sprint3: Google News RSS・記事本文取得・ニュース要約
+- Sprint4: Buffett Checklist
+- Sprint5: MOAT分析・ブランド分析・経営者分析・Red Team AI
+- Sprint6: 投資仮説管理（HypothesisManager等）
+- Sprint7: ニュース確認ポイント自動生成
+- Sprint8: PDFレポート出力（ReportLab、pdf_report.py）
 
 ---
 
 ## Sprint9
 
-DCF分析（Discounted Cash Flow）
+テーマ：DCF分析（Discounted Cash Flow）
 
-完了
+実装済
 
 内容
 
-・`dcf_analysis.py` 新規作成（services/配下、他モジュールと同階層）
+・dcf_analysis.py 新規作成（services/配下、他モジュールと同階層）
 
-・`calculate_dcf()` が唯一の公開関数。ルールベースの数式計算のみで、AIは使用しない
+・calculate_dcf()：フリーキャッシュフロー(free_cashflow)を発行済株式数で割り、
+　1株あたりFCFを算出→成長率・割引率(WACC簡易値)・永久成長率を用いて
+　5年間のFCFを現在価値に割引き、ターミナルバリュー(Gordon Growth Model)を加算して
+　理論株価(intrinsic_value_per_share)を算出
 
-・将来FCF予測（デフォルト5年）→ 現在価値へ割引 → ターミナルバリュー（Gordon Growth Model）を加算し、理論株価（intrinsic_value_per_share）を算出
+・すべてルールベースの計算のみ。AI（Gemini）は一切使用しない
 
-・現在株価との差から安全余裕（margin_of_safety_pct）と判定（verdict）を算出
+・成長率未指定時はrevenue_growthを参考に5%〜15%にクリップして自動設定（保守的）
 
-・app.py側：FCF成長率／割引率（WACC簡易値）／永久成長率の3スライダーをUIに追加し、`create_dcf_display()`（report.py）で表示
+・安全余裕(margin_of_safety_pct)に応じて🟢🟡🟠🔴の4段階で判定
 
-・データ不足時（FCFマイナス等）は `success: False` を返し、エラーメッセージを表示する設計
+・report.py に create_dcf_display() を追加
+
+・app.py側：3つのスライダー（FCF成長率／割引率／永久成長率）で前提条件を調整可能
 
 完了
 
@@ -109,21 +123,28 @@ DCF分析（Discounted Cash Flow）
 
 ## Sprint10
 
-分析結果のキャッシュ化
+テーマ：分析結果のキャッシュ化
 
-完了
+実装済
 
 内容
 
-・課題：DCFスライダーを1回動かすだけで、Streamlitがスクリプト全体を再実行し、Gemini呼び出し（AI定性分析／ニュース要約／ニュース確認ポイント／Checklist／MOAT／ブランド／経営者／Red Teamの計7回）が毎回再実行されてしまっていた
+・課題：Streamlitは操作のたびにスクリプト全体を再実行するため、Sprint9のDCFスライダーを
+　1回動かすだけで、ニュース取得＋Gemini呼び出し7回（AI定性分析／Checklist／MOAT／
+　ブランド／経営者／Red Team／ニュース確認ポイント）がすべて再実行されていた
 
-・対策1：AI分析はすべて「🔍 分析開始」ボタン押下時（分析実行ブロック）に1回だけ実行し、結果を `st.session_state.analysis_bundle`（辞書）にまとめて保存
+・対応1：`get_stock_data` と `get_latest_news` を直接編集せず、app.py側で
+　`st.cache_data(ttl=3600)` によるラッパー関数（`cached_get_stock_data` /
+　`cached_get_latest_news`）を追加し、呼び出し口だけ差し替え。同じ引数なら1時間再取得しない
 
-・対策2：結果表示ブロックは `analysis_bundle` から値を読むだけにし、AI関数を直接呼ばないよう変更
+・対応2：AI分析（ニュース要約／AI定性分析／Checklist／MOAT／ブランド／経営者／
+　Red Team／確認ポイント）は「🔍 分析開始」ボタンが押された時（analyze_button）に
+　**1回だけ**実行し、結果を辞書にまとめて `st.session_state.analysis_bundle` に保存
 
-・対策3：`data_fetcher.py` / `news_fetcher.py` は変更せず、app.py側に `st.cache_data(ttl=3600)` でラップした `cached_get_stock_data` / `cached_get_latest_news` を追加し、呼び出し口だけ差し替え
+・表示ブロックはAI関数を直接呼ばず、`st.session_state.analysis_bundle` から値を読むだけに変更
 
-・効果：DCFスライダー操作時にGemini呼び出しが発生しなくなり、体感速度が大幅改善。PDFの内容が生成のたびに微妙に変わる問題も解消
+・これによりDCFスライダーなどの操作では一切Gemini呼び出しが走らなくなった
+　（表示内容・順序は一切変更していない）
 
 完了
 
@@ -131,35 +152,79 @@ DCF分析（Discounted Cash Flow）
 
 ## Sprint11
 
-タブレイアウト化
+テーマ：タブレイアウト化
 
-完了
+実装済
 
 内容
 
-・PROJECT_RULES.mdをVer4.0として改訂し、「画面順序を変更しない」ルールを「タブの並び順」「タブ内の並び順」の2階層に再定義（表示する情報・機能自体は変更なし）
+・PROJECT_RULES.md をVer4.0に改訂し、「UI順序を変更しない」ルールを
+　「タブの並び順」＋「タブ内の並び順」の2階層に再定義（先にルール側を更新してから実装）
 
-・タブ構成：`[📊 サマリー] [📈 定量分析] [🧠 定性分析] [📰 ニュース] [📋 仮説・レポート]`
+・st.tabs()で5タブを作成：
+
+　[📊 サマリー] [📈 定量分析] [🧠 定性分析] [📰 ニュース] [📋 仮説・レポート]
 
 ・会社情報（企業名・セクター・国・株価・時価総額）のみタブの外、常に画面上部に固定
 
-・サマリータブは新規のヘルパー関数（`_star_line`, `_moat_rating_label`。app.py内に追加、report.pyは無変更）を使い、MOAT・ブランド・経営者は星評価のみ、Red Teamは結論一行のみを表示。新しいAI呼び出しは追加していない
+・サマリータブは新規に「星評価・結論だけを抜き出す」表示にした
+　（`_star_line()` / `_moat_rating_label()` という小さなヘルパー関数をapp.pyに追加。
+　report.pyの詳細表示関数(create_moat_display等)は変更せず、定性分析タブでそのまま使用）
 
-・DCFはコード上「定量分析タブ」のブロックで計算し、その結果をサマリータブのブロックで再利用（コードの実行順とタブの表示順は独立しているため問題なし）
+・DCFはコード上「定量分析タブ」のブロックで計算し、その結果(dcf_result)を
+　「サマリータブ」のブロックでも再利用している。Streamlitはタブの見た目の並びと
+　コードの実行順が別物なので、コードの記述順が定量分析タブ→サマリータブでも問題なく動く
 
-・その他のタブ（定性分析／ニュース／仮説・レポート）は、Ver3.0時点の表示内容をそのままタブに振り分けただけで、ロジック変更なし
+・投資仮説管理・PDFレポートは「仮説・レポート」タブに集約
 
 完了
 
 ---
 
-## 不具合修正（Sprint10〜11の間に対応）
+## Sprint12
 
-・JSON読込（`st.file_uploader`）の無限ループ防止：読込成功後に `st.rerun()` していたが、再実行後もアップロード済みファイルが残るため再読込を繰り返す可能性があった。処理済みファイルの `file_id` を `st.session_state.last_loaded_hypothesis_file_id` に記録し、同じファイルは再処理しないよう修正
+テーマ：分析モード選択（クイック／標準／フル）
 
-・フッターのデータソース表記を「データソース: Google RSS」→「データソース: yfinance / Google News RSS」に修正（yfinanceも使用しているため）
+実装済
 
-修正済
+内容
+
+・サイドバーにラジオボタンで3モードを追加（デフォルト：フル＝従来と同じ挙動）
+
+　| モード | Gemini呼び出し回数 | 表示される内容 |
+　|---|---|---|
+　| ⚡ クイック | 0回 | 財務スコア・レーダー・DCFのみ（すべてルールベース） |
+　| 📊 標準 | 2回 | クイック＋AI定性分析・Checklist・ニュース要約 |
+　| 🔎 フル | 7回 | 標準＋MOAT／ブランド／経営者／Red Team・確認ポイント・投資仮説・PDF |
+
+・「🔍 分析開始」ボタンを押した時点で選択されているモードに応じて、
+　`analysis_bundle` に格納する項目を出し分ける（未実行の項目は `None` のまま保存）
+
+・`analysis_bundle["mode"]` にモードを保存し、表示側は `is_standard_plus` / `is_full` の
+　フラグで各タブの中身を出し分ける
+
+・未実行の項目は各タブ内で「🔒 この項目は『◯◯』モードで表示されます」という
+　案内（`_mode_locked_message()`）に置き換わる。エラーにはならない
+
+・「まず複数銘柄をクイックで比較し、気になった銘柄だけフルで再分析する」という
+　使い方を想定。モードを上げて分析し直したい場合は、サイドバーでモードを切り替えて
+　再度「🔍 分析開始」を押す（同じティッカーでも、まだ実行していない深さのAI呼び出しが走る）
+
+完了
+
+---
+
+## 見つかった不具合の修正（Sprint10〜11の間に対応）
+
+- JSON読込の無限ループ：`st.file_uploader` 読込成功後の `st.rerun()` により、
+　同じファイルが残っている限り読込→rerun→読込…を繰り返す可能性があった。
+　`st.session_state["last_loaded_hypothesis_file_id"]` に処理済みファイルIDを記録し、
+　同じファイルなら再読込しないよう修正
+
+- フッターのデータソース表記：「データソース: Google RSS」はyfinanceも使っているため不正確。
+　「データソース: yfinance / Google News RSS」に修正
+
+完了
 
 ---
 
@@ -167,35 +232,47 @@ DCF分析（Discounted Cash Flow）
 
 最新版
 
-Sprint11対応済
+Sprint12対応済
 
-現在の構成
+現在の構成（Sprint11でタブ化）
 
-会社情報（企業名・セクター・国・株価・時価総額。タブの外、常に上部固定）
-
+会社情報（タブの外、常に上部固定）
 ↓
-
-タブ切り替え
-
-　📊 サマリー：Buffett Score／DCF理論株価の要約／MOAT・ブランド・経営者の星評価／Red Teamの結論一行
-
-　📈 定量分析：レーダーチャート／採点詳細／DCF分析（スライダー＋フル表示）
-
-　🧠 定性分析：AI定性分析／Checklist／MOAT／ブランド／経営者／Red Team（いずれも詳細表示）
-
-　📰 ニュース：最新ニュース一覧／AIニュース要約／ニュース確認ポイント
-
-　📋 仮説・レポート：投資仮説管理／PDFレポート出力
-
+サイドバー：分析モード選択（Sprint12）
 ↓
+タブ：[📊 サマリー] [📈 定量分析] [🧠 定性分析] [📰 ニュース] [📋 仮説・レポート]
 
-終了
+各タブ内の並び順はPROJECT_RULES.md（Ver4.1）を参照。
+
+## session_state設計（Sprint10〜12）
+
+- `st.session_state.current_data`：get_stock_dataの結果（企業データ辞書）
+- `st.session_state.current_score_result`：calculate_buffett_scoreの結果
+- `st.session_state.analysis_bundle`：AI分析結果一式をまとめた辞書。キー：
+　`mode`, `news`, `analysis`, `summary`, `confirmation_points`,
+　`checklist`, `moat`, `brand`, `mgmt`, `red_team`
+　（クイック／標準モードでは一部キーがNoneのまま保存される）
+- `st.session_state.hypothesis_manager`：HypothesisManagerインスタンス
+- `st.session_state.last_company`：企業切替検知用
+- `st.session_state.last_loaded_hypothesis_file_id`：JSON読込の重複防止用（不具合修正）
+
+## キャッシュ関数（Sprint10）
+
+- `cached_get_stock_data(ticker)`：`get_stock_data`を`st.cache_data(ttl=3600)`でラップ
+- `cached_get_latest_news(company_name)`：`get_latest_news`を同様にラップ
+- どちらもdata_fetcher.py／news_fetcher.py自体は無変更
+
+## サマリータブ用ヘルパー（Sprint11）
+
+- `_star_line(stars)`：星の数を`★☆`の文字列に変換
+- `_moat_rating_label(rating)`：MOATのrating("wide"/"narrow"/"none")をラベル文字列に変換
+- `_mode_locked_message(required_mode_label)`：Sprint12で、未実行モードの項目に表示する案内
 
 ---
 
 # hypothesis.py
 
-完成済（Ver3.0から変更なし）
+完成済（Sprint6時点から変更なし）
 
 クラス
 
@@ -209,11 +286,13 @@ JSON対応済
 
 generate_default_hypotheses はGemini未設定時／APIエラー時のフォールバックとして ai_analysis.py 経由で使用される（app.pyから直接は呼ばない）
 
+Sprint12以降、投資仮説の生成・表示は「フルモード」でのみ実行される（MOAT／ブランド／経営者／Red Teamの結果を使うため）。
+
 ---
 
 # ai_analysis.py
 
-完成済（Ver3.0から変更なし）
+完成済（Sprint7時点から変更なし）
 
 含まれる関数
 
@@ -237,29 +316,21 @@ generate_news_confirmation_points（Sprint7・ニュース確認ポイント）
 
 いずれもGemini APIキー未設定・APIエラー時はルールベース関数へ自動フォールバックする設計で統一されている。
 
-Sprint10により、これらの関数はapp.py内で「分析開始」ボタン押下時に1回だけ呼ばれ、結果は `st.session_state.analysis_bundle` に保存される。
+Sprint12により、これらの関数はモードに応じて呼ばれない場合がある（app.py側の分岐であり、関数自体の変更はなし）。
 
 ---
 
 # report.py
 
-Ver3.0から関数自体の変更なし。
+Sprint9でcreate_dcf_display()を追加済み
 
 create_hypothesis_display()
 
-は未使用（削除しなくてよい）
+は未使用（表示はapp.pyで行っている、削除しなくてよい）
 
-Sprint11でapp.py側に `_star_line` / `_moat_rating_label` という表示ヘルパーを追加したが、これはapp.py内に定義しており、report.pyへは追加していない。
+Sprint7でcreate_confirmation_points_displayを追加済み
 
----
-
-# pdf_report.py
-
-Sprint8で新規追加（Ver3.0から変更なし）
-
-PDFBuilderクラスでページ送り・文字折り返しを管理
-
-generate_pdf_report()が唯一の公開関数
+Sprint11で新しい関数は追加していない（既存のcreate_moat_display等をそのまま「定性分析」タブで使用）
 
 ---
 
@@ -267,9 +338,21 @@ generate_pdf_report()が唯一の公開関数
 
 Sprint9で新規追加
 
-PDFBuilderと同様、services/配下・他モジュールと同階層に配置
+calculate_dcf()が唯一の公開関数
 
-calculate_dcf()が唯一の公開関数。ルールベース計算のみでAIは不使用。
+すべてルールベースの計算のみで、AIは使用しない
+
+---
+
+# pdf_report.py
+
+Sprint8で新規追加、以降変更なし
+
+PDFBuilderクラスでページ送り・文字折り返しを管理
+
+generate_pdf_report()が唯一の公開関数
+
+Sprint12以降、フルモードでのみ呼び出し可能（app.py側のUI制御）
 
 ---
 
@@ -280,6 +363,8 @@ Gemini使用
 OpenAIは使用しない
 
 ニュース本文もGeminiへ渡している
+
+Sprint12により、実際の呼び出し回数はモードに応じて 0回／2回／7回 のいずれかになる
 
 ---
 
@@ -301,29 +386,27 @@ Gemini要約
 
 ↓
 
-Gemini確認ポイント生成（Sprint7）
+Gemini確認ポイント生成（Sprint7、フルモードのみ）
 
 ---
 
 # 次Sprint
 
-Sprint12
+Sprint13
 
 テーマ
 
-分析モードの選択（クイック／標準／フル）
+Portfolio（保有銘柄管理）
 
-内容予定
+内容予定（未確定、次回相談）
 
-・クイックモード：財務スコアとレーダーのみ（API呼び出しゼロ、即時表示）
+・保有銘柄の登録・削除
 
-・標準モード：クイック＋AI定性分析／Checklist／ニュース要約
+・保有株数・取得単価の記録
 
-・フルモード：現行の全機能
+・現在の評価損益表示
 
-・サイドバーのラジオボタンで切り替え
-
-・各セクションに「🔄 この分析だけ再生成」ボタンを追加する案も検討
+・複数銘柄のBuffett Scoreをまとめて一覧表示
 
 ---
 
@@ -331,13 +414,9 @@ Sprint12
 
 □ Excel出力
 
-□ Gemini呼び出しの統合（Checklist・MOAT・ブランド・経営者を1プロンプト化してAPI呼び出しを4分の1に削減）
-
-□ app.pyの分割（`ui_sections.py` をservices/配下に追加し、`render_summary_tab()` 等へ切り出し）
-
 □ Owner Earnings
 
-□ Buffett Intrinsic Value（DCF以外の手法）
+□ Buffett Intrinsic Value（DCF以外の算出方法）
 
 □ 10年財務推移
 
@@ -353,13 +432,19 @@ Sprint12
 
 □ AIチャット
 
-□ Portfolio管理
+□ Portfolio管理（Sprint13予定）
 
 □ WatchList
 
 □ 比較分析
 
 □ AI投資日誌
+
+□ 各セクションの「🔄 この分析だけ再生成」ボタン（中期アイディア、未着手）
+
+□ Gemini呼び出しの統合（Checklist・MOAT・ブランド・経営者を1プロンプト化、中期アイディア、未着手）
+
+□ app.pyの分割（ui_sections.pyへの切り出し、中期アイディア、未着手）
 
 ---
 
@@ -391,7 +476,7 @@ app.py全体を確認してから修正すること。
 
 新規モジュールを作成する場合は、必ず既存モジュール（report.py等）と同じフォルダに配置するよう指示すること。
 
-UIルール（PROJECT_RULES.md Ver4.0）のタブ順・タブ内順を守ること。
+PROJECT_RULES.md（Ver4.1）のUIルール（タブの並び順・タブ内の並び順）を守ること。
 
 ---
 
@@ -403,22 +488,26 @@ feat: Sprint8 PDF report output via ReportLab
 
 feat: Sprint9 DCF analysis (intrinsic value)
 
-perf: Sprint10 cache AI analysis results in session_state, add st.cache_data wrappers for stock/news fetch
+perf: Sprint10 cache AI analysis results in session_state, add st.cache_data wrappers
 
 fix: prevent infinite rerun loop on hypothesis JSON upload
 
 fix: correct footer data source label (yfinance + Google News RSS)
 
+feat: Sprint11 tab layout per PROJECT_RULES Ver4.0
+
 docs: PROJECT_RULES Ver4.0 - redefine UI order rule for tab layout
 
-feat: Sprint11 tab layout (summary/quant/qual/news/hypothesis tabs)
+feat: Sprint12 analysis mode selection (quick/standard/full)
+
+docs: PROJECT_RULES Ver4.1 / AI_HANDOVER Ver4.0 - record Sprint9-12 completion
 
 ---
 
 現在Version
 
-Ver4.0
+Ver4.0（AI_HANDOVER.md）／ Ver4.1（PROJECT_RULES.md）
 
-Sprint11完了
+Sprint12完了
 
-次回はSprint12（分析モードの選択）から開始する
+次回はSprint13（Portfolio）から開始する（内容は次回相談）
