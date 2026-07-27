@@ -30,6 +30,10 @@ from hypothesis import (
 	InvestmentHypothesis,
 	generate_default_hypotheses,
 )
+from portfolio import (
+	PortfolioHolding,
+	PortfolioManager,
+)
 from ai_analysis import (
 	generate_ai_analysis,
 	generate_news_summary,
@@ -112,6 +116,16 @@ st.sidebar.caption(
 if "hypothesis_manager" not in st.session_state:
 	st.session_state.hypothesis_manager = HypothesisManager()
 hypothesis_manager = st.session_state.hypothesis_manager
+
+####################################################
+# Sprint13: Portfolio（保有銘柄管理）
+# session_stateにPortfolioManagerを保持する。
+# 今回はセッション中のみ保持し、JSON保存/読込は行わない
+# （保存機能はSprint14以降で検討）。
+####################################################
+if "portfolio_manager" not in st.session_state:
+	st.session_state.portfolio_manager = PortfolioManager()
+portfolio_manager = st.session_state.portfolio_manager
 
 st.title("📈 Buffett Investment Analyzer")
 st.caption("ウォーレン・バフェットならこの株を買うか？を分析します")
@@ -268,8 +282,8 @@ if (
 
 	st.divider()
 
-	tab_summary, tab_quant, tab_qual, tab_news, tab_hypo = st.tabs(
-		["📊 サマリー", "📈 定量分析", "🧠 定性分析", "📰 ニュース", "📋 仮説・レポート"]
+	tab_summary, tab_quant, tab_qual, tab_news, tab_hypo, tab_portfolio = st.tabs(
+		["📊 サマリー", "📈 定量分析", "🧠 定性分析", "📰 ニュース", "📋 仮説・レポート", "💼 Portfolio"]
 	)
 
 	####################################################
@@ -592,6 +606,143 @@ if (
 					mime="application/pdf",
 					key="button_download_pdf",
 				)
+
+	####################################################
+	# 💼 Portfolioタブ（Sprint13）
+	# 現在分析中の銘柄とは独立に、保有銘柄を複数登録・管理する。
+	# 各銘柄の現在株価・Buffett Scoreは、Sprint10のキャッシュ関数
+	# cached_get_stock_data と、既存のscoring_engine.calculate_buffett_score を
+	# そのまま再利用して計算する（新しいGemini呼び出しは追加していない）。
+	# データはセッション中のみ保持し、JSON保存/読込は行わない（Sprint14以降で検討）。
+	####################################################
+	with tab_portfolio:
+		st.subheader("➕ 保有銘柄を追加")
+		with st.form("portfolio_add_form"):
+			p_ticker = st.text_input(
+				"ティッカーシンボル",
+				placeholder="例：AAPL、7203",
+				key="portfolio_ticker_input",
+			)
+			p_col1, p_col2 = st.columns(2)
+			with p_col1:
+				p_shares = st.number_input(
+					"保有株数", min_value=0.0, step=1.0, key="portfolio_shares_input"
+				)
+			with p_col2:
+				p_cost = st.number_input(
+					"取得単価（1株あたり）", min_value=0.0, step=0.01, key="portfolio_cost_input"
+				)
+			p_submitted = st.form_submit_button("追加", type="primary")
+
+			if p_submitted:
+				if not p_ticker.strip():
+					st.warning("ティッカーシンボルを入力してください。")
+				elif p_shares <= 0:
+					st.warning("保有株数は1以上を入力してください。")
+				else:
+					portfolio_manager.add(
+						PortfolioHolding(
+							id=0,
+							ticker=p_ticker.strip().upper(),
+							shares=p_shares,
+							cost_basis=p_cost,
+						)
+					)
+					st.success(f"{p_ticker.strip().upper()} を追加しました。")
+					st.rerun()
+
+		st.divider()
+
+		portfolio_holdings = portfolio_manager.get_all()
+
+		if not portfolio_holdings:
+			st.info("まだ保有銘柄が登録されていません。上のフォームから追加してください。")
+		else:
+			#########################################
+			# 各銘柄の現在データ取得・スコア計算
+			# （ルールベースのみ、Gemini呼び出しなし。
+			# 　cached_get_stock_dataによりSprint10のキャッシュがそのまま効く）
+			#########################################
+			portfolio_rows = []
+			with st.spinner("保有銘柄のデータを取得中..."):
+				for h in portfolio_holdings:
+					p_result = cached_get_stock_data(h.ticker)
+					if not p_result["success"]:
+						portfolio_rows.append(
+							{"holding": h, "data": None, "score_result": None, "error": p_result["error"]}
+						)
+						continue
+					p_data = p_result["data"]
+					p_score = calculate_buffett_score(p_data)
+					portfolio_rows.append(
+						{"holding": h, "data": p_data, "score_result": p_score, "error": None}
+					)
+
+			#########################################
+			# ポートフォリオ合計
+			#########################################
+			st.subheader("💼 ポートフォリオ合計")
+			total_cost = sum(
+				r["holding"].shares * r["holding"].cost_basis for r in portfolio_rows
+			)
+			total_value = sum(
+				r["holding"].shares * r["data"]["current_price"]
+				for r in portfolio_rows
+				if r["data"]
+			)
+			total_pl = total_value - total_cost
+			total_pl_pct = (total_pl / total_cost * 100) if total_cost > 0 else 0
+
+			s1, s2, s3 = st.columns(3)
+			s1.metric("取得金額合計", f"{total_cost:,.0f}")
+			s2.metric("評価額合計", f"{total_value:,.0f}")
+			s3.metric("評価損益", f"{total_pl:+,.0f}", f"{total_pl_pct:+.1f}%")
+			st.caption(
+				"※ 通貨は銘柄ごとに異なる場合があります（日本株＝円、米国株＝ドル等）。"
+				"複数通貨が混在する場合、合計は簡易計算のため参考値としてご覧ください。"
+			)
+
+			st.divider()
+
+			#########################################
+			# 保有銘柄一覧
+			#########################################
+			st.subheader("📋 保有銘柄一覧")
+			for row in portfolio_rows:
+				h = row["holding"]
+				with st.container(border=True):
+					if row["error"]:
+						st.error(f"**{h.ticker}**：データを取得できませんでした（{row['error']}）")
+						if st.button("🗑 削除", key=f"portfolio_delete_{h.id}"):
+							portfolio_manager.delete(h.id)
+							st.rerun()
+						continue
+
+					p_data = row["data"]
+					p_score = row["score_result"]
+					currency_p = "¥" if p_data.get("country") == "Japan" else "$"
+					current_price = p_data.get("current_price", 0)
+					current_value = h.shares * current_price
+					cost_value = h.shares * h.cost_basis
+					pl = current_value - cost_value
+					pl_pct = (pl / cost_value * 100) if cost_value > 0 else 0
+
+					col_a, col_b, col_c, col_d = st.columns([2, 1, 1, 1])
+					col_a.markdown(f"**{p_data['company_name']}**（{h.ticker}）")
+					col_b.write(f"保有: {h.shares:,.0f}株")
+					col_c.write(f"取得単価: {currency_p}{h.cost_basis:,.2f}")
+					col_d.write(f"現在値: {currency_p}{current_price:,.2f}")
+
+					col_e, col_f, col_g = st.columns([2, 2, 1])
+					pl_icon = "🟢" if pl >= 0 else "🔴"
+					col_e.write(f"{pl_icon} 評価損益: {currency_p}{pl:+,.0f}（{pl_pct:+.1f}%）")
+					col_f.write(
+						f"Buffett Score: **{p_score['total_score']}/{p_score['max_score']}点**"
+						f"（{p_score['verdict']}）"
+					)
+					if col_g.button("🗑 削除", key=f"portfolio_delete_{h.id}"):
+						portfolio_manager.delete(h.id)
+						st.rerun()
 
 elif analyze_button and not ticker_input:	
 	st.warning("ティッカーシンボルを入力してください。")

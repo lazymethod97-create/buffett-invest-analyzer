@@ -1,7 +1,7 @@
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint12完了時点）
-Version: 4.0
-Date: 2026-07-26
+# AI 引継ぎ書（Sprint13完了時点）
+Version: 5.0
+Date: 2026-07-27
 
 ---
 # プロジェクト概要
@@ -72,6 +72,8 @@ hypothesis.py
 pdf_report.py
 
 dcf_analysis.py（Sprint9）
+
+portfolio.py（Sprint13）
 
 ---
 
@@ -214,6 +216,54 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 ---
 
+## Sprint13
+
+テーマ：Portfolio（保有銘柄管理）
+
+実装済
+
+内容
+
+・PROJECT_RULES.md をVer5.0に改訂し、タブを5個から6個に変更（末尾に
+　「💼 Portfolio」タブを追加）。ユーザーに事前確認済み。既存5タブの
+　並び順・タブ内の並び順は一切変更していない
+
+・portfolio.py 新規作成（services/配下、他モジュールと同階層）
+
+　・PortfolioHolding：1保有銘柄（ticker, shares, cost_basis）を表すクラス
+
+　・PortfolioManager：add() / delete() / get_all() / clear()
+
+　・hypothesis.py（投資仮説管理）と同じ設計パターン。このモジュールは
+　　データ保持のみ担当し、現在株価取得・スコア計算は行わない
+
+・app.py側：
+
+　・st.session_state.portfolio_manager にPortfolioManagerインスタンスを保持
+　　（hypothesis_managerと同じ初期化パターン）
+
+　・「💼 Portfolio」タブを追加し、以下を実装：
+
+　　１．登録フォーム（ティッカー・保有株数・取得単価）
+
+　　２．ポートフォリオ合計（取得金額合計／評価額合計／評価損益）
+
+　　３．保有銘柄一覧（銘柄ごとの現在株価・評価損益・Buffett Score・削除ボタン）
+
+　・各銘柄の現在株価取得・Buffett Score計算は、既存のcached_get_stock_data
+　　（Sprint10）とcalculate_buffett_score（既存）をそのまま再利用。
+　　新しいGemini呼び出しは一切追加していない（すべてルールベース）
+
+・データ保存方針：ユーザー確認の上、セッション中のみ保持する方針とした。
+　JSON保存/読込（投資仮説と同様の機能）は今回実装せず、Sprint14以降で検討する
+
+・Portfolioタブは「現在分析中の1銘柄」の状態（current_data等）とは独立しており、
+　ticker_input・analysis_bundle等の既存の状態管理を一切変更していない
+
+完了
+
+---
+
 ## 見つかった不具合の修正（Sprint10〜11の間に対応）
 
 - JSON読込の無限ループ：`st.file_uploader` 読込成功後の `st.rerun()` により、
@@ -232,7 +282,7 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 最新版
 
-Sprint12対応済
+Sprint13対応済
 
 現在の構成（Sprint11でタブ化）
 
@@ -255,6 +305,7 @@ Sprint12対応済
 - `st.session_state.hypothesis_manager`：HypothesisManagerインスタンス
 - `st.session_state.last_company`：企業切替検知用
 - `st.session_state.last_loaded_hypothesis_file_id`：JSON読込の重複防止用（不具合修正）
+- `st.session_state.portfolio_manager`：PortfolioManagerインスタンス（Sprint13）。セッション中のみ保持し、現在分析中の1銘柄の状態とは独立している
 
 ## キャッシュ関数（Sprint10）
 
@@ -392,21 +443,11 @@ Gemini確認ポイント生成（Sprint7、フルモードのみ）
 
 # 次Sprint
 
-Sprint13
+Sprint14
 
 テーマ
 
-Portfolio（保有銘柄管理）
-
-内容予定（未確定、次回相談）
-
-・保有銘柄の登録・削除
-
-・保有株数・取得単価の記録
-
-・現在の評価損益表示
-
-・複数銘柄のBuffett Scoreをまとめて一覧表示
+Watch List（未確定、次回相談）
 
 ---
 
@@ -502,12 +543,16 @@ feat: Sprint12 analysis mode selection (quick/standard/full)
 
 docs: PROJECT_RULES Ver4.1 / AI_HANDOVER Ver4.0 - record Sprint9-12 completion
 
+feat: Sprint13 portfolio management (add/delete holdings, P&L, Buffett Score list)
+
+docs: PROJECT_RULES Ver5.0 / AI_HANDOVER Ver5.0 - add Portfolio tab, record Sprint13 completion
+
 ---
 
 現在Version
 
-Ver4.0（AI_HANDOVER.md）／ Ver4.1（PROJECT_RULES.md）
+Ver5.0（AI_HANDOVER.md）／ Ver5.0（PROJECT_RULES.md）
 
-Sprint12完了
+Sprint13完了
 
-次回はSprint13（Portfolio）から開始する（内容は次回相談）
+次回はSprint14（Watch List）から開始する（内容は次回相談）
