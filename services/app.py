@@ -34,6 +34,10 @@ from portfolio import (
 	PortfolioHolding,
 	PortfolioManager,
 )
+from watchlist import (
+	WatchListItem,
+	WatchListManager,
+)
 from ai_analysis import (
 	generate_ai_analysis,
 	generate_news_summary,
@@ -126,6 +130,15 @@ hypothesis_manager = st.session_state.hypothesis_manager
 if "portfolio_manager" not in st.session_state:
 	st.session_state.portfolio_manager = PortfolioManager()
 portfolio_manager = st.session_state.portfolio_manager
+
+####################################################
+# Sprint14: ウォッチリスト
+# Portfolioと同じパターンでsession_stateに保持する。
+# セッション中のみ保持し、JSON保存/読込は行わない（保有銘柄と同様の方針）。
+####################################################
+if "watchlist_manager" not in st.session_state:
+	st.session_state.watchlist_manager = WatchListManager()
+watchlist_manager = st.session_state.watchlist_manager
 
 st.title("📈 Buffett Investment Analyzer")
 st.caption("ウォーレン・バフェットならこの株を買うか？を分析します")
@@ -742,6 +755,125 @@ if (
 					)
 					if col_g.button("🗑 削除", key=f"portfolio_delete_{h.id}"):
 						portfolio_manager.delete(h.id)
+						st.rerun()
+
+		####################################################
+		# 👀 ウォッチリスト（Sprint14）
+		# 保有銘柄（portfolio_holdings）とは別の一覧として管理する。
+		# 「気になっているが、まだ保有していない銘柄」を登録し、
+		# 目標株価（この値段まで下がったら買いたい、等）に到達したかを表示する。
+		# Buffett Scoreは保有銘柄一覧と同じく、既存のcached_get_stock_data /
+		# calculate_buffett_scoreを再利用して計算する（Gemini呼び出しは追加していない）。
+		####################################################
+		st.divider()
+		st.subheader("👀 ウォッチリストに追加")
+		with st.form("watchlist_add_form"):
+			w_ticker = st.text_input(
+				"ティッカーシンボル",
+				placeholder="例：AAPL、7203",
+				key="watchlist_ticker_input",
+			)
+			w_col1, w_col2 = st.columns(2)
+			with w_col1:
+				w_target_price = st.number_input(
+					"目標株価（任意。0のままなら未設定）",
+					min_value=0.0,
+					step=0.01,
+					key="watchlist_target_price_input",
+				)
+			with w_col2:
+				w_memo = st.text_input(
+					"メモ（任意）", key="watchlist_memo_input"
+				)
+			w_submitted = st.form_submit_button("追加", type="primary")
+
+			if w_submitted:
+				if not w_ticker.strip():
+					st.warning("ティッカーシンボルを入力してください。")
+				else:
+					watchlist_manager.add(
+						WatchListItem(
+							id=0,
+							ticker=w_ticker.strip().upper(),
+							target_price=w_target_price if w_target_price > 0 else None,
+							memo=w_memo,
+						)
+					)
+					st.success(f"{w_ticker.strip().upper()} をウォッチリストに追加しました。")
+					st.rerun()
+
+		st.divider()
+
+		watchlist_items = watchlist_manager.get_all()
+
+		if not watchlist_items:
+			st.info("まだウォッチリストに銘柄が登録されていません。上のフォームから追加してください。")
+		else:
+			st.subheader("👀 ウォッチリスト一覧")
+
+			with st.spinner("ウォッチリストのデータを取得中..."):
+				watchlist_rows = []
+				for w in watchlist_items:
+					w_result = cached_get_stock_data(w.ticker)
+					if not w_result["success"]:
+						watchlist_rows.append(
+							{"item": w, "data": None, "score_result": None, "error": w_result["error"]}
+						)
+						continue
+					w_data = w_result["data"]
+					w_score = calculate_buffett_score(w_data)
+					watchlist_rows.append(
+						{"item": w, "data": w_data, "score_result": w_score, "error": None}
+					)
+
+			for row in watchlist_rows:
+				w = row["item"]
+				with st.container(border=True):
+					if row["error"]:
+						st.error(f"**{w.ticker}**：データを取得できませんでした（{row['error']}）")
+						if st.button("🗑 削除", key=f"watchlist_delete_{w.id}"):
+							watchlist_manager.delete(w.id)
+							st.rerun()
+						continue
+
+					w_data = row["data"]
+					w_score = row["score_result"]
+					currency_w = "¥" if w_data.get("country") == "Japan" else "$"
+					current_price_w = w_data.get("current_price", 0)
+
+					col_a, col_b, col_c = st.columns([2, 1, 1])
+					col_a.markdown(f"**{w_data['company_name']}**（{w.ticker}）")
+					col_b.write(f"現在値: {currency_w}{current_price_w:,.2f}")
+					col_c.write(
+						f"Buffett Score: **{w_score['total_score']}/{w_score['max_score']}点**"
+						f"（{w_score['verdict']}）"
+					)
+
+					if w.memo:
+						st.caption(f"📝 {w.memo}")
+
+					col_d, col_e = st.columns([3, 1])
+					if w.target_price:
+						diff_pct = (
+							(current_price_w - w.target_price) / w.target_price * 100
+							if w.target_price > 0
+							else 0
+						)
+						if current_price_w <= w.target_price:
+							col_d.success(
+								f"🎯 目標株価 {currency_w}{w.target_price:,.2f} に到達しました！"
+								f"（現在値との差: {diff_pct:+.1f}%）"
+							)
+						else:
+							col_d.info(
+								f"目標株価 {currency_w}{w.target_price:,.2f} まで、"
+								f"あと {diff_pct:+.1f}%"
+							)
+					else:
+						col_d.caption("目標株価は未設定です。")
+
+					if col_e.button("🗑 削除", key=f"watchlist_delete_{w.id}"):
+						watchlist_manager.delete(w.id)
 						st.rerun()
 
 elif analyze_button and not ticker_input:	

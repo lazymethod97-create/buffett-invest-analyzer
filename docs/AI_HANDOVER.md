@@ -1,6 +1,6 @@
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint13完了時点）
-Version: 5.0
+# AI 引継ぎ書（Sprint14完了時点）
+Version: 5.1
 Date: 2026-07-27
 
 ---
@@ -74,6 +74,8 @@ pdf_report.py
 dcf_analysis.py（Sprint9）
 
 portfolio.py（Sprint13）
+
+watchlist.py（Sprint14）
 
 ---
 
@@ -264,6 +266,58 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 ---
 
+## Sprint14
+
+テーマ：Watch List（気になる銘柄の管理）
+
+実装済
+
+内容
+
+・PROJECT_RULES.md をVer5.1に改訂。新しいタブは追加していない
+　（ユーザー確認済み。既存の「💼 Portfolio」タブの中に、保有銘柄一覧の下へ
+　「👀 ウォッチリスト」セクションを追加する形にした）
+
+・watchlist.py 新規作成（services/配下、他モジュールと同階層）
+
+　・WatchListItem：1銘柄（ticker, target_price, memo）を表すクラス
+
+　・WatchListManager：add() / delete() / get_all() / clear()
+
+　・portfolio.py（保有銘柄管理）と同じ設計パターン。データ保持のみ担当し、
+　　現在株価取得・スコア計算は行わない
+
+・app.py側：
+
+　・st.session_state.watchlist_manager にWatchListManagerインスタンスを保持
+　　（portfolio_managerと同じ初期化パターン）
+
+　・「💼 Portfolio」タブの保有銘柄一覧の下に、以下を追加：
+
+　　１．ウォッチリスト登録フォーム（ティッカー・目標株価（任意）・メモ（任意））
+
+　　２．ウォッチリスト一覧（銘柄ごとの現在株価・Buffett Score・目標株価への
+　　　到達状況・削除ボタン）
+
+　・各銘柄の現在株価取得・Buffett Score計算は、既存のcached_get_stock_data /
+　　calculate_buffett_scoreをそのまま再利用。新しいGemini呼び出しは一切
+　　追加していない（すべてルールベース）
+
+・目標株価：現在株価が目標株価以下になった時点で「🎯 到達」と表示する
+　（「この値段まで下がったら買いたい」という使い方を想定）。未設定の場合は
+　「目標株価は未設定です」と表示し、エラーにはならない
+
+・データ保存方針：保有銘柄と同様、セッション中のみ保持する方針とした。
+　JSON保存/読込は今回実装せず、将来のSprintで検討する
+
+・ウォッチリストのデータ（WatchListItem）は保有銘柄のデータ（PortfolioHolding）
+　とは完全に分離しており、既存のPortfolio機能（Sprint13）のコードは
+　一切変更していない
+
+完了
+
+---
+
 ## 見つかった不具合の修正（Sprint10〜11の間に対応）
 
 - JSON読込の無限ループ：`st.file_uploader` 読込成功後の `st.rerun()` により、
@@ -282,7 +336,7 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 最新版
 
-Sprint13対応済
+Sprint14対応済
 
 現在の構成（Sprint11でタブ化）
 
@@ -306,6 +360,7 @@ Sprint13対応済
 - `st.session_state.last_company`：企業切替検知用
 - `st.session_state.last_loaded_hypothesis_file_id`：JSON読込の重複防止用（不具合修正）
 - `st.session_state.portfolio_manager`：PortfolioManagerインスタンス（Sprint13）。セッション中のみ保持し、現在分析中の1銘柄の状態とは独立している
+- `st.session_state.watchlist_manager`：WatchListManagerインスタンス（Sprint14）。保有銘柄（portfolio_manager）とは別データとして、セッション中のみ保持する
 
 ## キャッシュ関数（Sprint10）
 
@@ -443,11 +498,11 @@ Gemini確認ポイント生成（Sprint7、フルモードのみ）
 
 # 次Sprint
 
-Sprint14
+Sprint15
 
 テーマ
 
-Watch List（未確定、次回相談）
+比較分析（未確定、次回相談）
 
 ---
 
@@ -547,12 +602,16 @@ feat: Sprint13 portfolio management (add/delete holdings, P&L, Buffett Score lis
 
 docs: PROJECT_RULES Ver5.0 / AI_HANDOVER Ver5.0 - add Portfolio tab, record Sprint13 completion
 
+feat: Sprint14 watch list (target price alerts, Buffett Score, inside Portfolio tab)
+
+docs: PROJECT_RULES Ver5.1 / AI_HANDOVER Ver5.1 - add Watch List section, record Sprint14 completion
+
 ---
 
 現在Version
 
-Ver5.0（AI_HANDOVER.md）／ Ver5.0（PROJECT_RULES.md）
+Ver5.1（AI_HANDOVER.md）／ Ver5.1（PROJECT_RULES.md）
 
-Sprint13完了
+Sprint14完了
 
-次回はSprint14（Watch List）から開始する（内容は次回相談）
+次回はSprint15（比較分析）から開始する（内容は次回相談）

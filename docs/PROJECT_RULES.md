@@ -2,8 +2,20 @@
 
 # PROJECT_RULES.md
 # Buffett Investment Analyzer 開発ルール
-Version 5.0
+Version 5.1
 Last Update: 2026-07-27
+
+---
+
+# Ver5.1での変更点
+
+Sprint14（Watch List：気になる銘柄の管理）の追加に伴う改訂。
+
+・タブの数・並び順は変更していない（新しいタブは追加していない）
+・既存の「💼 Portfolio」タブの中に、保有銘柄一覧の下へ「👀 ウォッチリスト」
+　セクションを追加した（ユーザー合意済み）。Portfolioタブ内の並び順を更新
+・ロードマップの次Sprintを15（比較分析）に更新
+・その他のセクションはVer5.0のまま変更なし
 
 ---
 
@@ -456,18 +468,25 @@ AIニュース要約
 ↓
 PDFレポート出力（Sprint8）
 
-### 💼 Portfolioタブ（Sprint13で追加）
+### 💼 Portfolioタブ（Sprint13で追加、Sprint14で拡張）
 
 保有銘柄の登録フォーム（追加）
 ↓
 ポートフォリオ合計（取得金額合計・評価額合計・評価損益）
 ↓
 保有銘柄一覧（銘柄ごとの評価損益・Buffett Score・削除ボタン）
+↓
+ウォッチリストの登録フォーム（追加）
+↓
+ウォッチリスト一覧（銘柄ごとの現在株価・Buffett Score・目標株価への到達状況・削除ボタン）
 
 ・現在分析中の1銘柄（他タブ）とは独立して、複数銘柄を管理する機能。
 ・各銘柄の現在株価取得・Buffett Score計算は、既存のcached_get_stock_data /
 　calculate_buffett_scoreをそのまま再利用する。新しいGemini呼び出しは追加していない。
-・データはセッション中のみ保持する（JSON保存/読込は行わない。Sprint14以降で検討）。
+・データはセッション中のみ保持する（JSON保存/読込は行わない。将来検討）。
+・ウォッチリストは「保有していないが気になっている銘柄」を管理する機能で、
+　保有銘柄一覧（PortfolioHolding）とはデータを分離している（watchlist.py）。
+・目標株価は任意設定。設定時、現在株価が目標株価以下になった場合に到達を表示する。
 
 ---
 
@@ -606,7 +625,7 @@ Portfolio（完了）
 
 Sprint14
 
-Watch List
+Watch List（完了）
 
 Sprint15
 
