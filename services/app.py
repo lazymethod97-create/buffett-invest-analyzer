@@ -1,5 +1,6 @@
 import os
 import sys
+import datetime
 
 from dotenv import load_dotenv
 
@@ -8,6 +9,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 import streamlit as st
+
+####################################################
+# Sprint15: 比較分析タブの重ね合わせレーダーチャートのために追加。
+# report.py側は変更せず、比較専用の描画はapp.py側で行う。
+####################################################
+import plotly.graph_objects as go
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
@@ -37,6 +44,10 @@ from portfolio import (
 from watchlist import (
 	WatchListItem,
 	WatchListManager,
+)
+from journal import (
+	JournalEntry,
+	JournalManager,
 )
 from ai_analysis import (
 	generate_ai_analysis,
@@ -139,6 +150,28 @@ portfolio_manager = st.session_state.portfolio_manager
 if "watchlist_manager" not in st.session_state:
 	st.session_state.watchlist_manager = WatchListManager()
 watchlist_manager = st.session_state.watchlist_manager
+
+####################################################
+# Sprint15: 比較分析
+# 「比較する」ボタンを押した時だけ計算し、結果をsession_stateに保持する。
+# こうしないと、他のウィジェット操作のたびに毎回全銘柄を再取得してしまうため
+# （Sprint10のキャッシュ化と同じ考え方）。
+####################################################
+if "compare_bundle" not in st.session_state:
+	st.session_state.compare_bundle = None
+
+####################################################
+# Sprint16: AI投資日誌（手入力のみ、AI呼び出しなし）
+# 投資仮説管理と同様、JSON保存/読込に対応する。
+# last_loaded_journal_file_idは、hypothesis.pyのJSON読込で発生した
+# 無限ループ不具合と同じ問題を防ぐためのもの（Sprint10〜11の間の修正と同じ考え方）。
+####################################################
+if "journal_manager" not in st.session_state:
+	st.session_state.journal_manager = JournalManager()
+journal_manager = st.session_state.journal_manager
+
+if "last_loaded_journal_file_id" not in st.session_state:
+	st.session_state.last_loaded_journal_file_id = None
 
 st.title("📈 Buffett Investment Analyzer")
 st.caption("ウォーレン・バフェットならこの株を買うか？を分析します")
@@ -295,8 +328,8 @@ if (
 
 	st.divider()
 
-	tab_summary, tab_quant, tab_qual, tab_news, tab_hypo, tab_portfolio = st.tabs(
-		["📊 サマリー", "📈 定量分析", "🧠 定性分析", "📰 ニュース", "📋 仮説・レポート", "💼 Portfolio"]
+	tab_summary, tab_quant, tab_qual, tab_news, tab_hypo, tab_portfolio, tab_compare = st.tabs(
+		["📊 サマリー", "📈 定量分析", "🧠 定性分析", "📰 ニュース", "📋 仮説・レポート", "💼 Portfolio", "⚖️ 比較分析"]
 	)
 
 	####################################################
@@ -620,6 +653,106 @@ if (
 					key="button_download_pdf",
 				)
 
+		####################################################
+		# 📓 AI投資日誌（Sprint16）
+		# 実体は「投資日誌」。手入力のみで、AI（Gemini）は一切使用しない。
+		# 保有銘柄（Portfolio）とは無関係に、自由に記録できる。
+		# 投資仮説と同様、長期保存のニーズを想定しJSON保存/読込に対応する。
+		####################################################
+		st.divider()
+		st.subheader("📓 AI投資日誌")
+		st.caption("売買の判断とその理由を記録します（AIによる自動コメントは行いません）。")
+
+		with st.form("journal_add_form"):
+			j_date = st.date_input("日付", value=datetime.date.today(), key="journal_date_input")
+			j_col1, j_col2 = st.columns(2)
+			with j_col1:
+				j_ticker = st.text_input(
+					"ティッカーシンボル（任意）",
+					placeholder="例：AAPL、7203",
+					key="journal_ticker_input",
+				)
+			with j_col2:
+				j_decision = st.selectbox(
+					"売買の判断",
+					["買い", "売り", "様子見", "保有継続"],
+					key="journal_decision_input",
+				)
+			j_reason = st.text_area(
+				"理由・メモ", placeholder="なぜその判断をしたか記録しておきましょう", key="journal_reason_input"
+			)
+			j_submitted = st.form_submit_button("📓 日誌に記録する", type="primary")
+
+			if j_submitted:
+				if not j_reason.strip():
+					st.warning("理由・メモを入力してください。")
+				else:
+					journal_manager.add(
+						JournalEntry(
+							id=0,
+							date=j_date.isoformat(),
+							ticker=j_ticker.strip().upper(),
+							decision=j_decision,
+							reason=j_reason.strip(),
+						)
+					)
+					st.success("日誌に記録しました。")
+					st.rerun()
+
+		st.divider()
+
+		#########################################
+		# 保存・読込（JSON）
+		# 投資仮説管理と同様、無限ループ防止のため
+		# last_loaded_journal_file_id で読込済みファイルを記録する
+		#########################################
+		j_save_col, j_load_col = st.columns(2)
+		with j_save_col:
+			st.download_button(
+				"💾 日誌をJSON保存",
+				data=journal_manager.to_json(),
+				file_name="investment_journal.json",
+				mime="application/json",
+				key="button_download_journal",
+			)
+		with j_load_col:
+			journal_uploaded_file = st.file_uploader(
+				"📂 日誌をJSON読込", type=["json"], key="journal_json_uploader"
+			)
+			if journal_uploaded_file is not None:
+				if st.session_state.last_loaded_journal_file_id != journal_uploaded_file.file_id:
+					try:
+						journal_manager.load_from_json(
+							journal_uploaded_file.read().decode("utf-8")
+						)
+						st.session_state.last_loaded_journal_file_id = journal_uploaded_file.file_id
+						st.success("日誌を読み込みました。")
+						st.rerun()
+					except Exception as e:
+						st.error(f"読込に失敗しました：{e}")
+
+		st.divider()
+
+		#########################################
+		# 日誌一覧（日付が新しい順）
+		#########################################
+		journal_entries = journal_manager.get_all()
+
+		if not journal_entries:
+			st.info("まだ日誌が記録されていません。上のフォームから記録してください。")
+		else:
+			st.subheader("📖 日誌一覧")
+			for entry in journal_entries:
+				with st.container(border=True):
+					j_col_a, j_col_b, j_col_c = st.columns([1, 1, 2])
+					j_col_a.write(f"📅 {entry.date}")
+					j_col_b.write(f"{entry.ticker}" if entry.ticker else "（銘柄未指定）")
+					j_col_c.write(f"**{entry.decision}**")
+					st.write(entry.reason)
+					if st.button("🗑 削除", key=f"journal_delete_{entry.id}"):
+						journal_manager.delete(entry.id)
+						st.rerun()
+
 	####################################################
 	# 💼 Portfolioタブ（Sprint13）
 	# 現在分析中の銘柄とは独立に、保有銘柄を複数登録・管理する。
@@ -875,6 +1008,139 @@ if (
 					if col_e.button("🗑 削除", key=f"watchlist_delete_{w.id}"):
 						watchlist_manager.delete(w.id)
 						st.rerun()
+
+	####################################################
+	# ⚖️ 比較分析タブ（Sprint15）
+	# 複数銘柄のBuffett Scoreを並べて比較する。
+	# 現在分析中の1銘柄の状態（current_data等）とは独立している。
+	# 比較対象は「登録済み銘柄（Portfolio／ウォッチリスト）から選ぶ」
+	# ＋「自由入力」の両方に対応する。
+	# 比較する指標はBuffett Scoreのみ（ルールベース、Gemini呼び出しは追加していない）。
+	####################################################
+	with tab_compare:
+		st.subheader("⚖️ 比較する銘柄を選択")
+
+		registered_tickers = sorted(set(
+			[h.ticker for h in portfolio_manager.get_all()]
+			+ [w.ticker for w in watchlist_manager.get_all()]
+		))
+
+		compare_col1, compare_col2 = st.columns(2)
+		with compare_col1:
+			selected_from_list = st.multiselect(
+				"登録済み銘柄（Portfolio／ウォッチリスト）から選ぶ",
+				options=registered_tickers,
+				key="compare_multiselect",
+			)
+		with compare_col2:
+			free_input = st.text_input(
+				"自由入力（カンマ区切り。例：AAPL, MSFT, 7203）",
+				key="compare_free_input",
+			)
+
+		compare_button = st.button("⚖️ 比較する", type="primary", key="button_compare")
+
+		if compare_button:
+			free_tickers = [t.strip().upper() for t in free_input.split(",") if t.strip()]
+			all_tickers = []
+			for t in selected_from_list + free_tickers:
+				if t not in all_tickers:
+					all_tickers.append(t)
+
+			if len(all_tickers) < 2:
+				st.warning("比較には2銘柄以上を選択・入力してください。")
+				st.session_state.compare_bundle = None
+			else:
+				compare_results = []
+				with st.spinner("比較データを取得中..."):
+					for t in all_tickers:
+						c_result = cached_get_stock_data(t)
+						if not c_result["success"]:
+							compare_results.append(
+								{"ticker": t, "data": None, "score_result": None, "error": c_result["error"]}
+							)
+							continue
+						c_data = c_result["data"]
+						c_score = calculate_buffett_score(c_data)
+						compare_results.append(
+							{"ticker": t, "data": c_data, "score_result": c_score, "error": None}
+						)
+				st.session_state.compare_bundle = compare_results
+
+		st.divider()
+
+		compare_bundle = st.session_state.compare_bundle
+
+		if not compare_bundle:
+			st.info("比較したい銘柄を選択・入力し、「⚖️ 比較する」を押してください。")
+		else:
+			failed = [r for r in compare_bundle if r["error"]]
+			ok_results = [r for r in compare_bundle if not r["error"]]
+
+			if failed:
+				failed_tickers = "、".join(r["ticker"] for r in failed)
+				st.warning(f"以下の銘柄はデータを取得できませんでした：{failed_tickers}")
+
+			if len(ok_results) < 2:
+				st.info("比較できる銘柄が2件未満です。ティッカーシンボルを確認してください。")
+			else:
+				#########################################
+				# スコア比較サマリー
+				#########################################
+				st.subheader("📋 スコア比較サマリー")
+				for r in ok_results:
+					c_data = r["data"]
+					c_score = r["score_result"]
+					col_a, col_b, col_c = st.columns([2, 1, 2])
+					col_a.markdown(f"**{c_data['company_name']}**（{r['ticker']}）")
+					col_b.write(f"{c_score['total_score']} / {c_score['max_score']}点")
+					col_c.write(c_score["verdict"])
+
+				st.divider()
+
+				#########################################
+				# 総合スコア比較（棒グラフ）
+				#########################################
+				st.subheader("📊 総合スコア比較")
+				bar_fig = go.Figure()
+				bar_fig.add_trace(go.Bar(
+					x=[r["data"]["company_name"] for r in ok_results],
+					y=[r["score_result"]["total_score"] for r in ok_results],
+					text=[r["score_result"]["total_score"] for r in ok_results],
+					textposition="auto",
+				))
+				bar_fig.update_layout(yaxis_range=[0, ok_results[0]["score_result"]["max_score"]])
+				st.plotly_chart(bar_fig, use_container_width=True)
+
+				#########################################
+				# 指標別スコア比較（レーダーチャート、複数銘柄を重ねて表示）
+				# 項目ごとに配点(max_score)が異なるため、達成率(%)に正規化してから
+				# 比較する（例：ROEは20点満点、ROAは5点満点、そのままでは比較できない）。
+				#########################################
+				st.subheader("🕸️ 指標別スコア比較（レーダーチャート）")
+				radar_fig = go.Figure()
+				for r in ok_results:
+					details = r["score_result"]["details"]
+					categories = [d["item"] for d in details]
+					values = [
+						(d["score"] / d["max_score"] * 100) if d["max_score"] else 0
+						for d in details
+					]
+					radar_fig.add_trace(go.Scatterpolar(
+						r=values + [values[0]],
+						theta=categories + [categories[0]],
+						fill="toself",
+						name=f"{r['data']['company_name']}（{r['ticker']}）",
+					))
+				radar_fig.update_layout(
+					polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+					showlegend=True,
+				)
+				st.plotly_chart(radar_fig, use_container_width=True)
+				st.caption(
+					"※ 各項目は満点に対する達成率(%)で正規化して表示しています"
+					"（項目ごとに配点が異なるため）。"
+				)
 
 elif analyze_button and not ticker_input:	
 	st.warning("ティッカーシンボルを入力してください。")

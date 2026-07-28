@@ -1,7 +1,7 @@
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint14完了時点）
-Version: 5.1
-Date: 2026-07-27
+# AI 引継ぎ書（Sprint16完了時点）
+Version: 6.1
+Date: 2026-07-28
 
 ---
 # プロジェクト概要
@@ -76,6 +76,8 @@ dcf_analysis.py（Sprint9）
 portfolio.py（Sprint13）
 
 watchlist.py（Sprint14）
+
+journal.py（Sprint16）
 
 ---
 
@@ -318,6 +320,120 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 ---
 
+## Sprint15
+
+テーマ：比較分析（複数銘柄のBuffett Scoreを並べて比較）
+
+実装済
+
+内容
+
+・PROJECT_RULES.md をVer6.0に改訂し、タブを6個から7個に変更（末尾に
+　「⚖️ 比較分析」タブを追加）。ユーザーに事前確認済み。既存6タブの
+　並び順・タブ内の並び順は一切変更していない
+
+・新規モジュールは作成していない（すべてapp.py内に実装）。
+　理由：report.py内の既存の描画関数（create_radar_chart等）は単一銘柄用の設計であり、
+　report.pyの内容を確認できない状態で複数銘柄比較用に改修すると、既存コードを
+　壊すリスクがあるため。plotly.graph_objectsをapp.py側で直接使い、
+　report.pyの既存関数・既存表示は一切変更していない
+
+・app.py側：
+
+　・先頭に `import plotly.graph_objects as go` を追加（サードパーティimport、
+　　streamlitの直後に配置）
+
+　・st.session_state.compare_bundle を追加（「⚖️ 比較する」ボタンを押した時だけ
+　　計算し、結果を保持する。Sprint10のキャッシュ化と同じ考え方）
+
+　・「⚖️ 比較分析」タブを追加し、以下を実装：
+
+　　１．比較対象銘柄の選択（Portfolio／ウォッチリスト登録済み銘柄からの
+　　　複数選択 ＋ 自由入力（カンマ区切り）の両対応）
+
+　　２．スコア比較サマリー（銘柄ごとのBuffett Score・判定）
+
+　　３．総合スコア比較（棒グラフ）
+
+　　４．指標別スコア比較（レーダーチャート、複数銘柄を重ねて表示）
+
+・比較する指標はSprint15時点ではBuffett Scoreのみ。既存のcached_get_stock_data /
+　calculate_buffett_scoreをそのまま再利用し、新しいGemini呼び出しは一切
+　追加していない（すべてルールベース）
+
+・レーダーチャートは、項目ごとに配点(max_score)が異なるため
+　（例：ROEは20点満点、ROAは5点満点）、達成率(%)に正規化してから比較している
+
+・データ取得に失敗した銘柄がある場合はエラーにせず、警告として表示した上で
+　取得できた銘柄だけで比較を続行する
+
+・比較分析タブは「現在分析中の1銘柄」の状態（current_data等）や、Portfolio／
+　ウォッチリストの既存のデータ・ロジックとは独立しており、それらのコードは
+　一切変更していない
+
+完了
+
+---
+
+## Sprint16
+
+テーマ：AI投資日誌（実体は「投資日誌」。手入力のみ）
+
+実装済
+
+内容
+
+・PROJECT_RULES.md をVer6.1に改訂。新しいタブは追加していない
+　（ユーザー確認済み。既存の「📋 仮説・レポート」タブの中に、PDFレポート出力の
+　下へ「📓 AI投資日誌」セクションを追加する形にした。投資仮説と目的が
+　近いため、同じタブ内に置いている）
+
+・journal.py 新規作成（services/配下、他モジュールと同階層）
+
+　・JournalEntry：1件の日誌（date, ticker, decision, reason）を表すクラス
+
+　・JournalManager：add() / delete() / get_all() / clear() に加えて、
+　　to_json() / load_from_json() を実装（投資仮説と同様、日誌は長期保存の
+　　ニーズが高いと想定し、JSON保存/読込に対応。ユーザー確認済み）
+
+　・hypothesis.py（投資仮説管理）と同じ設計パターン
+
+・app.py側：
+
+　・st.session_state.journal_manager にJournalManagerインスタンスを保持
+
+　・st.session_state.last_loaded_journal_file_id を追加。JSON読込時に
+　　同じファイルを繰り返し読み込まないようにする仕組みで、hypothesis.pyの
+　　JSON読込で過去に発生した無限ループ不具合（Sprint10〜11の間に修正）と
+　　同じ対策を最初から組み込んでいる
+
+　・先頭に `import datetime` を追加（標準ライブラリ、日誌の日付入力用）
+
+　・「📋 仮説・レポート」タブのPDFレポート出力の下に、以下を追加：
+
+　　１．日誌記録フォーム（日付・ティッカー（任意）・売買の判断
+　　　（買い／売り／様子見／保有継続）・理由（自由記述））
+
+　　２．JSON保存（ダウンロード）／読込（アップロード）ボタン
+
+　　３．日誌一覧（日付が新しい順に表示。削除ボタン付き）
+
+・「AI投資日誌」という名称だが、Sprint16時点では手入力のみで、
+　Gemini呼び出しは一切行わない（ユーザー確認済み。将来、任意でAIコメントを
+　追加する機能は別Sprintで検討可能）
+
+・保有銘柄（Portfolio）とは無関係に、自由に日誌を記録できる
+　（ユーザー確認済み。銘柄は任意入力の自由記述で、PortfolioHoldingとの
+　紐付けは行っていない）
+
+・日誌データ（JournalEntry）は、投資仮説（InvestmentHypothesis）・保有銘柄
+　（PortfolioHolding）・ウォッチリスト（WatchListItem）のいずれとも独立した
+　データであり、既存の機能・コードは一切変更していない
+
+完了
+
+---
+
 ## 見つかった不具合の修正（Sprint10〜11の間に対応）
 
 - JSON読込の無限ループ：`st.file_uploader` 読込成功後の `st.rerun()` により、
@@ -336,7 +452,7 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 最新版
 
-Sprint14対応済
+Sprint16対応済
 
 現在の構成（Sprint11でタブ化）
 
@@ -361,6 +477,9 @@ Sprint14対応済
 - `st.session_state.last_loaded_hypothesis_file_id`：JSON読込の重複防止用（不具合修正）
 - `st.session_state.portfolio_manager`：PortfolioManagerインスタンス（Sprint13）。セッション中のみ保持し、現在分析中の1銘柄の状態とは独立している
 - `st.session_state.watchlist_manager`：WatchListManagerインスタンス（Sprint14）。保有銘柄（portfolio_manager）とは別データとして、セッション中のみ保持する
+- `st.session_state.compare_bundle`：比較分析タブ（Sprint15）で「⚖️ 比較する」ボタンを押した時の結果一覧。ボタンを押すまではNone
+- `st.session_state.journal_manager`：JournalManagerインスタンス（Sprint16）。手入力の投資日誌をセッション中保持し、JSON保存/読込にも対応する
+- `st.session_state.last_loaded_journal_file_id`：日誌JSON読込の重複防止用（Sprint16。hypothesis.pyの不具合修正と同じ仕組み）
 
 ## キャッシュ関数（Sprint10）
 
@@ -498,11 +617,11 @@ Gemini確認ポイント生成（Sprint7、フルモードのみ）
 
 # 次Sprint
 
-Sprint15
+Sprint17
 
 テーマ
 
-比較分析（未確定、次回相談）
+決算資料解析（未確定、次回相談）
 
 ---
 
@@ -606,12 +725,20 @@ feat: Sprint14 watch list (target price alerts, Buffett Score, inside Portfolio 
 
 docs: PROJECT_RULES Ver5.1 / AI_HANDOVER Ver5.1 - add Watch List section, record Sprint14 completion
 
+feat: Sprint15 comparison analysis tab (multi-stock Buffett Score bar/radar chart)
+
+docs: PROJECT_RULES Ver6.0 / AI_HANDOVER Ver6.0 - add comparison analysis tab, record Sprint15 completion
+
+feat: Sprint16 investment journal (manual entries, JSON save/load, no AI calls)
+
+docs: PROJECT_RULES Ver6.1 / AI_HANDOVER Ver6.1 - add investment journal section, record Sprint16 completion
+
 ---
 
 現在Version
 
-Ver5.1（AI_HANDOVER.md）／ Ver5.1（PROJECT_RULES.md）
+Ver6.1（AI_HANDOVER.md）／ Ver6.1（PROJECT_RULES.md）
 
-Sprint14完了
+Sprint16完了
 
-次回はSprint15（比較分析）から開始する（内容は次回相談）
+次回はSprint17（決算資料解析）から開始する（内容は次回相談）
