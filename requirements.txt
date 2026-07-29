@@ -9,3 +9,4 @@ feedparser
 newspaper4k
 lxml_html_clean
 reportlab
+pdfplumber

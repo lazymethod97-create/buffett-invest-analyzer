@@ -2,8 +2,27 @@
 
 # PROJECT_RULES.md
 # Buffett Investment Analyzer 開発ルール
-Version 6.1
+Version 7.0
 Last Update: 2026-07-28
+
+---
+
+# Ver7.0での変更点
+
+Sprint17（決算資料解析）の追加に伴い、「UIルール」のタブ構成と「ライブラリ」を改訂した。
+
+・タブを7個から8個に変更し、末尾に「📑 決算資料解析」タブを追加した
+　（ユーザー合意済み。既存7タブの並び順・タブ内の並び順は一切変更していない）
+・決算資料解析タブ内の並び順を新規に定義した
+・新規ライブラリ pdfplumber を追加した（PDFからのテキスト抽出用。ユーザー合意済み）
+・ai_analysis.py に generate_earnings_material_analysis /
+　_generate_rule_earnings_material_analysis を追加した（既存関数は一切変更していない。
+　既存のgenerate_news_summary等と同じ「APIキー未設定・エラー時はルールベースへ
+　自動フォールバック」という設計を踏襲している）
+・Sprint17は、Sprint12の分析モード（クイック／標準／フル）による呼び出し回数制御とは
+　独立している。「📑 資料を解析する」ボタンを押した時だけGemini呼び出しが発生する
+・ロードマップの次Sprintを18（有価証券報告書解析）に更新
+・その他のセクションはVer6.1のまま変更なし
 
 ---
 
@@ -445,7 +464,7 @@ ROA
 
 ## タブの並び順（変更しない）
 
-[📊 サマリー] [📈 定量分析] [🧠 定性分析] [📰 ニュース] [📋 仮説・レポート] [💼 Portfolio] [⚖️ 比較分析]
+[📊 サマリー] [📈 定量分析] [🧠 定性分析] [📰 ニュース] [📋 仮説・レポート] [💼 Portfolio] [⚖️ 比較分析] [📑 決算資料解析]
 
 ---
 
@@ -549,6 +568,27 @@ AI投資日誌（Sprint16。日誌記録フォーム→JSON保存/読込→日�
 　plotly.graph_objectsを直接使って複数銘柄分を重ねて描画している
 　（既存のreport.py内の単一銘柄用の関数は変更していない）。
 
+### 📑 決算資料解析タブ（Sprint17で追加）
+
+PDFアップロード欄＋「📑 資料を解析する」ボタン
+↓
+解析結果（Geminiによる要約・ポイント抽出）
+↓
+抽出したテキストの確認（expander、元データの冒頭部分）
+
+・決算説明資料などのPDFファイルをアップロードして解析する機能。
+・①pdfplumberでPDFからテキストを抽出（新規モジュールearnings_material.py、
+　ルールベース） → ②Geminiで要約・ポイント抽出（ai_analysis.pyに追加した
+　generate_earnings_material_analysis）という2段階の処理。
+・Gemini呼び出しは「📑 資料を解析する」ボタンを押した時だけ発生する。
+　Sprint12の分析モード（クイック／標準／フル）による呼び出し回数制御とは
+　独立している。
+・APIキー未設定・APIエラー時は、既存のgenerate_news_summary等と同じ設計で
+　ルールベースのフォールバック（抽出テキストの冒頭抜粋を表示）に自動で切り替わる。
+・結果はst.session_state.earnings_material_resultに保持し、他のウィジェット
+　操作のたびに再解析（＝Gemini再呼び出し）が走らないようにしている。
+・現在分析中の1銘柄の状態（current_data等）とは独立した機能。
+
 ---
 
 ## Ver3.0からの移行に関する注意
@@ -605,6 +645,8 @@ python-dotenv
 requests
 
 reportlab
+
+pdfplumber（Sprint17、決算資料のPDFからテキストを抽出するために追加）
 
 ---
 
@@ -698,7 +740,7 @@ AI投資日誌（完了）
 
 Sprint17
 
-決算資料解析
+決算資料解析（完了）
 
 Sprint18
 

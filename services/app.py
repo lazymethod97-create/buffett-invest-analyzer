@@ -59,10 +59,12 @@ from ai_analysis import (
 	generate_red_team_analysis,
 	generate_investment_hypothesis,
 	generate_news_confirmation_points,
+	generate_earnings_material_analysis,
 )
 from news_fetcher import get_latest_news
 from pdf_report import generate_pdf_report
 from dcf_analysis import calculate_dcf
+from earnings_material import extract_text_from_pdf
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -172,6 +174,14 @@ journal_manager = st.session_state.journal_manager
 
 if "last_loaded_journal_file_id" not in st.session_state:
 	st.session_state.last_loaded_journal_file_id = None
+
+####################################################
+# Sprint17: 決算資料解析
+# 「📑 資料を解析する」ボタンを押した時だけPDF抽出・Gemini呼び出しを行い、
+# 結果をsession_stateに保持する（Sprint15の比較分析と同じ考え方）。
+####################################################
+if "earnings_material_result" not in st.session_state:
+	st.session_state.earnings_material_result = None
 
 st.title("📈 Buffett Investment Analyzer")
 st.caption("ウォーレン・バフェットならこの株を買うか？を分析します")
@@ -328,8 +338,8 @@ if (
 
 	st.divider()
 
-	tab_summary, tab_quant, tab_qual, tab_news, tab_hypo, tab_portfolio, tab_compare = st.tabs(
-		["📊 サマリー", "📈 定量分析", "🧠 定性分析", "📰 ニュース", "📋 仮説・レポート", "💼 Portfolio", "⚖️ 比較分析"]
+	tab_summary, tab_quant, tab_qual, tab_news, tab_hypo, tab_portfolio, tab_compare, tab_earnings = st.tabs(
+		["📊 サマリー", "📈 定量分析", "🧠 定性分析", "📰 ニュース", "📋 仮説・レポート", "💼 Portfolio", "⚖️ 比較分析", "📑 決算資料解析"]
 	)
 
 	####################################################
@@ -1141,6 +1151,74 @@ if (
 					"※ 各項目は満点に対する達成率(%)で正規化して表示しています"
 					"（項目ごとに配点が異なるため）。"
 				)
+
+	####################################################
+	# 📑 決算資料解析タブ（Sprint17）
+	# 決算説明資料などのPDFをアップロードすると、
+	# ①pdfplumberでテキストを抽出（ルールベース） →
+	# ②Geminiで要約・ポイント抽出（ai_analysis.py の
+	#   generate_earnings_material_analysisを利用）
+	# を行う。既存の分析モード（クイック／標準／フル）とは独立した、
+	# このタブ専用のボタンでのみGemini呼び出しを行う。
+	####################################################
+	with tab_earnings:
+		st.subheader("📑 決算資料を解析する")
+		st.caption(
+			"決算説明資料などのPDFをアップロードすると、Geminiが要約・ポイント抽出を行います。"
+			"（このタブのボタンを押した時だけ解析します）"
+		)
+
+		earnings_pdf = st.file_uploader(
+			"PDFファイルをアップロード", type=["pdf"], key="earnings_pdf_uploader"
+		)
+
+		earnings_analyze_button = st.button(
+			"📑 資料を解析する", type="primary", key="button_earnings_analyze"
+		)
+
+		if earnings_analyze_button:
+			if earnings_pdf is None:
+				st.warning("PDFファイルをアップロードしてください。")
+			else:
+				pdf_text = ""
+				with st.spinner("PDFからテキストを抽出しています..."):
+					try:
+						pdf_text = extract_text_from_pdf(earnings_pdf.read())
+					except Exception as e:
+						st.error(f"PDFの読み込みに失敗しました：{e}")
+
+				if not pdf_text.strip():
+					st.warning(
+						"PDFからテキストを抽出できませんでした"
+						"（画像だけのPDFの可能性があります）。"
+					)
+				else:
+					with st.spinner("Geminiで分析しています..."):
+						analysis_text = generate_earnings_material_analysis(
+							pdf_text, company_name=data.get("company_name")
+						)
+					st.session_state.earnings_material_result = {
+						"file_name": earnings_pdf.name,
+						"pdf_text": pdf_text,
+						"analysis": analysis_text,
+					}
+					st.rerun()
+
+		st.divider()
+
+		earnings_result = st.session_state.earnings_material_result
+
+		if not earnings_result:
+			st.info("PDFをアップロードして「📑 資料を解析する」を押してください。")
+		else:
+			st.subheader(f"📄 解析結果：{earnings_result['file_name']}")
+			st.markdown(earnings_result["analysis"])
+
+			with st.expander("抽出したテキストを確認する（元データ）"):
+				preview_text = earnings_result["pdf_text"]
+				st.text(preview_text[:5000])
+				if len(preview_text) > 5000:
+					st.caption("※ 長いため、冒頭5000文字のみ表示しています。")
 
 elif analyze_button and not ticker_input:	
 	st.warning("ティッカーシンボルを入力してください。")

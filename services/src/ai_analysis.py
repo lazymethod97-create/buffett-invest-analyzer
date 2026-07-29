@@ -1456,3 +1456,87 @@ def _generate_rule_confirmation_points(data, news, score_result):
         })
 
     return points
+
+
+def generate_earnings_material_analysis(pdf_text, company_name=None):
+    """
+    Sprint17: 決算資料解析
+    アップロードされた決算説明資料（PDFから抽出したテキスト）を
+    Geminiに渡して要約・ポイント抽出させる。
+    APIキーがあればGeminiに依頼し、なければルールベースで返す
+    （既存のgenerate_ai_analysis等と同じフォールバック設計）。
+    """
+    if not pdf_text or not pdf_text.strip():
+        return "PDFからテキストを抽出できませんでした。"
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return _generate_rule_earnings_material_analysis(pdf_text)
+
+    try:
+        client = genai.Client(api_key=api_key)
+
+        # プロンプトに収まるよう、長すぎる場合は先頭部分のみを使用する
+        truncated_text = pdf_text[:15000]
+
+        company_line = f"会社名（参考情報）：{company_name}\n" if company_name else ""
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した長期投資アナリストです。
+
+以下は企業の決算説明資料（決算プレゼンテーション資料等）から抽出したテキストです。
+
+{company_line}
+【決算資料本文（抜粋）】
+{truncated_text}
+
+以下のルールで日本語で分析してください。
+
+【分析方針】
+・短期的な株価変動より企業価値を重視する
+・数字の背景にある構造的な変化を見極める
+・競争優位性（MOAT）への影響を意識する
+・経営陣のコメントのトーン（強気/弱気/曖昧）を評価する
+
+以下の形式で回答してください。
+
+# 決算サマリー
+200文字以内
+
+# 良かった点
+箇条書き
+
+# 懸念点
+箇条書き
+
+# 経営陣コメントの印象
+
+# 長期投資への影響
+
+# Buffettならどう考えるか
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        return response.text
+
+    except Exception:
+        return _generate_rule_earnings_material_analysis(pdf_text)
+
+
+def _generate_rule_earnings_material_analysis(pdf_text):
+    """ルールベースで決算資料の簡易表示を行う（APIキー未設定時・エラー時のフォールバック）"""
+    preview = pdf_text.strip()
+    if len(preview) > 1000:
+        preview = preview[:1000] + "…"
+
+    lines = [
+        "⚠️ AI要約は現在利用できません（APIクォータ超過、または未設定）。",
+        "以下はPDFから抽出したテキストの冒頭部分です。\n",
+        preview,
+        "\n※ AI分析を利用するには、しばらく時間を置いてから再実行するか、"
+        "Gemini APIのプラン・クォータをご確認ください。",
+    ]
+    return "\n".join(lines)

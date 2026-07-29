@@ -1,6 +1,6 @@
 # Buffett Investment Analyzer
-# AI 引継ぎ書（Sprint16完了時点）
-Version: 6.1
+# AI 引継ぎ書（Sprint17完了時点）
+Version: 7.0
 Date: 2026-07-28
 
 ---
@@ -20,6 +20,7 @@ Date: 2026-07-28
 - Google News RSS
 - newspaper4k
 - ReportLab（PDFレポート出力）
+- pdfplumber（Sprint17、決算資料PDFのテキスト抽出）
 
 Github
 
@@ -78,6 +79,8 @@ portfolio.py（Sprint13）
 watchlist.py（Sprint14）
 
 journal.py（Sprint16）
+
+earnings_material.py（Sprint17）
 
 ---
 
@@ -434,6 +437,67 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 ---
 
+## Sprint17
+
+テーマ：決算資料解析（決算説明資料などのPDFをアップロードして解析）
+
+実装済
+
+内容
+
+・PROJECT_RULES.md をVer7.0に改訂し、タブを7個から8個に変更（末尾に
+　「📑 決算資料解析」タブを追加）。ユーザーに事前確認済み。既存7タブの
+　並び順・タブ内の並び順は一切変更していない
+
+・新規ライブラリ pdfplumber を追加（requirements.txtへの追加が必要。
+　ユーザー合意済み）。PDFからテキストを抽出するために使用する
+
+・earnings_material.py 新規作成（services/配下、他モジュールと同階層）
+
+　・extract_text_from_pdf(file_bytes)：PDFのバイト列からテキストを抽出する
+　　唯一の公開関数。ルールベースの処理のみで、AIは使用しない
+
+・ai_analysis.py に以下の2関数を追加（既存の関数・コードは一切変更していない。
+　ファイル末尾に追記する形で対応した）
+
+　・generate_earnings_material_analysis(pdf_text, company_name=None)：
+　　抽出したテキストをGeminiに渡し、決算サマリー・良かった点・懸念点・
+　　経営陣コメントの印象・結論（強気／中立／弱気）を生成する
+
+　・_generate_rule_earnings_material_analysis(pdf_text)：
+　　APIキー未設定・APIエラー時のフォールバック。既存の
+　　_generate_rule_news_summary等と同じ設計方針（抽出テキストの冒頭を
+　　表示し、AI分析が利用できない旨を案内する）
+
+・app.py側：
+
+　・st.session_state.earnings_material_result を追加。「📑 資料を解析する」
+　　ボタンを押した時だけPDF抽出・Gemini呼び出しを行い、結果を保持する
+　　（Sprint15の比較分析と同じ、ボタン起点でのみ計算する設計）
+
+　・「📑 決算資料解析」タブを追加し、以下を実装：
+
+　　１．PDFアップロード欄＋「📑 資料を解析する」ボタン
+
+　　２．解析結果（Geminiによる要約・ポイント抽出をMarkdownで表示）
+
+　　３．抽出したテキストの確認用expander（元データの冒頭5000文字）
+
+・Gemini呼び出しは、このタブの「📑 資料を解析する」ボタンを押した時だけ発生する。
+　Sprint12の分析モード（クイック／標準／フル）による呼び出し回数制御とは
+　独立しており、モードに関わらずこのタブは利用できる
+
+・画像だけのPDF等でテキストが抽出できなかった場合はエラーにせず、
+　警告メッセージを表示するだけにとどめている
+
+・決算資料解析タブは「現在分析中の1銘柄」の会社名（company_name）を
+　Geminiへの参考情報として渡す以外は、current_data等の既存の状態管理とは
+　独立しており、既存の機能・コードは一切変更していない
+
+完了
+
+---
+
 ## 見つかった不具合の修正（Sprint10〜11の間に対応）
 
 - JSON読込の無限ループ：`st.file_uploader` 読込成功後の `st.rerun()` により、
@@ -452,7 +516,7 @@ Ver3.0のAI_HANDOVER.mdを参照。概要：
 
 最新版
 
-Sprint16対応済
+Sprint17対応済
 
 現在の構成（Sprint11でタブ化）
 
@@ -480,6 +544,7 @@ Sprint16対応済
 - `st.session_state.compare_bundle`：比較分析タブ（Sprint15）で「⚖️ 比較する」ボタンを押した時の結果一覧。ボタンを押すまではNone
 - `st.session_state.journal_manager`：JournalManagerインスタンス（Sprint16）。手入力の投資日誌をセッション中保持し、JSON保存/読込にも対応する
 - `st.session_state.last_loaded_journal_file_id`：日誌JSON読込の重複防止用（Sprint16。hypothesis.pyの不具合修正と同じ仕組み）
+- `st.session_state.earnings_material_result`：決算資料解析タブ（Sprint17）で「📑 資料を解析する」ボタンを押した時の結果（ファイル名・抽出テキスト・Gemini分析結果）。ボタンを押すまではNone
 
 ## キャッシュ関数（Sprint10）
 
@@ -517,7 +582,8 @@ Sprint12以降、投資仮説の生成・表示は「フルモード」でのみ
 
 # ai_analysis.py
 
-完成済（Sprint7時点から変更なし）
+Sprint7〜16は変更なし。Sprint17でgenerate_earnings_material_analysisを
+ファイル末尾に追記（既存の関数・コードは一切変更していない）
 
 含まれる関数
 
@@ -538,6 +604,8 @@ generate_red_team_analysis
 generate_investment_hypothesis（Sprint6・AI仮説生成）
 
 generate_news_confirmation_points（Sprint7・ニュース確認ポイント）
+
+generate_earnings_material_analysis（Sprint17・決算資料解析）
 
 いずれもGemini APIキー未設定・APIエラー時はルールベース関数へ自動フォールバックする設計で統一されている。
 
@@ -591,6 +659,9 @@ OpenAIは使用しない
 
 Sprint12により、実際の呼び出し回数はモードに応じて 0回／2回／7回 のいずれかになる
 
+Sprint17（決算資料解析）はこのモード分岐とは独立しており、「📑 資料を解析する」
+ボタンを押した時だけ、決算資料解析タブ専用のGemini呼び出しが1回発生する
+
 ---
 
 # ニュース取得
@@ -617,11 +688,11 @@ Gemini確認ポイント生成（Sprint7、フルモードのみ）
 
 # 次Sprint
 
-Sprint17
+Sprint18
 
 テーマ
 
-決算資料解析（未確定、次回相談）
+有価証券報告書解析（未確定、次回相談）
 
 ---
 
@@ -733,12 +804,16 @@ feat: Sprint16 investment journal (manual entries, JSON save/load, no AI calls)
 
 docs: PROJECT_RULES Ver6.1 / AI_HANDOVER Ver6.1 - add investment journal section, record Sprint16 completion
 
+feat: Sprint17 earnings material analysis (PDF upload, pdfplumber extraction, Gemini summary)
+
+docs: PROJECT_RULES Ver7.0 / AI_HANDOVER Ver7.0 - add earnings analysis tab, pdfplumber dependency, record Sprint17 completion
+
 ---
 
 現在Version
 
-Ver6.1（AI_HANDOVER.md）／ Ver6.1（PROJECT_RULES.md）
+Ver7.0（AI_HANDOVER.md）／ Ver7.0（PROJECT_RULES.md）
 
-Sprint16完了
+Sprint17完了
 
-次回はSprint17（決算資料解析）から開始する（内容は次回相談）
+次回はSprint18（有価証券報告書解析）から開始する（内容は次回相談）
