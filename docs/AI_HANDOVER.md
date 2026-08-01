@@ -19,7 +19,7 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint18終了。
+現在Sprint18完了。
 
 次回はSprint19（ROIC分析）から開始。
 
@@ -27,9 +27,9 @@ Buffett Investment Analyzer Ver2
 
 # Sprint18 完了内容
 
-## リファクタリング
+## リファクタリング（責務分離）
 
-Version2の責務分離方針を確定。
+Version2の責務分離方針を確定・実装完了。
 
 ### app.py
 
@@ -39,9 +39,9 @@ app.pyはController専用とする。
 
 ・入力受付
 
-・データ取得
+・データ取得（cached_get_latest_news等）
 
-・分析呼び出し
+・分析呼び出し（create_analysis_bundle() のみ）
 
 ・UI表示
 
@@ -157,7 +157,7 @@ brand
 
 moat
 
-management
+management（mgmt）
 
 red_team
 
@@ -180,6 +180,24 @@ PASS
 などをここで決定する。
 
 他モジュールでは判定しない。
+
+---
+
+# 互換ラッパーについて
+
+services/src直下には、旧import互換のためのラッパーが残っている。
+
+例）
+
+data_fetcher.py → data/data_fetcher.py
+
+scoring_engine.py → engines/scoring_engine.py
+
+ai_analysis.py → ai/ai_analysis.py
+
+など。
+
+削除する場合は、app.py等のimport先を新パッケージに変更してから行うこと。
 
 ---
 
