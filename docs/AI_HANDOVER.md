@@ -1,235 +1,61 @@
 # AI_HANDOVER.md
 
-Project: Buffett Investment Analyzer
-Version: Ver2
-Current Sprint: Sprint18（実装開始前）
+# Buffett Investment Analyzer Ver2
+## AI引き継ぎ書
 
 ---
 
 # GitHub
 
-Repository
+GitHubを唯一の正とする。
 
-https://github.com/lazymethod97-create/buffett-invest-analyzer
+ローカルよりGitHub最新版を優先。
 
-GitHubを唯一の正（Single Source of Truth）とする。
-
-以後は**設計ではなく、必ずGitHubの最新コードを確認してから実装すること。**
+新しいSprintを開始する前に必ず最新コードを確認すること。
 
 ---
 
-# 現在の状況
+# Version
 
-Sprint1～17は実装済み。
+Buffett Investment Analyzer Ver2
 
-Sprint18の設計レビューは完了した。
+現在Sprint18終了。
 
-今回のチャットではSprint18の設計・責務分離・Version2アーキテクチャを決定したが、
-
-**まだGitHub最新コードへは反映していない。**
-
-したがって、
-
-**Sprint18は未完了**
-
-である。
-
-次チャットでは
-
-GitHub最新版
-
-↓
-
-現状解析
-
-↓
-
-Sprint18実装
-
-から開始する。
+次回はSprint19（ROIC分析）から開始。
 
 ---
 
-# 今回決定したVersion2設計
+# Sprint18 完了内容
 
-Version2では
+## リファクタリング
 
-```
-app.py
-```
+Version2の責務分離方針を確定。
 
-は画面制御のみ。
+### app.py
+
+app.pyはController専用とする。
+
+以下のみ担当する。
+
+・入力受付
+
+・データ取得
+
+・分析呼び出し
+
+・UI表示
 
 分析ロジックは禁止。
 
-Gemini呼び出しは禁止。
-
 ---
 
-新しい構成
+### analysis
 
-```
-services/
+分析処理を集約するディレクトリ。
 
-app.py
+対象
 
-src/
-
-analysis/
-
-ui/
-```
-
-analysis
-
-分析・計算のみ
-
-```
-overall_eval.py
-
-dcf_analysis.py
-
-scoring_engine.py
-
-ai_analysis.py
-```
-
-ui
-
-画面表示のみ
-
-```
-summary_card.py
-
-decision_card.py
-
-quantitative_tab.py
-
-qualitative_tab.py
-
-news_tab.py
-
-portfolio_tab.py
-
-compare_tab.py
-
-earnings_tab.py
-```
-
----
-
-# Sprint18で実装する内容
-
-① analysis/
-
-overall_eval.py
-
-追加
-
-返却値
-
-```
-Overall Score
-
-Overall Grade
-
-Risk
-
-Confidence
-
-Action
-```
-
-AIは使用しない。
-
----
-
-② ui/
-
-summary_card.py
-
-追加
-
-Summaryタブ表示専用。
-
----
-
-③ ui/
-
-decision_card.py
-
-追加
-
-Strong Buy
-
-Buy
-
-Watch
-
-Hold
-
-Avoid
-
-表示専用。
-
----
-
-④ ai_analysis.py
-
-```
-generate_overall_summary()
-```
-
-追加。
-
-Geminiは文章生成のみ。
-
-判定は禁止。
-
----
-
-⑤ app.py
-
-analysis_bundle
-
-導入。
-
-```
-analysis_bundle
-
-↓
-
-Summary
-
-Quantitative
-
-Qualitative
-
-News
-
-Portfolio
-
-Compare
-
-Earnings
-```
-
-へ受け渡す。
-
-UIからGeminiを呼ばない。
-
----
-
-# analysis_bundle構成
-
-```
-analysis_bundle = {
-
-company
-
-score
-
-dcf
+overall_eval
 
 moat
 
@@ -239,202 +65,206 @@ management
 
 red_team
 
+analysis_bundle
+
+---
+
+### engines
+
+数値計算のみ。
+
+対象
+
+scoring_engine
+
+dcf_engine
+
+checklist_engine
+
+Sprint19以降
+
+roic_engine
+
+intrinsic_engine
+
+owner_earnings_engine
+
+追加予定。
+
+---
+
+### data
+
+データ取得のみ。
+
+data_fetcher
+
+news_fetcher
+
+---
+
+### ai
+
+Geminiとの通信のみ。
+
+gemini.py
+
+ai_analysis.py
+
+---
+
+### ui
+
+Streamlit描画専用。
+
+summary_card
+
+decision_card
+
+financial_table
+
+score_card
+
+chart_panel
+
+---
+
+### report
+
+PDF関連
+
+report.py
+
+pdf_report.py
+
+---
+
+# analysis_bundle
+
+Version2から導入。
+
+全分析を一括実行する。
+
+create_analysis_bundle()
+
+のみをapp.pyから呼び出す。
+
+戻り値
+
 overall
 
-overall_summary
+brand
+
+moat
+
+management
+
+red_team
+
+checklist
 
 news
 
-}
-```
+---
 
-Version2では
+# overall_eval
 
-この辞書だけをUIへ渡す。
+総合判定はここだけ。
+
+BUY
+
+WATCH
+
+PASS
+
+などをここで決定する。
+
+他モジュールでは判定しない。
 
 ---
 
-# GitHubで最初に行うこと
+# Sprint19
 
-次チャット開始後、
+ROIC分析
 
-必ず
+実装予定
 
-GitHub最新版
+・ROIC計算
 
-またはZIP
+・NOPAT計算
 
-を確認する。
+・投下資本計算
 
-以下を最優先で実施。
+・Buffett基準評価
 
-1.
+・Buffett Score反映
 
-現在のディレクトリ構成確認
+・PDF表示
 
-2.
+・AI評価反映
 
-app.py解析
-
-3.
-
-重複機能調査
-
-4.
-
-analysis/uiへ移動できる機能整理
-
-5.
-
-依存関係確認
-
-6.
-
-既存コードを壊さない実装計画作成
-
-設計だけで進めないこと。
+・UI追加
 
 ---
 
-# Sprint18実装手順
+# 今後のSprint
 
-Sprint18-1
+Sprint20
 
-Version2構成作成
+Owner Earnings
 
-```
-analysis/
+Sprint21
 
-ui/
-```
+Intrinsic Value
 
-追加
+Sprint22
 
-Git Commit
+Capital Allocation
 
-```
-Sprint18-1
-Create Version2 Architecture
-```
+Sprint23
 
----
+Share Buyback
 
-Sprint18-2
+Sprint24
 
-overall_eval.py
+Debt Quality
 
-実装
+Sprint25
 
-Git Commit
+Economic Moat強化
 
-```
-Sprint18-2
-Implement Overall Evaluation Engine
-```
+Sprint26
 
----
+Backtest
 
-Sprint18-3
+Sprint27
 
-summary_card.py
+Portfolio Analyzer
 
-decision_card.py
+Sprint28
 
-実装
+Watchlist
 
-Git Commit
+Sprint29
 
-```
-Sprint18-3
-Split Summary UI
-```
+Performance改善
+
+Sprint30
+
+Version2.0 Release
 
 ---
 
-Sprint18-4
+# 注意事項
 
-analysis_bundle
+GitHub最新版を必ず確認。
 
-導入
+重複実装禁止。
 
-app.py軽量化
+既存機能を壊さない。
 
-Gemini呼び出し一本化
+分析ロジックはanalysisへ。
 
-Git Commit
+計算ロジックはenginesへ。
 
-```
-Sprint18-4
-Centralize Analysis Bundle
-```
-
----
-
-Sprint18-5
-
-不要コード整理
-
-PROJECT_RULES更新
-
-AI_HANDOVER更新
-
-GitHubレビュー
-
-Git Commit
-
-```
-Sprint18-5
-Complete Sprint18 Version2
-```
-
----
-
-# 実装ルール
-
-今回から最重要ルールを変更する。
-
-単にコードを書くことをSprint完了としない。
-
-以下すべて終えて初めてSprint完了とする。
-
-・GitHub構成変更
-
-・必要なファイル分割
-
-・不要コード整理
-
-・重複コード削除
-
-・app.py軽量化
-
-・PROJECT_RULES更新
-
-・AI_HANDOVER更新
-
-・Gitコミット単位作成
-
-・完成レビュー
-
----
-
-# 次チャット開始時の最初の指示
-
-以下をそのままAIへ送る。
-
----
-
-あなたはBuffett Investment Analyzer Ver2の主任ソフトウェアエンジニアです。
-
-AI_HANDOVER.mdとPROJECT_RULES.mdを最初に読んでください。
-
-GitHubを唯一の正とします。
-
-今回は設計ではなく実装を行います。
-
-必ずGitHub最新版（またはアップロードしたZIP）のコードを確認してから開始してください。
-
-現在の構成・依存関係・重複機能を調査し、Sprint18をGitHub構成変更・ファイル分割・PROJECT_RULES更新・AI_HANDOVER更新・Gitコミットまで含めて完成させてください。
-
-既存コードは壊さず、コピペで動く完成版のみを作成してください。
-
-Sprint18完了後にSprint19（ROIC分析）へ進めます。
+画面はuiへ。
