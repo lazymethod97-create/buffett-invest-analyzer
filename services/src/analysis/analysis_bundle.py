@@ -107,7 +107,11 @@ def create_analysis_bundle(
             bundle["management"] = mgmt
             bundle["red_team"] = red_team
 
-    # Overall verdict - ONLY overall_eval decides BUY / WATCH / PASS
+        # Normalize bundle values (Sprint18)
+    bundle["checklist"] = bundle["checklist"] or []
+    bundle["news"] = bundle["news"] or []
+
+# Overall verdict - ONLY overall_eval decides BUY / WATCH / PASS
     bundle["overall"] = calculate_overall_grade(
         score_result=score_result,
         dcf_result=dcf_result,
