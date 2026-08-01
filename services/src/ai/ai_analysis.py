@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from engines.checklist_engine import generate_buffett_checklist_rule
+
 client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
@@ -216,7 +218,7 @@ def generate_buffett_checklist(data, score_result):
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return _generate_rule_checklist(data, score_result)
+        return generate_buffett_checklist_rule(data, score_result)
 
     try:
         client = genai.Client(api_key=api_key)
@@ -274,7 +276,7 @@ Buffett Score：{score_result["total_score"]}/100
         return json.loads(text)
 
     except Exception:
-        return _generate_rule_checklist(data, score_result)
+        return generate_buffett_checklist_rule(data, score_result)
 
 
 def _generate_rule_checklist(data, score_result):

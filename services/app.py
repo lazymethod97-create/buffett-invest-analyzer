@@ -61,6 +61,7 @@ from ai_analysis import (
 	generate_news_confirmation_points,
 	generate_earnings_material_analysis,
 )
+from analysis import create_analysis_bundle
 from news_fetcher import get_latest_news
 from pdf_report import generate_pdf_report
 from dcf_analysis import calculate_dcf
@@ -247,47 +248,28 @@ if analyze_button and ticker_input:
 
 	st.session_state.current_data = data
 	st.session_state.current_score_result = score_result
-
 	####################################################
-	# Sprint12: 選択された分析モードに応じてAI呼び出しを行う
-	# クイックモードはここを一切通らないため、Gemini呼び出しはゼロ。
+	# Sprint18 Phase4: 分析はanalysis_bundleに一元化
+	# app.pyはControllerとしてcreate_analysis_bundle()を呼ぶだけ。
+	# データ取得(news)のみapp.pyが担当する。
 	####################################################
-	bundle = {
-		"mode": analysis_mode,
-		"news": None,
-		"analysis": None,
-		"summary": None,
-		"confirmation_points": None,
-		"checklist": None,
-		"moat": None,
-		"brand": None,
-		"mgmt": None,
-		"red_team": None,
-	}
+	if analysis_mode.startswith("⚡"):
+		news = None
+	else:
+		news = cached_get_latest_news(data["company_name"])
 
-	if not analysis_mode.startswith("⚡"):
-		with st.spinner("🤖 AIが分析中...（初回のみ少し時間がかかります）"):
-			news = cached_get_latest_news(data["company_name"])
-			bundle["news"] = news
-			bundle["analysis"] = generate_ai_analysis(data, score_result)
-			bundle["summary"] = generate_news_summary(news) if news else ""
-			bundle["checklist"] = generate_buffett_checklist(data, score_result)
+	dcf_result = globals().get("dcf_result") or {}
 
-			if analysis_mode.startswith("🔎"):
-				bundle["confirmation_points"] = generate_news_confirmation_points(
-					data, news, score_result
-				)
-				bundle["moat"] = generate_moat_analysis(data, score_result)
-				bundle["brand"] = generate_brand_analysis(data, score_result)
-				bundle["mgmt"] = generate_management_analysis(data, score_result)
-				bundle["red_team"] = generate_red_team_analysis(
-					data,
-					score_result,
-					bundle["checklist"],
-					bundle["moat"],
-					bundle["brand"],
-					bundle["mgmt"],
-				)
+	with st.spinner("🤖 AIが分析中...（初回のみ少し時間がかかります）"):
+		bundle = create_analysis_bundle(
+			data=data,
+			score_result=score_result,
+			dcf_result=dcf_result,
+			mode=analysis_mode,
+			news=news,
+			is_quick=analysis_mode.startswith("⚡"),
+			is_full=analysis_mode.startswith("🔎"),
+		)
 
 	st.session_state.analysis_bundle = bundle
 

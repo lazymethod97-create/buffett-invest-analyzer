@@ -19,9 +19,12 @@ Overall Score(100点)
 Risk Level
 Confidence
 Action
+Decision(BUY / WATCH / PASS)
 
 を返す。
 AIは使用しない。
+
+総合判定（BUY / WATCH / PASS）はこのモジュールだけで決定する（ルール13）。
 """
 
 from typing import Dict
@@ -164,6 +167,23 @@ def _action(grade):
     return "見送り"
 
 
+def _decision(grade, risk):
+    """
+    Sprint18: 総合判定 BUY / WATCH / PASS はここだけで決定する。
+    - S または A かつ リスクが High でない → BUY
+    - B かつ リスクが High でない          → WATCH
+    - それ以外                             → PASS
+    """
+
+    if grade in ("S", "A") and risk != "High":
+        return "BUY"
+
+    if grade == "B" and risk != "High":
+        return "WATCH"
+
+    return "PASS"
+
+
 def calculate_overall_grade(
     score_result,
     dcf_result,
@@ -191,6 +211,8 @@ def calculate_overall_grade(
 
     grade = _grade(total)
 
+    risk = _risk(s6)
+
     return {
 
         "overall_score": total,
@@ -199,11 +221,13 @@ def calculate_overall_grade(
 
         "stars": _stars(total),
 
-        "risk": _risk(s6),
+        "risk": risk,
 
         "confidence": _confidence(buffett_score),
 
         "action": _action(grade),
+
+        "decision": _decision(grade, risk),
 
         "detail":{
 
