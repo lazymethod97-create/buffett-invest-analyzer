@@ -1540,3 +1540,58 @@ def _generate_rule_earnings_material_analysis(pdf_text):
         "Gemini APIのプラン・クォータをご確認ください。",
     ]
     return "\n".join(lines)
+
+
+####################################################
+# Sprint18
+# Buffett Overall Summary
+# 総合評価文章だけをGeminiに生成させる
+####################################################
+
+
+def generate_overall_summary(
+    overall,
+    data,
+    score_result,
+):
+
+    company = data.get("company_name", "この企業")
+
+    prompt = f"""
+あなたはウォーレン・バフェット投資法専門のアナリストです。
+
+以下の結果から100〜150文字程度で
+投資判断をまとめてください。
+
+会社名
+{company}
+
+Buffett Score
+{score_result["total_score"]}/100
+
+Overall Grade
+{overall["grade"]}
+
+Risk
+{overall["risk"]}
+
+Confidence
+{overall["confidence"]}
+
+推奨アクション
+{overall["action"]}
+
+初心者にも分かる文章でお願いします。
+"""
+
+    try:
+        return _call_gemini(prompt)
+
+    except Exception:
+
+        return (
+            f"{company}は"
+            f"Overall Grade {overall['grade']} "
+            f"と評価されました。"
+            f"{overall['action']}です。"
+        )
