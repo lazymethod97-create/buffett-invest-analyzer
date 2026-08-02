@@ -1,4 +1,4 @@
-"""
+﻿"""
 PDFレポート生成モジュール（Sprint8）
 ReportLabを使用し、分析結果全体をPDFとして出力する。
 日本語フォントはReportLab組み込みのCIDフォント（HeiseiKakuGo-W5／HeiseiMin-W3）を
@@ -122,6 +122,7 @@ def generate_pdf_report(
     red_team: dict,
     confirmation_points: list,
     hypotheses: list,
+    roic: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -218,6 +219,29 @@ def generate_pdf_report(
     pdf.add_paragraph(f"結論：{red_team.get('conclusion','')}")
     pdf.add_divider()
 
+    pdf.add_divider()
+
+    # ROIC（Sprint19）
+    pdf.add_heading("💰 ROIC（投下資本利益率）分析")
+    if roic and roic.get("raw"):
+        raw = roic.get("raw", {})
+        roic_val = raw.get("roic")
+        if roic_val is not None:
+            pdf.add_paragraph(f"ROIC：{roic_val*100:.1f}%")
+        else:
+            pdf.add_paragraph("ROIC：データ不足")
+        pdf.add_paragraph(f"評価：{roic.get('summary', '')}")
+        pdf.add_paragraph(f"スコア：{roic.get('score', 0)} / {roic.get('max_score', 15)}点")
+        nopat = raw.get("nopat")
+        ic = raw.get("invested_capital")
+        if nopat is not None:
+            pdf.add_paragraph(f"NOPAT（税引後営業利益）：{nopat:,.0f}")
+        if ic is not None:
+            pdf.add_paragraph(f"投下資本：{ic:,.0f}")
+        tax_rate = raw.get("tax_rate", 0.25)
+        pdf.add_paragraph(f"実効税率：{tax_rate*100:.1f}%")
+    else:
+        pdf.add_paragraph("ROIC分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:

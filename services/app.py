@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import datetime
 
@@ -30,6 +30,7 @@ from report import (
 	create_red_team_display,
 	create_confirmation_points_display,
 	create_dcf_display,
+    create_roic_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -452,6 +453,17 @@ if (
 			_mode_locked_message("🔎 フル（すべて）")
 
 		st.divider()
+		st.subheader("💰 ROIC（投下資本利益率）分析")
+		if is_full:
+			roic = bundle.get("roic", {})
+			if roic:
+				st.markdown(create_roic_display(roic))
+			else:
+				st.info("ROIC分析結果がありません。")
+		else:
+			_mode_locked_message("🔎 フル（すべて）")
+
+		st.divider()
 		st.subheader("🏷️ ブランド力評価")
 		if is_full:
 			st.markdown(create_brand_display(brand))
@@ -636,6 +648,7 @@ if (
 						red_team,
 						confirmation_points,
 						hypothesis_manager.get_all(),
+						roic,
 					)
 				st.download_button(
 					"⬇️ PDFをダウンロード",

@@ -1,4 +1,4 @@
-"""analysis_bundle (Sprint18 Phase4)
+﻿"""analysis_bundle (Sprint18 Phase4)
 
 Run all analyses at once.
 app.py calls only create_analysis_bundle().
@@ -11,6 +11,7 @@ Returns a bundle dict (keys compatible with the legacy app.py bundle):
 from typing import Any, Dict, Optional
 
 from .overall_eval import calculate_overall_grade
+from .roic import analyze_roic
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -69,6 +70,7 @@ def create_analysis_bundle(
         "mgmt": None,
         "management": None,
         "red_team": None,
+        "roic": None,
         "overall": None,
     }
 

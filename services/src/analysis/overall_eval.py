@@ -1,4 +1,4 @@
-"""
+﻿"""
 overall_eval.py (Sprint18)
 
 Buffett Investment Analyzer の総合評価エンジン
@@ -92,6 +92,12 @@ def _score_redteam(red_team: Dict) -> int:
         return 2
 
     return 5
+
+
+def _score_roic(roic: Dict) -> int:
+    """Sprint19: ROICスコア（15点満点）"""
+    score = roic.get("score", 0) if roic else 0
+    return min(score, 15)
 
 
 def _grade(score):
@@ -191,6 +197,7 @@ def calculate_overall_grade(
     brand,
     mgmt,
     red_team,
+    roic=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -206,8 +213,9 @@ def calculate_overall_grade(
     s4 = _score_brand(brand)
     s5 = _score_management(mgmt)
     s6 = _score_redteam(red_team)
+    s7 = _score_roic(roic) if roic else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7
 
     grade = _grade(total)
 
@@ -242,6 +250,7 @@ def calculate_overall_grade(
             "management":s5,
 
             "redteam":s6,
+            "roic":s7,
 
         }
 

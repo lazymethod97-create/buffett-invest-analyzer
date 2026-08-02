@@ -1,4 +1,4 @@
-import plotly.graph_objects as go
+﻿import plotly.graph_objects as go
 from typing import Dict, Any, List
 
 
@@ -69,177 +69,177 @@ def create_score_bar(score: float, max_score: float = 100) -> go.Figure:
 
 
 def create_checklist_display(checklist: List[Dict[str, Any]]) -> str:
-	"""
-	checklist: [{"item": str, "status": "pass"/"warning"/"fail", "reason": str}, ...]
-	"""
-	if not checklist:
-		return "*チェックリスト項目がありません。*\n"
+    """
+    checklist: [{"item": str, "status": "pass"/"warning"/"fail", "reason": str}, ...]
+    """
+    if not checklist:
+        return "*チェックリスト項目がありません。*\n"
 
-	status_map = {
-		"pass": "✅ 合格",
-		"warning": "⚠️ 要注意",
-		"fail": "❌ 不適合",
-	}
+    status_map = {
+        "pass": "✅ 合格",
+        "warning": "⚠️ 要注意",
+        "fail": "❌ 不適合",
+    }
 
-	md = "| 項目 | 判定 | 理由 |\n|:---|:---|:---|\n"
-	for entry in checklist:
-		status = status_map.get(entry.get("status", ""), entry.get("status", ""))
-		md += f"| {entry.get('item', '')} | {status} | {entry.get('reason', '')} |\n"
-	return md
+    md = "| 項目 | 判定 | 理由 |\n|:---|:---|:---|\n"
+    for entry in checklist:
+        status = status_map.get(entry.get("status", ""), entry.get("status", ""))
+        md += f"| {entry.get('item', '')} | {status} | {entry.get('reason', '')} |\n"
+    return md
 
 
 def create_moat_display(moat: Dict[str, Any]) -> str:
-	"""
-	moat: {"rating": "wide"/"narrow"/"none", "stars": int,
-	       "quantitative": {"roe_evidence":..., "margin_evidence":..., "fcf_evidence":..., "growth_evidence":..., "score":...},
-	       "qualitative": [{"type":..., "strength": "strong"/"moderate"/"weak", "reason":...}, ...],
-	       "summary": str}
-	"""
-	rating = moat.get("rating", "none")
-	stars = moat.get("stars", 0) or 0
-	rating_label = {
-		"wide": "🟢 Wide MOAT（広い堀）",
-		"narrow": "🟡 Narrow MOAT（狭い堀）",
-		"none": "🔴 No MOAT（堀なし）",
-	}.get(rating, rating)
+    """
+    moat: {"rating": "wide"/"narrow"/"none", "stars": int,
+           "quantitative": {"roe_evidence":..., "margin_evidence":..., "fcf_evidence":..., "growth_evidence":..., "score":...},
+           "qualitative": [{"type":..., "strength": "strong"/"moderate"/"weak", "reason":...}, ...],
+           "summary": str}
+    """
+    rating = moat.get("rating", "none")
+    stars = moat.get("stars", 0) or 0
+    rating_label = {
+        "wide": "🟢 Wide MOAT（広い堀）",
+        "narrow": "🟡 Narrow MOAT（狭い堀）",
+        "none": "🔴 No MOAT（堀なし）",
+    }.get(rating, rating)
 
-	md = f"**総合評価:** {rating_label}　{'★' * stars}{'☆' * (5 - stars)}\n\n"
+    md = f"**総合評価:** {rating_label}　{'★' * stars}{'☆' * (5 - stars)}\n\n"
 
-	quant = moat.get("quantitative", {})
-	if quant:
-		md += "#### 定量根拠\n"
-		for key in ["roe_evidence", "margin_evidence", "fcf_evidence", "growth_evidence"]:
-			val = quant.get(key)
-			if val:
-				md += f"- {val}\n"
-		md += "\n"
+    quant = moat.get("quantitative", {})
+    if quant:
+        md += "#### 定量根拠\n"
+        for key in ["roe_evidence", "margin_evidence", "fcf_evidence", "growth_evidence"]:
+            val = quant.get(key)
+            if val:
+                md += f"- {val}\n"
+        md += "\n"
 
-	qual = moat.get("qualitative", [])
-	if qual:
-		icon_map = {"strong": "✅", "moderate": "⚠️", "weak": "❌"}
-		md += "#### 定性評価\n"
-		for q in qual:
-			icon = icon_map.get(q.get("strength", ""), "❔")
-			md += f"- {icon} **{q.get('type', '')}**: {q.get('reason', '')}\n"
-		md += "\n"
+    qual = moat.get("qualitative", [])
+    if qual:
+        icon_map = {"strong": "✅", "moderate": "⚠️", "weak": "❌"}
+        md += "#### 定性評価\n"
+        for q in qual:
+            icon = icon_map.get(q.get("strength", ""), "❔")
+            md += f"- {icon} **{q.get('type', '')}**: {q.get('reason', '')}\n"
+        md += "\n"
 
-	summary = moat.get("summary", "")
-	if summary:
-		md += f"> {summary}\n"
-	return md
+    summary = moat.get("summary", "")
+    if summary:
+        md += f"> {summary}\n"
+    return md
 
 
 def create_brand_display(brand: Dict[str, Any]) -> str:
-	"""
-	brand: {"stars": int, "brand_type": str, "pricing_power": str, "loyalty": str,
-	        "recognition": str, "maintenance_cost": str, "sustainability": str,
-	        "buffet_view": str, "quantitative": {"margin_evidence":..., "growth_evidence":..., "score":...}}
-	"""
-	stars = brand.get("stars", 0) or 0
-	md = f"**総合評価:** {'★' * stars}{'☆' * (5 - stars)}　（{brand.get('brand_type', '不明')}）\n\n"
+    """
+    brand: {"stars": int, "brand_type": str, "pricing_power": str, "loyalty": str,
+            "recognition": str, "maintenance_cost": str, "sustainability": str,
+            "buffet_view": str, "quantitative": {"margin_evidence":..., "growth_evidence":..., "score":...}}
+    """
+    stars = brand.get("stars", 0) or 0
+    md = f"**総合評価:** {'★' * stars}{'☆' * (5 - stars)}　（{brand.get('brand_type', '不明')}）\n\n"
 
-	quant = brand.get("quantitative", {})
-	if quant:
-		md += "#### 定量根拠\n"
-		for key in ["margin_evidence", "growth_evidence"]:
-			val = quant.get(key)
-			if val:
-				md += f"- {val}\n"
-		md += "\n"
+    quant = brand.get("quantitative", {})
+    if quant:
+        md += "#### 定量根拠\n"
+        for key in ["margin_evidence", "growth_evidence"]:
+            val = quant.get(key)
+            if val:
+                md += f"- {val}\n"
+        md += "\n"
 
-	icon_map = {"strong": "✅", "moderate": "⚠️", "weak": "❌", "low": "✅", "high": "❌"}
-	qual_fields = [
-		("pricing_power", "価格決定力"),
-		("loyalty", "顧客ロイヤルティ"),
-		("recognition", "世界的認知度"),
-		("maintenance_cost", "維持コスト"),
-	]
-	md += "#### 定性評価\n"
-	for key, label in qual_fields:
-		val = brand.get(key)
-		if val:
-			icon = icon_map.get(val, "❔")
-			md += f"- {icon} **{label}**: {val}\n"
-	md += "\n"
+    icon_map = {"strong": "✅", "moderate": "⚠️", "weak": "❌", "low": "✅", "high": "❌"}
+    qual_fields = [
+        ("pricing_power", "価格決定力"),
+        ("loyalty", "顧客ロイヤルティ"),
+        ("recognition", "世界的認知度"),
+        ("maintenance_cost", "維持コスト"),
+    ]
+    md += "#### 定性評価\n"
+    for key, label in qual_fields:
+        val = brand.get(key)
+        if val:
+            icon = icon_map.get(val, "❔")
+            md += f"- {icon} **{label}**: {val}\n"
+    md += "\n"
 
-	sustainability = brand.get("sustainability", "")
-	if sustainability:
-		md += f"**持続性判断:** {sustainability}\n\n"
+    sustainability = brand.get("sustainability", "")
+    if sustainability:
+        md += f"**持続性判断:** {sustainability}\n\n"
 
-	buffet_view = brand.get("buffet_view", "")
-	if buffet_view:
-		md += f"> {buffet_view}\n"
-	return md
+    buffet_view = brand.get("buffet_view", "")
+    if buffet_view:
+        md += f"> {buffet_view}\n"
+    return md
 
 
 def create_management_display(mgmt: Dict[str, Any]) -> str:
-	"""
-	mgmt: {"stars": int, "capital_allocation": str, "transparency": str, "long_term": str,
-	       "self_interest": str, "founder_led": str, "debt_management": str,
-	       "buffet_view": str, "conclusion": str,
-	       "quantitative": {"roe_evidence":..., "fcf_evidence":..., "dividend_evidence":..., "score":...}}
-	"""
-	stars = mgmt.get("stars", 0) or 0
-	md = f"**総合評価:** {'★' * stars}{'☆' * (5 - stars)}\n\n"
+    """
+    mgmt: {"stars": int, "capital_allocation": str, "transparency": str, "long_term": str,
+           "self_interest": str, "founder_led": str, "debt_management": str,
+           "buffet_view": str, "conclusion": str,
+           "quantitative": {"roe_evidence":..., "fcf_evidence":..., "dividend_evidence":..., "score":...}}
+    """
+    stars = mgmt.get("stars", 0) or 0
+    md = f"**総合評価:** {'★' * stars}{'☆' * (5 - stars)}\n\n"
 
-	quant = mgmt.get("quantitative", {})
-	if quant:
-		md += "#### 定量根拠\n"
-		for key in ["roe_evidence", "fcf_evidence", "dividend_evidence"]:
-			val = quant.get(key)
-			if val:
-				md += f"- {val}\n"
-		md += "\n"
+    quant = mgmt.get("quantitative", {})
+    if quant:
+        md += "#### 定量根拠\n"
+        for key in ["roe_evidence", "fcf_evidence", "dividend_evidence"]:
+            val = quant.get(key)
+            if val:
+                md += f"- {val}\n"
+        md += "\n"
 
-	field_map = [
-		("capital_allocation", "資本配分能力"),
-		("transparency", "情報開示の透明性"),
-		("long_term", "長期視点"),
-		("self_interest", "自己利益度"),
-		("founder_led", "創業者経営"),
-		("debt_management", "負債管理"),
-	]
-	md += "#### 定性評価\n"
-	for key, label in field_map:
-		val = mgmt.get(key)
-		if val:
-			md += f"- **{label}**: {val}\n"
-	md += "\n"
+    field_map = [
+        ("capital_allocation", "資本配分能力"),
+        ("transparency", "情報開示の透明性"),
+        ("long_term", "長期視点"),
+        ("self_interest", "自己利益度"),
+        ("founder_led", "創業者経営"),
+        ("debt_management", "負債管理"),
+    ]
+    md += "#### 定性評価\n"
+    for key, label in field_map:
+        val = mgmt.get(key)
+        if val:
+            md += f"- **{label}**: {val}\n"
+    md += "\n"
 
-	buffet_view = mgmt.get("buffet_view", "")
-	if buffet_view:
-		md += f"**バフェット視点:** {buffet_view}\n\n"
+    buffet_view = mgmt.get("buffet_view", "")
+    if buffet_view:
+        md += f"**バフェット視点:** {buffet_view}\n\n"
 
-	conclusion = mgmt.get("conclusion", "")
-	if conclusion:
-		md += f"**結論:** {conclusion}\n"
-	return md
+    conclusion = mgmt.get("conclusion", "")
+    if conclusion:
+        md += f"**結論:** {conclusion}\n"
+    return md
 
 
 def create_red_team_display(red_team: Dict[str, Any]) -> str:
-	"""
-	red_team: {"financial_skepticism": str, "moat_vulnerability": str,
-	           "brand_demand_risk": str, "management_blindspot": str,
-	           "valuation_concern": str, "conclusion": str}
-	"""
-	md = ""
-	sections = [
-		("financial_skepticism", "財務への疑問"),
-		("moat_vulnerability", "MOATの脆弱性"),
-		("brand_demand_risk", "ブランド・需要リスク"),
-		("management_blindspot", "経営・組織リスク"),
-		("valuation_concern", "バリュエーション懸念"),
-	]
+    """
+    red_team: {"financial_skepticism": str, "moat_vulnerability": str,
+               "brand_demand_risk": str, "management_blindspot": str,
+               "valuation_concern": str, "conclusion": str}
+    """
+    md = ""
+    sections = [
+        ("financial_skepticism", "財務への疑問"),
+        ("moat_vulnerability", "MOATの脆弱性"),
+        ("brand_demand_risk", "ブランド・需要リスク"),
+        ("management_blindspot", "経営・組織リスク"),
+        ("valuation_concern", "バリュエーション懸念"),
+    ]
 
-	for key, title in sections:
-		val = red_team.get(key, "")
-		if val:
-			md += f"#### {title}\n- ⚠️ {val}\n\n"
+    for key, title in sections:
+        val = red_team.get(key, "")
+        if val:
+            md += f"#### {title}\n- ⚠️ {val}\n\n"
 
-	conclusion = red_team.get("conclusion", "")
-	if conclusion:
-		md += f"> **結論:** {conclusion}\n"
-	return md
+    conclusion = red_team.get("conclusion", "")
+    if conclusion:
+        md += f"> **結論:** {conclusion}\n"
+    return md
 
 
 def create_hypothesis_display(hypotheses: List[Dict[str, Any]]) -> str:
@@ -287,55 +287,101 @@ def create_hypothesis_display(hypotheses: List[Dict[str, Any]]) -> str:
     return md
 
 def create_confirmation_points_display(points: List[Dict[str, Any]]) -> str:
-	"""
-	points: [{"category": str, "point": str, "priority": "high"/"medium"/"low"}, ...]
-	"""
-	if not points:
-		return "*確認すべきポイントはありません（ニュースが取得できなかった可能性があります）。*\n"
+    """
+    points: [{"category": str, "point": str, "priority": "high"/"medium"/"low"}, ...]
+    """
+    if not points:
+        return "*確認すべきポイントはありません（ニュースが取得できなかった可能性があります）。*\n"
 
-	priority_icon = {
-		"high": "🔴 高",
-		"medium": "🟡 中",
-		"low": "🟢 低",
-	}
+    priority_icon = {
+        "high": "🔴 高",
+        "medium": "🟡 中",
+        "low": "🟢 低",
+    }
 
-	# カテゴリごとにグルーピング
-	grouped = {}
-	for p in points:
-		cat = p.get("category", "その他")
-		grouped.setdefault(cat, []).append(p)
+    grouped = {}
+    for p in points:
+        cat = p.get("category", "その他")
+        grouped.setdefault(cat, []).append(p)
 
-	md = ""
-	for cat, items in grouped.items():
-		md += f"#### 📌 {cat}\n"
-		for item in items:
-			icon = priority_icon.get(item.get("priority", ""), "⚪ -")
-			md += f"- **[{icon}]** {item.get('point', '')}\n"
-		md += "\n"
+    md = ""
+    for cat, items in grouped.items():
+        md += f"#### 📌 {cat}\n"
+        for item in items:
+            icon = priority_icon.get(item.get("priority", ""), "⚪ -")
+            md += f"- **[{icon}]** {item.get('point', '')}\n"
+        md += "\n"
 
-	return md
+    return md
+
 def create_dcf_display(dcf: Dict[str, Any]) -> str:
-	"""
-	dcf: calculate_dcf() の戻り値
-	"""
-	if not dcf.get("success"):
-		return f"*{dcf.get('error', 'DCF評価を計算できませんでした。')}*\n"
+    """
+    dcf: calculate_dcf() の戻り値
+    """
+    if not dcf.get("success"):
+        return f"*{dcf.get('error', 'DCF評価を計算できませんでした。')}*\n"
 
-	a = dcf["assumptions"]
-	md = "#### 前提条件\n"
-	md += f"- FCF成長率: {a['growth_rate']*100:.1f}%（{a['projection_years']}年間）\n"
-	md += f"- 割引率（WACC簡易値）: {a['discount_rate']*100:.1f}%\n"
-	md += f"- 永久成長率: {a['terminal_growth']*100:.1f}%\n\n"
+    a = dcf["assumptions"]
+    md = "#### 前提条件\n"
+    md += f"- FCF成長率: {a['growth_rate']*100:.1f}%（{a['projection_years']}年間）\n"
+    md += f"- 割引率（WACC簡易値）: {a['discount_rate']*100:.1f}%\n"
+    md += f"- 永久成長率: {a['terminal_growth']*100:.1f}%\n\n"
 
-	md += "#### 将来FCF予測（1株あたり）\n"
-	md += "| 年 | 予測FCF | 現在価値 |\n|:---:|---:|---:|\n"
-	for p in dcf["projections"]:
-		md += f"| {p['year']}年後 | {p['fcf_per_share']:.2f} | {p['present_value']:.2f} |\n"
-	md += "\n"
+    md += "#### 将来FCF予測（1株あたり）\n"
+    md += "| 年 | 予測FCF | 現在価値 |\n|:---:|---:|---:|\n"
+    for p in dcf["projections"]:
+        md += f"| {p['year']}年後 | {p['fcf_per_share']:.2f} | {p['present_value']:.2f} |\n"
+    md += "\n"
 
-	md += f"**ターミナルバリュー（現在価値）:** {dcf['terminal_value_pv']:.2f}\n\n"
-	md += f"### 💰 理論株価（Intrinsic Value）: {dcf['intrinsic_value_per_share']:.2f}\n"
-	md += f"**現在株価:** {dcf['current_price']:.2f}\n\n"
-	md += f"**安全余裕（Margin of Safety）:** {dcf['margin_of_safety_pct']:+.1f}%\n\n"
-	md += f"**判定:** {dcf['verdict']}\n"
-	return md
+    md += f"**ターミナルバリュー（現在価値）:** {dcf['terminal_value_pv']:.2f}\n\n"
+    md += f"### 💰 理論株価（Intrinsic Value）: {dcf['intrinsic_value_per_share']:.2f}\n"
+    md += f"**現在株価:** {dcf['current_price']:.2f}\n\n"
+    md += f"**安全余裕（Margin of Safety）:** {dcf['margin_of_safety_pct']:+.1f}%\n\n"
+    md += f"**判定:** {dcf['verdict']}\n"
+    return md
+
+
+def create_roic_display(roic: Dict[str, Any]) -> str:
+    """ROIC分析結果をMarkdown形式で表示する。"""
+    if not roic:
+        return "*ROIC分析結果がありません。*\n"
+
+    raw = roic.get("raw", {})
+    roic_val = raw.get("roic")
+    nopat = raw.get("nopat")
+    ic = raw.get("invested_capital")
+    tax_rate = raw.get("tax_rate", 0.25)
+
+    md = "#### ROIC（投下資本利益率）分析\n\n"
+    if roic_val is not None:
+        md += f"**ROIC:** {roic_val*100:.1f}%\n\n"
+    else:
+        md += "**ROIC:** データ不足\n\n"
+
+    md += f"**評価:** {roic.get('summary', '')}\n\n"
+    md += f"**スコア:** {roic.get('score', 0)} / {roic.get('max_score', 15)}点\n\n"
+
+    md += "#### 内訳\n"
+    if nopat is not None:
+        md += f"- **NOPAT（税引後営業利益）:** {nopat:,.0f}\n"
+    else:
+        md += "- **NOPAT（税引後営業利益）:** データ不足\n"
+    if ic is not None:
+        md += f"- **投下資本:** {ic:,.0f}\n"
+    else:
+        md += "- **投下資本:** データ不足\n"
+    md += f"- **実効税率:** {tax_rate*100:.1f}%\n"
+
+    md += "\n#### 計算式\n"
+    md += "```\n"
+    md += "NOPAT = 営業利益 * (1 - 実効税率)\n"
+    md += "投下資本 = 純資産 + 総負債 - 現金同等物\n"
+    md += "ROIC = NOPAT / 投下資本\n"
+    md += "```\n"
+
+    warnings = roic.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

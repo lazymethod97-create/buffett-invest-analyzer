@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 from google import genai
 from dotenv import load_dotenv
@@ -1597,3 +1597,83 @@ Confidence
             f"と評価されました。"
             f"{overall['action']}です。"
         )
+def generate_roic_analysis(data: dict, roic_result: dict) -> dict:
+    """ROIC分析結果に対するAI評価を生成する（Sprint19）。"""
+    company = data.get("company_name", "不明")
+    roic = roic_result.get("roic")
+    nopat = roic_result.get("nopat")
+    ic = roic_result.get("invested_capital")
+    rating = roic_result.get("rating", "unknown")
+
+    if roic is None:
+        return {
+            "id": "roic",
+            "title": "ROIC（投下資本利益率）AI評価",
+            "score": 0,
+            "max_score": 15,
+            "rating": "unknown",
+            "summary": f"{company}のROICを計算するためのデータが不足しています。",
+            "details": [],
+            "warnings": ["データ不足のためAI評価を生成できませんでした。"],
+            "buffet_view": "評価できません。",
+        }
+
+    prompt = f"""あなたはウォーレン・バフェットの投資スタイルを模倣したAIアナリストです。
+
+{company}のROIC（投下資本利益率）分析結果をバフェット視点で評価してください。
+
+## 分析データ
+- ROIC: {roic*100:.1f}%
+- NOPAT（税引後営業利益）: {f'{nopat:,.0f}' if nopat else 'N/A'}
+- 投下資本: {f'{ic:,.0f}' if ic else 'N/A'}
+- 評価: {rating}
+
+## 評価基準（バフェット）
+- ROIC 20%以上: 強力な競争優位性（Wide Moat）の証拠
+- ROIC 15%以上: 良好な資本効率
+- ROIC 10%以上: 平均的
+- ROIC 10%未満: 資本効率に課題
+
+## 出力形式（JSON）
+{{
+    "buffet_view": "バフェット視点での洞察（100〜200文字）",
+    "competitive_advantage": "競争優位性への影響（50〜100文字）",
+    "capital_efficiency": "資本効率の評価（50〜100文字）",
+    "improvement_area": "改善すべき点（50〜100文字、あれば）",
+    "conclusion": "総合的な結論（50〜100文字）"
+}}
+"""
+
+    try:
+        response = _call_gemini(prompt, response_mime_type="application/json")
+        if response and response.text:
+            import json
+            result = json.loads(response.text)
+            result["id"] = "roic"
+            result["title"] = "ROIC（投下資本利益率）AI評価"
+            result["score"] = min(int(roic * 100 / 20 * 15), 15) if roic else 0
+            result["max_score"] = 15
+            result["rating"] = rating
+            result["summary"] = result.get("conclusion", "")
+            result["details"] = []
+            result["warnings"] = []
+            if roic and roic < 0.10:
+                result["warnings"].append("ROICが低く、資本効率に課題があります。")
+            return result
+    except Exception:
+        pass
+
+    # Fallback
+    return {
+        "id": "roic",
+        "title": "ROIC（投下資本利益率）AI評価",
+        "score": min(int(roic * 100 / 20 * 15), 15) if roic else 0,
+        "max_score": 15,
+        "rating": rating,
+        "summary": f"{company}のROICは{roic*100:.1f}%（{rating}）です。",
+        "details": [],
+        "warnings": [],
+        "buffet_view": f"ROIC {roic*100:.1f}%は、{company}の資本効率を示しています。",
+        "conclusion": f"ROIC {roic*100:.1f}% - {rating}",
+    }
+

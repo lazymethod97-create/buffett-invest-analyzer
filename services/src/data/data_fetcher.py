@@ -1,4 +1,4 @@
-import yfinance as yf
+﻿import yfinance as yf
 
 
 def get_stock_data(ticker: str) -> dict:
@@ -40,9 +40,32 @@ def get_stock_data(ticker: str) -> dict:
             "revenue_growth": info.get("revenueGrowth"),
             "earnings_growth": info.get("earningsGrowth"),
             "dividend_yield": info.get("dividendYield"),
+            "operating_income": info.get("operatingIncome"),
+            "income_tax_expense": info.get("incomeTaxExpense"),
+            "income_before_tax": info.get("incomeBeforeTax"),
+            "long_term_debt": info.get("longTermDebt"),
+            "short_term_debt": info.get("shortLongTermDebt"),
+            "total_equity": info.get("totalStockholderEquity"),
+            "cash": info.get("cash"),
+            "short_term_investments": info.get("shortTermInvestments"),
+            "total_assets": info.get("totalAssets"),
+            "total_current_assets": info.get("totalCurrentAssets"),
+            "total_current_liabilities": info.get("totalCurrentLiabilities"),
+
+
+            # Sprint19: ROIC分析用データ
+            "operating_income": info.get("operatingIncome") or info.get("ebit"),
+            "ebit": info.get("operatingIncome") or info.get("ebit"),
+            "pretax_income": info.get("pretaxIncome"),
+            "income_tax_expense": info.get("incomeTaxExpense"),
+            "tax_rate": info.get("taxRate"),
+            "total_assets": info.get("totalAssets"),
+            "total_debt": info.get("totalDebt"),
+            "total_cash": info.get("totalCash"),
+            "stockholder_equity": info.get("totalStockholderEquity"),
         }
 
-        return {"success": True, "data": data}
+        return {"success": True, "error": None, "data": data}
 
     except Exception as e:
         return {"success": False, "error": str(e), "data": None}
