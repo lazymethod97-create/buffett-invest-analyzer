@@ -1,4 +1,4 @@
-﻿import yfinance as yf
+import yfinance as yf
 
 
 def get_stock_data(ticker: str) -> dict:
@@ -63,6 +63,13 @@ def get_stock_data(ticker: str) -> dict:
             "total_debt": info.get("totalDebt"),
             "total_cash": info.get("totalCash"),
             "stockholder_equity": info.get("totalStockholderEquity"),
+
+            # Sprint20: Owner Earnings分析用データ
+            "net_income": info.get("netIncomeToCommon"),
+            "ebitda": info.get("ebitda"),
+            "operating_cashflow": info.get("operatingCashflow"),
+            "total_revenue": info.get("totalRevenue"),
+            "shares_outstanding": info.get("sharesOutstanding"),
         }
 
         return {"success": True, "error": None, "data": data}
@@ -84,3 +91,4 @@ def format_value(value, format_type: str = "percent") -> str:
         return f"{value / 1_000_000_000:.1f}B"
     else:
         return str(value)
+

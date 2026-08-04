@@ -1,4 +1,4 @@
-# Wrapper for ai.ai_analysis (Sprint18)
+﻿# Wrapper for ai.ai_analysis (Sprint18)
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_rule_analysis,
@@ -11,4 +11,7 @@ from ai.ai_analysis import (
     generate_investment_hypothesis,
     generate_news_confirmation_points,
     generate_earnings_material_analysis,
+    generate_roic_analysis,
+    generate_owner_earnings_analysis,
 )  # noqa: F401
+

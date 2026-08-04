@@ -123,6 +123,7 @@ def generate_pdf_report(
     confirmation_points: list,
     hypotheses: list,
     roic: dict = None,
+    owner_earnings: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -242,6 +243,33 @@ def generate_pdf_report(
         pdf.add_paragraph(f"実効税率：{tax_rate*100:.1f}%")
     else:
         pdf.add_paragraph("ROIC分析結果がありません。")
+    pdf.add_divider()
+
+    # Owner Earnings（Sprint20）
+    pdf.add_heading("💵 Owner Earnings（オーナーアーニングス）分析")
+    if owner_earnings and owner_earnings.get("raw"):
+        oe_raw = owner_earnings.get("raw", {})
+        oe_val = oe_raw.get("owner_earnings")
+        oe_yield = oe_raw.get("owner_earnings_yield")
+        if oe_val is not None:
+            pdf.add_paragraph(f"Owner Earnings：{oe_val:,.0f}")
+        else:
+            pdf.add_paragraph("Owner Earnings：データ不足")
+        if oe_yield is not None:
+            pdf.add_paragraph(f"Owner Earnings利回り：{oe_yield*100:.1f}%")
+        pdf.add_paragraph(f"評価：{owner_earnings.get('summary', '')}")
+        pdf.add_paragraph(f"スコア：{owner_earnings.get('score', 0)} / {owner_earnings.get('max_score', 10)}点")
+        net_income = oe_raw.get("net_income")
+        da = oe_raw.get("depreciation_amortization")
+        capex = oe_raw.get("capital_expenditures")
+        if net_income is not None:
+            pdf.add_paragraph(f"当期純利益：{net_income:,.0f}")
+        if da is not None:
+            pdf.add_paragraph(f"減価償却費等（推定）：{da:,.0f}")
+        if capex is not None:
+            pdf.add_paragraph(f"設備投資CapEx（推定）：{capex:,.0f}")
+    else:
+        pdf.add_paragraph("Owner Earnings分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:

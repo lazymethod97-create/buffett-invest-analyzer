@@ -1,4 +1,4 @@
-"""ai: Gemini communication only (Sprint18)"""
+﻿"""ai: Gemini communication only (Sprint18)"""
 from .gemini import analyze_company
 from .ai_analysis import (
     generate_ai_analysis,
@@ -12,6 +12,8 @@ from .ai_analysis import (
     generate_investment_hypothesis,
     generate_news_confirmation_points,
     generate_earnings_material_analysis,
+    generate_roic_analysis,
+    generate_owner_earnings_analysis,
 )
 
 __all__ = [
@@ -27,4 +29,7 @@ __all__ = [
     "generate_investment_hypothesis",
     "generate_news_confirmation_points",
     "generate_earnings_material_analysis",
+    "generate_roic_analysis",
+    "generate_owner_earnings_analysis",
 ]
+

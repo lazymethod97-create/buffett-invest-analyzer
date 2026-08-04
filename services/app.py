@@ -30,7 +30,8 @@ from report import (
 	create_red_team_display,
 	create_confirmation_points_display,
 	create_dcf_display,
-    create_roic_display,
+	create_roic_display,
+	create_owner_earnings_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -303,6 +304,8 @@ if (
 	brand = bundle.get("brand")
 	mgmt = bundle.get("mgmt")
 	red_team = bundle.get("red_team")
+	roic = bundle.get("roic")
+	owner_earnings = bundle.get("owner_earnings")
 
 	currency = "¥" if data.get("country") == "Japan" else "$"
 	st.caption(f"現在の分析モード: **{current_mode}**")
@@ -455,11 +458,20 @@ if (
 		st.divider()
 		st.subheader("💰 ROIC（投下資本利益率）分析")
 		if is_full:
-			roic = bundle.get("roic", {})
 			if roic:
 				st.markdown(create_roic_display(roic))
 			else:
 				st.info("ROIC分析結果がありません。")
+		else:
+			_mode_locked_message("🔎 フル（すべて）")
+
+		st.divider()
+		st.subheader("💵 Owner Earnings（オーナーアーニングス）分析")
+		if is_full:
+			if owner_earnings:
+				st.markdown(create_owner_earnings_display(owner_earnings))
+			else:
+				st.info("Owner Earnings分析結果がありません。")
 		else:
 			_mode_locked_message("🔎 フル（すべて）")
 
@@ -649,6 +661,7 @@ if (
 						confirmation_points,
 						hypothesis_manager.get_all(),
 						roic,
+						owner_earnings,
 					)
 				st.download_button(
 					"⬇️ PDFをダウンロード",

@@ -1618,6 +1618,23 @@ def generate_roic_analysis(data: dict, roic_result: dict) -> dict:
             "buffet_view": "評価できません。",
         }
 
+    fallback = {
+        "id": "roic",
+        "title": "ROIC（投下資本利益率）AI評価",
+        "score": min(int(roic * 100 / 20 * 15), 15) if roic else 0,
+        "max_score": 15,
+        "rating": rating,
+        "summary": f"{company}のROICは{roic*100:.1f}%（{rating}）です。",
+        "details": [],
+        "warnings": [],
+        "buffet_view": f"ROIC {roic*100:.1f}%は、{company}の資本効率を示しています。",
+        "conclusion": f"ROIC {roic*100:.1f}% - {rating}",
+    }
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return fallback
+
     prompt = f"""あなたはウォーレン・バフェットの投資スタイルを模倣したAIアナリストです。
 
 {company}のROIC（投下資本利益率）分析結果をバフェット視点で評価してください。
@@ -1645,35 +1662,133 @@ def generate_roic_analysis(data: dict, roic_result: dict) -> dict:
 """
 
     try:
-        response = _call_gemini(prompt, response_mime_type="application/json")
-        if response and response.text:
-            import json
-            result = json.loads(response.text)
-            result["id"] = "roic"
-            result["title"] = "ROIC（投下資本利益率）AI評価"
-            result["score"] = min(int(roic * 100 / 20 * 15), 15) if roic else 0
-            result["max_score"] = 15
-            result["rating"] = rating
-            result["summary"] = result.get("conclusion", "")
-            result["details"] = []
-            result["warnings"] = []
-            if roic and roic < 0.10:
-                result["warnings"].append("ROICが低く、資本効率に課題があります。")
-            return result
-    except Exception:
-        pass
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
 
-    # Fallback
-    return {
-        "id": "roic",
-        "title": "ROIC（投下資本利益率）AI評価",
-        "score": min(int(roic * 100 / 20 * 15), 15) if roic else 0,
-        "max_score": 15,
+        result = json.loads(text)
+        result["id"] = "roic"
+        result["title"] = "ROIC（投下資本利益率）AI評価"
+        result["score"] = fallback["score"]
+        result["max_score"] = 15
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if roic and roic < 0.10:
+            result["warnings"].append("ROICが低く、資本効率に課題があります。")
+        return result
+    except Exception:
+        return fallback
+
+
+def generate_owner_earnings_analysis(data: dict, oe_result: dict) -> dict:
+    """Owner Earnings分析結果に対するAI評価を生成する（Sprint20）。"""
+    company = data.get("company_name", "不明")
+    oe = oe_result.get("owner_earnings")
+    oe_yield = oe_result.get("owner_earnings_yield")
+    net_income = oe_result.get("net_income")
+    da = oe_result.get("depreciation_amortization")
+    capex = oe_result.get("capital_expenditures")
+    rating = oe_result.get("rating", "unknown")
+
+    if oe is None:
+        return {
+            "id": "owner_earnings",
+            "title": "Owner Earnings（オーナーアーニングス）AI評価",
+            "score": 0,
+            "max_score": 10,
+            "rating": "unknown",
+            "summary": f"{company}のOwner Earningsを計算するためのデータが不足しています。",
+            "details": [],
+            "warnings": ["データ不足のためAI評価を生成できませんでした。"],
+            "buffet_view": "評価できません。",
+        }
+
+    fallback_score = min(int(oe_yield * 100 / 8 * 10), 10) if oe_yield and oe_yield > 0 else 0
+    fallback = {
+        "id": "owner_earnings",
+        "title": "Owner Earnings（オーナーアーニングス）AI評価",
+        "score": fallback_score,
+        "max_score": 10,
         "rating": rating,
-        "summary": f"{company}のROICは{roic*100:.1f}%（{rating}）です。",
+        "summary": f"{company}のOwner Earningsは{oe:,.0f}（利回り{f'{oe_yield*100:.1f}%' if oe_yield is not None else 'N/A'}、{rating}）です。",
         "details": [],
         "warnings": [],
-        "buffet_view": f"ROIC {roic*100:.1f}%は、{company}の資本効率を示しています。",
-        "conclusion": f"ROIC {roic*100:.1f}% - {rating}",
+        "buffet_view": f"Owner Earnings {oe:,.0f}は、{company}の実質的な現金創出力を示しています。",
+        "conclusion": f"Owner Earnings {rating}",
     }
 
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return fallback
+
+    prompt = f"""あなたはウォーレン・バフェットの投資スタイルを模倣したAIアナリストです。
+
+{company}のOwner Earnings（オーナーアーニングス）分析結果をバフェット視点で評価してください。
+
+## 分析データ
+- Owner Earnings: {f'{oe:,.0f}' if oe is not None else 'N/A'}
+- Owner Earnings利回り（対時価総額）: {f'{oe_yield*100:.1f}%' if oe_yield is not None else 'N/A'}
+- 当期純利益: {f'{net_income:,.0f}' if net_income is not None else 'N/A'}
+- 減価償却費等（D&A、推定）: {f'{da:,.0f}' if da is not None else 'N/A'}
+- 設備投資（CapEx、推定）: {f'{capex:,.0f}' if capex is not None else 'N/A'}
+- 評価: {rating}
+
+## 評価基準（バフェット）
+Owner Earnings = 当期純利益 + 減価償却費等 − 設備投資
+会計上の利益ではなく、株主が実質的に自由に使える現金創出力を示す指標。
+- 利回り8%以上: 極めて高い株主価値創出力
+- 利回り5%以上: 良好な現金創出力
+- 利回り3%以上: 平均的な水準
+- 利回り3%未満: 現金創出力に課題
+
+## 出力形式（JSON）
+{{
+    "buffet_view": "バフェット視点での洞察（100〜200文字）",
+    "competitive_advantage": "利益の質（会計上の利益との乖離）についての評価（50〜100文字）",
+    "capital_efficiency": "設備投資負担についての評価（50〜100文字）",
+    "improvement_area": "改善すべき点（50〜100文字、あれば）",
+    "conclusion": "総合的な結論（50〜100文字）"
+}}
+"""
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "owner_earnings"
+        result["title"] = "Owner Earnings（オーナーアーニングス）AI評価"
+        result["score"] = fallback_score
+        result["max_score"] = 10
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if oe_yield is not None and oe_yield < 0.03:
+            result["warnings"].append("Owner Earnings利回りが低く、実質的な現金創出力に課題があります。")
+        return result
+    except Exception:
+        return fallback

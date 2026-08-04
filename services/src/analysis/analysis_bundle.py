@@ -1,17 +1,18 @@
-﻿"""analysis_bundle (Sprint18 Phase4)
+"""analysis_bundle (Sprint18 Phase4 / Sprint20)
 
 Run all analyses at once.
 app.py calls only create_analysis_bundle().
 
 Returns a bundle dict (keys compatible with the legacy app.py bundle):
   mode, news, analysis, summary, confirmation_points, checklist,
-  moat, brand, mgmt (alias: management), red_team, overall
+  moat, brand, mgmt (alias: management), red_team, roic, owner_earnings, overall
 """
 
 from typing import Any, Dict, Optional
 
 from .overall_eval import calculate_overall_grade
 from .roic import analyze_roic
+from .owner_earnings import analyze_owner_earnings
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -21,6 +22,8 @@ from ai.ai_analysis import (
     generate_management_analysis,
     generate_red_team_analysis,
     generate_news_confirmation_points,
+    generate_roic_analysis,
+    generate_owner_earnings_analysis,
 )
 
 
@@ -30,6 +33,22 @@ def _safe_ai(fn, *args):
         return fn(*args)
     except Exception:
         return None
+
+
+def _merge_ai_narrative(base: Dict[str, Any], ai_result: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    ルールベース結果(base)に、Gemini評価(ai_result)の考察部分だけを上書き追加する。
+    base側の score / max_score / details / raw（数値の根拠）は絶対に上書きしない
+    （Sprint19で発生した「AI結果でrawが失われ、報告書の数値が消える」不具合の再発防止）。
+    """
+    if not ai_result:
+        return base
+    for key in ("buffet_view", "competitive_advantage", "capital_efficiency", "improvement_area"):
+        if ai_result.get(key):
+            base[key] = ai_result[key]
+    if ai_result.get("conclusion"):
+        base["ai_conclusion"] = ai_result["conclusion"]
+    return base
 
 
 def create_analysis_bundle(
@@ -43,7 +62,7 @@ def create_analysis_bundle(
     **kwargs,
 ) -> Dict[str, Any]:
     """
-    Run every analysis at once (Sprint18).
+    Run every analysis at once (Sprint18 / Sprint20).
 
     - is_quick / is_full: explicit flags from the controller (app.py).
       If not given, they are inferred from the mode string.
@@ -71,6 +90,7 @@ def create_analysis_bundle(
         "management": None,
         "red_team": None,
         "roic": None,
+        "owner_earnings": None,
         "overall": None,
     }
 
@@ -109,11 +129,30 @@ def create_analysis_bundle(
             bundle["management"] = mgmt
             bundle["red_team"] = red_team
 
+            ####################################################
+            # Sprint19: ROIC分析
+            # ルールベース計算（analyze_roic）を必ず実行し、
+            # Geminiが使える場合のみAIの考察（buffet_view等）を追加する。
+            # ※Sprint19では analyze_roic() が一度も呼ばれておらず、
+            #   bundle["roic"] が常にNoneになる不具合があったため、Sprint20で修正。
+            ####################################################
+            roic = analyze_roic(data)
+            ai_roic = _safe_ai(generate_roic_analysis, data, roic.get("raw", {}))
+            bundle["roic"] = _merge_ai_narrative(roic, ai_roic)
+
+            ####################################################
+            # Sprint20: Owner Earnings分析
+            # ROICと同じ形式（ルールベース基礎 + AI考察の上乗せ）で実装する。
+            ####################################################
+            owner_earnings = analyze_owner_earnings(data)
+            ai_oe = _safe_ai(generate_owner_earnings_analysis, data, owner_earnings.get("raw", {}))
+            bundle["owner_earnings"] = _merge_ai_narrative(owner_earnings, ai_oe)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
 
-# Overall verdict - ONLY overall_eval decides BUY / WATCH / PASS
+    # Overall verdict - ONLY overall_eval decides BUY / WATCH / PASS
     bundle["overall"] = calculate_overall_grade(
         score_result=score_result,
         dcf_result=dcf_result,
@@ -121,6 +160,9 @@ def create_analysis_bundle(
         brand=bundle["brand"] or {},
         mgmt=bundle["mgmt"] or {},
         red_team=bundle["red_team"] or {},
+        roic=bundle["roic"] or {},
+        owner_earnings=bundle["owner_earnings"] or {},
     )
 
     return bundle
+

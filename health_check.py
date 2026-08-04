@@ -1,4 +1,4 @@
-import sys, importlib, py_compile
+﻿import sys, importlib, py_compile
 
 BASE = r"C:\Users\t.k\buffett-invest-analyzer"
 sys.path.insert(0, BASE + r"\services\src")
@@ -45,6 +45,12 @@ def t_bundle():
     print("   quick decision:", bq["overall"]["decision"], "grade:", bq["overall"]["grade"], "checklist:", len(bq["checklist"]))
     bf=create_analysis_bundle(data,s,dcf_result={},mode="full",news=[],is_quick=False,is_full=True)
     print("   full  decision:", bf["overall"]["decision"], "grade:", bf["overall"]["grade"], "checklist:", len(bf["checklist"]), "red_team set:", bool(bf["red_team"]))
+    assert bf["roic"] is not None, "Sprint19 regression: bundle['roic'] is None in full mode"
+    assert bf["owner_earnings"] is not None, "Sprint20 regression: bundle['owner_earnings'] is None in full mode"
+    assert bf["overall"]["detail"].get("roic", 0) >= 0, "roic score missing from overall detail"
+    assert bf["overall"]["detail"].get("owner_earnings", 0) >= 0, "owner_earnings score missing from overall detail"
+    print("   roic wired:", bf["roic"]["score"], "/", bf["roic"]["max_score"],
+          " owner_earnings wired:", bf["owner_earnings"]["score"], "/", bf["owner_earnings"]["max_score"])
 check("bundle smoke (quick/full)", t_bundle)
 
 # 5) app.py compiles

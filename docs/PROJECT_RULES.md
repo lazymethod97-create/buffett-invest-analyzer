@@ -1,4 +1,4 @@
-# PROJECT_RULES.md
+﻿# PROJECT_RULES.md
 
 # Buffett Investment Analyzer Ver2
 
@@ -244,3 +244,20 @@ services/src配下にサブパッケージを置く。
 旧配置には互換ラッパーを残す。
 
 新規コードは新パッケージに書く。
+
+---
+
+# 18.
+
+PowerShellスクリプトでファイルを生成・編集する際の文字コード規則（Sprint20で追加）。
+
+`Set-Content -Encoding UTF8`（Windows PowerShell 5.1）は自動的にBOM付きUTF-8として保存する。
+
+ヒアストリング（@'...'@）の中に、AIが誤ってBOM文字（\ufeff）を手動で含めてはならない。
+BOMが二重になり、`SyntaxError: invalid non-printable character U+FEFF`が発生する。
+
+既存ファイルを`.Replace()`等で部分編集する場合は、`Get-Content -Raw`で読んだ生データをそのまま使い、
+BOM文字を追加/削除しない。
+
+既存ファイルの改行コード（CRLF/LF）が不明な場合は、比較前に`-replace "`r`n", "`n"`でLFに正規化してから
+文字列比較を行い、書き込み前に`-replace "`n", "`r`n"`で元の形式に戻す（Windows環境はCRLFが基本）。

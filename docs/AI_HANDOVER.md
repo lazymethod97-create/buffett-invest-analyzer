@@ -1,5 +1,4 @@
-@'
-# AI_HANDOVER.md
+﻿# AI_HANDOVER.md
 
 # Buffett Investment Analyzer Ver2
 ## AI引き継ぎ書
@@ -20,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint19完了。
+現在Sprint20完了。
 
-次回はSprint20（Owner Earnings）から開始。
+次回はSprint21（Intrinsic Value）から開始。
 
 ---
 
@@ -254,7 +253,7 @@ app.py
 
 定性分析タブ + PDFダウンロードにROIC表示追加
 
-### スコア配分（115点満点）
+### スコア配分（115点満点、Sprint19時点）
 
 Buffett Score: 40点
 
@@ -270,7 +269,7 @@ Red Team: 5点
 
 ROIC: 15点（新規）
 
-### 判定基準（調整後）
+### 判定基準（調整後、Sprint19時点）
 
 S: 100点以上
 
@@ -281,6 +280,175 @@ B: 70点以上
 C: 55点以上
 
 D: 55点未満
+
+---
+
+# Sprint19 不具合修正（Sprint20で実施）
+
+Sprint19は上記の通り「完了」と記載されていたが、GitHub最新版を確認した結果、
+以下の不具合が見つかったため、Sprint20の中で修正した。
+
+## 不具合1：analysis_bundle.pyがanalyze_roic()を呼んでいない
+
+analyze_roicをimportしているが呼び出しコードが存在せず、
+bundle["roic"]が常にNoneだった。ROIC分析結果が画面にもPDFにも一切表示されない状態だった。
+
+修正：is_full時にanalyze_roic(data)を明示的に呼び出すよう変更。
+
+## 不具合2：calculate_overall_grade()にroicが渡っていない
+
+不具合1と合わせて、ROICスコア（15点）が総合スコアに一度も反映されていなかった。
+
+修正：calculate_overall_grade()呼び出し時にroic=bundle["roic"]を渡すよう変更。
+
+## 不具合3：overall_eval.pyの判定基準が未更新のまま
+
+115点満点への変更後も、_grade()/_stars()の閾値が更新されておらず、
+古い100点満点相当の基準（90/80/70/60）のままだった。
+
+修正：Sprint20で125点満点（Owner Earnings追加）に合わせて全面更新（下記参照）。
+
+## 不具合4：generate_roic_analysis()が死にコードだった
+
+ai/__init__.pyからexportされておらず、どこからも呼ばれていなかった。
+さらに関数内部で未定義の_call_gemini()を呼んでおり（broad exceptで握りつぶされ気づきにくい形で）、
+たとえ呼ばれても常にフォールバックしか返せない状態だった。
+
+修正：ai/__init__.pyにexportを追加し、analysis_bundle.py内でanalyze_roic()のルールベース結果に対する
+AI考察の上乗せとして呼び出すよう配線。関数内部も他のgenerate_X_analysis関数と同じ
+「os.getenv("GEMINI_API_KEY") + genai.Client()」パターンに書き換えて修正。
+
+## 不具合5：docs/AI_HANDOVER.md自体にPowerShellスクリプトの断片が混入していた
+
+ファイル冒頭に`@'`、末尾に`'@ | Set-Content -Path ...`が本文として保存されてしまっていた
+（Set-Content実行時にスクリプト全体を貼り付けてしまったと見られる）。本更新で除去。
+
+## 参考：generate_overall_summary()も同種の不具合あり（未修正・対象外）
+
+ai/ai_analysis.py内のgenerate_overall_summary()も未定義の_call_gemini()を呼んでいるが、
+app.py等どこからもimport・使用されていない（デッドコード）ため、Sprint20では対象外とした。
+将来このコードを使う場合は同様の修正が必要。
+
+## 不具合6：PowerShellスクリプト適用時にCRLF不一致・BOM二重化が発生（適用時に発覚・修正済み）
+
+Sprint20のコードは全て正しかったが、実際にきたの環境（Windows + Git clone）へ適用する過程で
+以下2つの環境依存の問題が発覚した。
+
+- app.py / pdf_report.py がCRLF改行だったため、LF基準で書いた`.Replace()`パッチが
+  0件ヒットでSKIPされた。→ 比較前にLF正規化、書き込み前にCRLF復元する方式に修正。
+- 一部ファイルのヒアストリング内に、AIが誤ってBOM文字（U+FEFF）を直接含めてしまい、
+  `Set-Content -Encoding UTF8`が自動付与するBOMと二重になり、
+  `SyntaxError: invalid non-printable character U+FEFF`が発生。→ 該当7ファイルのBOMを
+  全て除去し、BOMなしUTF-8に統一して解消。
+
+以後のSprintでは、PROJECT_RULES.md 18番の規則に従うこと。
+
+**Sprint20はhealth_check.py実行により`=== HEALTH: ALL OK ===`を確認済み。GitHubへのcommit/push待ち。**
+
+---
+
+# Sprint20 完了内容
+
+## Owner Earnings分析
+
+### 新規作成
+
+engines/owner_earnings_engine.py
+
+Owner Earnings計算エンジン（ルールベース）
+
+Owner Earnings = 当期純利益 + 減価償却費等（D&A） − 設備投資（CapEx）
+
+D&A（推定） = EBITDA − 営業利益
+
+CapEx（推定） = 営業キャッシュフロー − フリーキャッシュフロー
+
+analysis/owner_earnings.py
+
+Owner Earnings分析モジュール（共通形式）
+
+### 修正
+
+data/data_fetcher.py
+
+Owner Earnings関連フィールド追加
+
+net_income
+
+ebitda
+
+operating_cashflow
+
+total_revenue
+
+shares_outstanding
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() に owner_earnings を追加
+
+analyze_roic()の呼び出し漏れ（Sprint19不具合1）もあわせて修正
+
+analysis/overall_eval.py
+
+_score_owner_earnings() 追加（10点満点）
+
+calculate_overall_grade() の判定基準を125点満点に合わせて全面更新
+
+report/report.py
+
+create_owner_earnings_display() 追加
+
+report/pdf_report.py
+
+PDFにOwner Earningsセクション追加
+
+ai/ai_analysis.py
+
+generate_owner_earnings_analysis() 追加（Gemini評価、フォールバック付き）
+
+generate_roic_analysis() の_call_gemini未定義バグを修正（Sprint19不具合4）
+
+app.py
+
+定性分析タブ + PDFダウンロードにOwner Earnings表示追加
+
+roic / owner_earnings をbundle展開時に取得するよう整理（moat/brand/mgmt/red_teamと同じ配置）
+
+health_check.py
+
+bundle["roic"] / bundle["owner_earnings"] がNoneでないことを検証するアサーションを追加
+（Sprint19不具合1の再発防止）
+
+### スコア配分（125点満点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点（新規）
+
+### 判定基準（Sprint20更新後）
+
+S: 109点以上
+
+A: 92点以上
+
+B: 76点以上
+
+C: 60点以上
+
+D: 60点未満
 
 ---
 
@@ -303,10 +471,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint20
-
-Owner Earnings
 
 Sprint21
 
@@ -363,5 +527,3 @@ GitHub最新版を必ず確認。
 計算ロジックはenginesへ。
 
 画面はuiへ。
-'@ | Set-Content -Path "docs\AI_HANDOVER.md" -Encoding UTF8
-Write-Host "✅ AI_HANDOVER.md updated for Sprint19"

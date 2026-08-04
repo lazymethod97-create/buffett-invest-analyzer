@@ -1,4 +1,4 @@
-﻿"""
+"""
 overall_eval.py (Sprint18)
 
 Buffett Investment Analyzer の総合評価エンジン
@@ -100,15 +100,25 @@ def _score_roic(roic: Dict) -> int:
     return min(score, 15)
 
 
-def _grade(score):
+def _score_owner_earnings(owner_earnings: Dict) -> int:
+    """Sprint20: Owner Earningsスコア（10点満点）"""
+    score = owner_earnings.get("score", 0) if owner_earnings else 0
+    return min(score, 10)
 
-    if score >= 90:
+
+def _grade(score):
+    """
+    Sprint20: 125点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    +RedTeam5+ROIC15+OwnerEarnings10）に合わせた判定基準。
+    """
+
+    if score >= 109:
         return "S"
 
-    if score >= 80:
+    if score >= 92:
         return "A"
 
-    if score >= 70:
+    if score >= 76:
         return "B"
 
     if score >= 60:
@@ -119,13 +129,13 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 90:
+    if score >= 109:
         return 5
 
-    if score >= 80:
+    if score >= 92:
         return 4
 
-    if score >= 70:
+    if score >= 76:
         return 3
 
     if score >= 60:
@@ -198,6 +208,7 @@ def calculate_overall_grade(
     mgmt,
     red_team,
     roic=None,
+    owner_earnings=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -214,8 +225,9 @@ def calculate_overall_grade(
     s5 = _score_management(mgmt)
     s6 = _score_redteam(red_team)
     s7 = _score_roic(roic) if roic else 0
+    s8 = _score_owner_earnings(owner_earnings) if owner_earnings else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8
 
     grade = _grade(total)
 
@@ -251,7 +263,9 @@ def calculate_overall_grade(
 
             "redteam":s6,
             "roic":s7,
+            "owner_earnings":s8,
 
         }
 
     }
+
