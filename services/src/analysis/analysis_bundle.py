@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 from .overall_eval import calculate_overall_grade
 from .roic import analyze_roic
 from .owner_earnings import analyze_owner_earnings
+from .intrinsic_value import analyze_intrinsic_value
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -24,6 +25,7 @@ from ai.ai_analysis import (
     generate_news_confirmation_points,
     generate_roic_analysis,
     generate_owner_earnings_analysis,
+    generate_intrinsic_value_analysis,
 )
 
 
@@ -91,6 +93,7 @@ def create_analysis_bundle(
         "red_team": None,
         "roic": None,
         "owner_earnings": None,
+        "intrinsic_value": None,
         "overall": None,
     }
 
@@ -148,6 +151,14 @@ def create_analysis_bundle(
             ai_oe = _safe_ai(generate_owner_earnings_analysis, data, owner_earnings.get("raw", {}))
             bundle["owner_earnings"] = _merge_ai_narrative(owner_earnings, ai_oe)
 
+            ####################################################
+            # Sprint21: Intrinsic Value分析
+            # ROIC / Owner Earningsと同じ形式（ルールベース基礎 + AI考察の上乗せ）。
+            ####################################################
+            intrinsic_value = analyze_intrinsic_value(data, dcf_result or {})
+            ai_iv = _safe_ai(generate_intrinsic_value_analysis, data, intrinsic_value.get("raw", {}))
+            bundle["intrinsic_value"] = _merge_ai_narrative(intrinsic_value, ai_iv)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
@@ -162,6 +173,7 @@ def create_analysis_bundle(
         red_team=bundle["red_team"] or {},
         roic=bundle["roic"] or {},
         owner_earnings=bundle["owner_earnings"] or {},
+        intrinsic_value=bundle["intrinsic_value"] or {},
     )
 
     return bundle

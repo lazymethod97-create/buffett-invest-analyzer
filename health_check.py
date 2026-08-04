@@ -35,6 +35,15 @@ def t_members():
     from analysis import create_analysis_bundle, calculate_overall_grade
 check("Phase3 members (checklist rule + ui)", t_members)
 
+# 3b) Sprint21 members
+def t_sprint21_members():
+    from engines import calculate_intrinsic_value
+    from analysis import analyze_intrinsic_value
+    from ai.ai_analysis import generate_intrinsic_value_analysis
+    from report.report import create_intrinsic_value_display
+    print("   intrinsic_value wired: engine/analysis/ai/report OK")
+check("Sprint21 members (intrinsic_value)", t_sprint21_members)
+
 # 4) bundle smoke (quick + full)
 def t_bundle():
     from analysis import create_analysis_bundle
@@ -47,10 +56,13 @@ def t_bundle():
     print("   full  decision:", bf["overall"]["decision"], "grade:", bf["overall"]["grade"], "checklist:", len(bf["checklist"]), "red_team set:", bool(bf["red_team"]))
     assert bf["roic"] is not None, "Sprint19 regression: bundle['roic'] is None in full mode"
     assert bf["owner_earnings"] is not None, "Sprint20 regression: bundle['owner_earnings'] is None in full mode"
+    assert bf["intrinsic_value"] is not None, "Sprint21 regression: bundle['intrinsic_value'] is None in full mode"
     assert bf["overall"]["detail"].get("roic", 0) >= 0, "roic score missing from overall detail"
     assert bf["overall"]["detail"].get("owner_earnings", 0) >= 0, "owner_earnings score missing from overall detail"
+    assert bf["overall"]["detail"].get("intrinsic_value", 0) >= 0, "intrinsic_value score missing from overall detail"
     print("   roic wired:", bf["roic"]["score"], "/", bf["roic"]["max_score"],
-          " owner_earnings wired:", bf["owner_earnings"]["score"], "/", bf["owner_earnings"]["max_score"])
+          " owner_earnings wired:", bf["owner_earnings"]["score"], "/", bf["owner_earnings"]["max_score"],
+          " intrinsic_value wired:", bf["intrinsic_value"]["score"], "/", bf["intrinsic_value"]["max_score"])
 check("bundle smoke (quick/full)", t_bundle)
 
 # 5) app.py compiles

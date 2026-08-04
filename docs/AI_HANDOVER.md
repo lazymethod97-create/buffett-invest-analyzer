@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint20完了。
+現在Sprint21完了。
 
-次回はSprint21（Intrinsic Value）から開始。
+次回はSprint22（Capital Allocation）から開始。
 
 ---
 
@@ -85,13 +85,11 @@ checklist_engine
 
 roic_engine
 
-Sprint20以降
+Sprint20 / Sprint21で追加完了
 
-intrinsic_engine
+intrinsic_engine（Sprint21）
 
-owner_earnings_engine
-
-追加予定。
+owner_earnings_engine（Sprint20）
 
 ---
 
@@ -450,6 +448,96 @@ C: 60点以上
 
 D: 60点未満
 
+# Sprint21 完了内容
+
+## Intrinsic Value（内在価値）分析
+
+### 新規作成
+
+engines/intrinsic_engine.py
+
+Intrinsic Value計算エンジン（ルールベース）
+複数方式のコンセンサスで内在価値（1株あたり）を算出する。
+
+・方式1: DCF（FCF割引） 重み40%（既存 dcf_engine を再利用）
+・方式2: Owner Earnings方式 重み30%（既存 owner_earnings_engine を再利用、2段階成長で割引）
+・方式3: Earnings Power方式 重み30%（当期純利益 × 保守的PER 12倍）
+
+データ不足の方式はスキップし、利用可能な方式のみで重みを再正規化する。
+
+analysis/intrinsic_value.py
+
+Intrinsic Value分析モジュール（共通形式）
+
+### 修正
+
+data/data_fetcher.py
+
+変更なし（既存フィールドで計算可能）
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() に intrinsic_value を追加（is_full時）
+
+analysis/overall_eval.py
+
+_score_intrinsic_value() 追加（15点満点）
+判定基準を140点満点に合わせて全面更新
+
+ai/ai_analysis.py
+
+generate_intrinsic_value_analysis() 追加（Gemini評価、フォールバック付き）
+
+report/report.py
+
+create_intrinsic_value_display() 追加
+
+report/pdf_report.py
+
+PDFにIntrinsic Valueセクション追加
+
+app.py
+
+定性分析タブ + PDFダウンロードにIntrinsic Value表示追加
+（import / bundle展開 / 表示 / PDF引数の4箇所を編集）
+
+health_check.py
+
+Sprint21検証を追加（engines/analysis/ai/report のimport確認、
+bundle["intrinsic_value"]がNoneでないこと、overall detailへの配線確認）
+
+### スコア配分（140点満点、Sprint21時点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点
+
+Intrinsic Value: 15点（新規）
+
+### 判定基準（Sprint21更新後）
+
+S: 122点以上
+
+A: 103点以上
+
+B: 85点以上
+
+C: 67点以上
+
+D: 67点未満
+
 ---
 
 # 互換ラッパーについて
@@ -471,10 +559,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint21
-
-Intrinsic Value
 
 Sprint22
 

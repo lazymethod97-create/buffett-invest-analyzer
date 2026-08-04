@@ -14,6 +14,7 @@ from .ai_analysis import (
     generate_earnings_material_analysis,
     generate_roic_analysis,
     generate_owner_earnings_analysis,
+    generate_intrinsic_value_analysis,
 )
 
 __all__ = [
@@ -31,5 +32,6 @@ __all__ = [
     "generate_earnings_material_analysis",
     "generate_roic_analysis",
     "generate_owner_earnings_analysis",
+    "generate_intrinsic_value_analysis",
 ]
 

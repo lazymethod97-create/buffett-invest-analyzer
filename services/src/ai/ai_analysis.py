@@ -1792,3 +1792,79 @@ Owner Earnings = 当期純利益 + 減価償却費等 − 設備投資
         return result
     except Exception:
         return fallback
+
+def generate_intrinsic_value_analysis(data: dict, intrinsic_raw: dict) -> dict:
+    """
+    Sprint21: Intrinsic Value分析のAI考察を生成する。
+    ROIC / Owner Earningsと同じく、ルールベースの数値(raw)は上書きせず、
+    Geminiの考察（buffet_view 等）だけを返す。AI不可時はfallback。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    consensus = intrinsic_raw.get("consensus_intrinsic_value_per_share")
+    current_price = intrinsic_raw.get("current_price")
+    mosp = intrinsic_raw.get("margin_of_safety_pct")
+
+    fallback = {
+        "buffet_view": "Intrinsic Value（内在価値）分析のAI考察は利用できませんでした。",
+        "competitive_advantage": "ルールベースの評価を参照してください。",
+        "capital_efficiency": "ルールベースの評価を参照してください。",
+        "improvement_area": "複数方式の推定値が大きく乖離する場合は、前提（成長率・割引率）を見直してください。",
+        "conclusion": intrinsic_raw.get("summary", "データ不足"),
+    }
+
+    if not api_key:
+        return fallback
+
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
+
+以下の企業のIntrinsic Value（内在価値）分析結果を、バフェットの視点から簡潔に考察してください。
+
+会社名：{data.get("company_name")}
+
+コンセンサス内在価値（1株）：{f"{consensus:,.2f}" if consensus is not None else "N/A"}
+現在株価：{f"{current_price:,.2f}" if current_price is not None else "N/A"}
+安全余裕(Margin of Safety)：{f"{mosp:+.1f}%" if mosp is not None else "N/A"}
+判定：{intrinsic_raw.get("verdict", "N/A")}
+
+各方式の推定:
+{chr(10).join(f"- {e.get('label','')}: {e.get('value',0):,.2f}（{e.get('detail','')}）" for e in intrinsic_raw.get("estimates", []))}
+
+以下のJSON形式だけで回答してください。
+{{
+  "buffet_view": "バフェット的視点から100文字以内の所見",
+  "competitive_advantage": "50文字以内",
+  "capital_efficiency": "50文字以内",
+  "improvement_area": "改善点（複数方式の乖離がある場合の見直し等）50文字以内",
+  "conclusion": "総合結論 100文字以内"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "intrinsic_value"
+        result["title"] = "Intrinsic Value（内在価値）AI評価"
+        result["score"] = intrinsic_raw.get("rating", "unknown")
+        result["max_score"] = 15
+        result["rating"] = intrinsic_raw.get("rating", "unknown")
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if mosp is not None and mosp < 0:
+            result["warnings"].append("安全余裕がありません。価格が内在価値を上回っています。")
+        return result
+    except Exception:
+        return fallback

@@ -7,6 +7,7 @@ from .management import generate_management_analysis
 from .red_team import generate_red_team_analysis
 from .roic import analyze_roic
 from .owner_earnings import analyze_owner_earnings
+from .intrinsic_value import analyze_intrinsic_value
 
 __all__ = [
     "calculate_overall_grade",
@@ -17,5 +18,6 @@ __all__ = [
     "generate_red_team_analysis",
     "analyze_roic",
     "analyze_owner_earnings",
+    "analyze_intrinsic_value",
 ]
 

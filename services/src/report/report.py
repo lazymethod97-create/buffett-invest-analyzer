@@ -385,3 +385,52 @@ def create_roic_display(roic: Dict[str, Any]) -> str:
         for w in warnings:
             md += f"- {w}\n"
     return md
+def create_intrinsic_value_display(intrinsic_value: Dict[str, Any]) -> str:
+    """Intrinsic Value（内在価値）分析結果をMarkdown形式で表示する（Sprint21）。"""
+    if not intrinsic_value:
+        return "*Intrinsic Value分析結果がありません。*\n"
+
+    raw = intrinsic_value.get("raw", {})
+    consensus = raw.get("consensus_intrinsic_value_per_share")
+    current_price = raw.get("current_price")
+    mosp = raw.get("margin_of_safety_pct")
+
+    md = "#### Intrinsic Value（内在価値）分析\n\n"
+    if consensus is not None:
+        md += f"**コンセンサス内在価値（1株）:** {consensus:,.2f}\n\n"
+    else:
+        md += "**コンセンサス内在価値（1株）:** データ不足\n\n"
+
+    if current_price is not None:
+        md += f"**現在株価:** {current_price:,.2f}\n\n"
+
+    if mosp is not None:
+        md += f"**安全余裕（Margin of Safety）:** {mosp:+.1f}%\n\n"
+
+    md += f"**評価:** {intrinsic_value.get('summary', '')}\n\n"
+    md += f"**スコア:** {intrinsic_value.get('score', 0)} / {intrinsic_value.get('max_score', 15)}点\n\n"
+
+    estimates = raw.get("estimates", [])
+    if estimates:
+        md += "#### 各方式の推定値\n"
+        for est in estimates:
+            label = est.get("label", est.get("method", ""))
+            value = est.get("value", 0)
+            detail = est.get("detail", "")
+            md += f"- **{label}:** {value:,.2f}（{detail}）\n"
+        md += "\n"
+
+    md += "#### 計算方式\n```\n"
+    md += "コンセンサス = Σ(方式の推定値 × 重み) / Σ(重み)\n"
+    md += "・DCF（FCF割引）: 重み40%\n"
+    md += "・Owner Earnings方式: 重み30%\n"
+    md += "・Earnings Power方式（純利益×適正PER）: 重み30%\n"
+    md += "安全余裕 = (内在価値 − 現在株価) ÷ 現在株価\n"
+    md += "```\n"
+
+    warnings = intrinsic_value.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

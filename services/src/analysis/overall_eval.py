@@ -106,22 +106,28 @@ def _score_owner_earnings(owner_earnings: Dict) -> int:
     return min(score, 10)
 
 
+def _score_intrinsic_value(intrinsic_value: Dict) -> int:
+    """Sprint21: Intrinsic Valueスコア（15点満点）"""
+    score = intrinsic_value.get("score", 0) if intrinsic_value else 0
+    return min(score, 15)
+
+
 def _grade(score):
     """
-    Sprint20: 125点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
-    +RedTeam5+ROIC15+OwnerEarnings10）に合わせた判定基準。
+    Sprint21: 140点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15）に合わせた判定基準。
     """
 
-    if score >= 109:
+    if score >= 122:
         return "S"
 
-    if score >= 92:
+    if score >= 103:
         return "A"
 
-    if score >= 76:
+    if score >= 85:
         return "B"
 
-    if score >= 60:
+    if score >= 67:
         return "C"
 
     return "D"
@@ -129,16 +135,16 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 109:
+    if score >= 122:
         return 5
 
-    if score >= 92:
+    if score >= 103:
         return 4
 
-    if score >= 76:
+    if score >= 85:
         return 3
 
-    if score >= 60:
+    if score >= 67:
         return 2
 
     return 1
@@ -209,6 +215,7 @@ def calculate_overall_grade(
     red_team,
     roic=None,
     owner_earnings=None,
+    intrinsic_value=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -226,8 +233,9 @@ def calculate_overall_grade(
     s6 = _score_redteam(red_team)
     s7 = _score_roic(roic) if roic else 0
     s8 = _score_owner_earnings(owner_earnings) if owner_earnings else 0
+    s9 = _score_intrinsic_value(intrinsic_value) if intrinsic_value else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9
 
     grade = _grade(total)
 
@@ -264,6 +272,7 @@ def calculate_overall_grade(
             "redteam":s6,
             "roic":s7,
             "owner_earnings":s8,
+            "intrinsic_value":s9,
 
         }
 

@@ -261,3 +261,11 @@ BOM文字を追加/削除しない。
 
 既存ファイルの改行コード（CRLF/LF）が不明な場合は、比較前に`-replace "`r`n", "`n"`でLFに正規化してから
 文字列比較を行い、書き込み前に`-replace "`n", "`r`n"`で元の形式に戻す（Windows環境はCRLFが基本）。
+
+# 19.
+
+Sprint21以降のスコア配分（140点満点）。
+
+Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15
+
+判定基準の詳細はAI_HANDOVER.mdを参照。

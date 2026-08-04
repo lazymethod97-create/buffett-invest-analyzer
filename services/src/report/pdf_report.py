@@ -124,6 +124,7 @@ def generate_pdf_report(
     hypotheses: list,
     roic: dict = None,
     owner_earnings: dict = None,
+    intrinsic_value: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -270,6 +271,27 @@ def generate_pdf_report(
             pdf.add_paragraph(f"設備投資CapEx（推定）：{capex:,.0f}")
     else:
         pdf.add_paragraph("Owner Earnings分析結果がありません。")
+    # Intrinsic Value（Sprint21）
+    pdf.add_heading("🎯 Intrinsic Value（内在価値）分析")
+    if intrinsic_value and intrinsic_value.get("raw"):
+        iv_raw = intrinsic_value.get("raw", {})
+        consensus = iv_raw.get("consensus_intrinsic_value_per_share")
+        current_price = iv_raw.get("current_price")
+        mosp = iv_raw.get("margin_of_safety_pct")
+        if consensus is not None:
+            pdf.add_paragraph(f"コンセンサス内在価値（1株）：{consensus:,.2f}")
+        else:
+            pdf.add_paragraph("コンセンサス内在価値：データ不足")
+        if current_price is not None:
+            pdf.add_paragraph(f"現在株価：{current_price:,.2f}")
+        if mosp is not None:
+            pdf.add_paragraph(f"安全余裕（Margin of Safety）：{mosp:+.1f}%")
+        pdf.add_paragraph(f"判定：{intrinsic_value.get('summary', '')}")
+        pdf.add_paragraph(f"スコア：{intrinsic_value.get('score', 0)} / {intrinsic_value.get('max_score', 15)}点")
+        for est in iv_raw.get("estimates", []):
+            pdf.add_bullet(f"{est.get('label', '')}: {est.get('value', 0):,.2f}（{est.get('detail', '')}）")
+    else:
+        pdf.add_paragraph("Intrinsic Value分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:
