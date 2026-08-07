@@ -125,6 +125,7 @@ def generate_pdf_report(
     roic: dict = None,
     owner_earnings: dict = None,
     intrinsic_value: dict = None,
+    capital_allocation: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -292,6 +293,20 @@ def generate_pdf_report(
             pdf.add_bullet(f"{est.get('label', '')}: {est.get('value', 0):,.2f}（{est.get('detail', '')}）")
     else:
         pdf.add_paragraph("Intrinsic Value分析結果がありません。")
+    # Capital Allocation（Sprint22）
+    pdf.add_heading("🔄 Capital Allocation（資本配分）分析")
+    if capital_allocation and capital_allocation.get("raw"):
+        ca_raw = capital_allocation.get("raw", {})
+        pdf.add_paragraph(f"スコア：{capital_allocation.get('score', 0)} / {capital_allocation.get('max_score', 10)}点")
+        pdf.add_paragraph(f"評価：{capital_allocation.get('summary', '')}")
+        re_score = ca_raw.get("reinvestment_score", 0)
+        po_score = ca_raw.get("payout_score", 0)
+        bb_score = ca_raw.get("buyback_score", 0)
+        pdf.add_bullet(f"再投資効率（ROIC基準）：{re_score}/4点 - {ca_raw.get('reinvestment_detail', '')}")
+        pdf.add_bullet(f"株主還元の規律（配当性向）：{po_score}/3点 - {ca_raw.get('payout_detail', '')}")
+        pdf.add_bullet(f"自社株買いのタイミング（MOSとの突合）：{bb_score}/3点 - {ca_raw.get('buyback_detail', '')}")
+    else:
+        pdf.add_paragraph("Capital Allocation分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:

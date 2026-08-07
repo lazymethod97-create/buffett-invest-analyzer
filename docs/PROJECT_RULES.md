@@ -264,8 +264,8 @@ BOM文字を追加/削除しない。
 
 # 19.
 
-Sprint21以降のスコア配分（140点満点）。
+Sprint22以降のスコア配分（150点満点）。
 
-Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15
+Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15 / Capital Allocation: 10
 
 判定基準の詳細はAI_HANDOVER.mdを参照。

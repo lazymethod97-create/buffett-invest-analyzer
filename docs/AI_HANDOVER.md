@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint21完了。
+現在Sprint22完了。
 
-次回はSprint22（Capital Allocation）から開始。
+次回はSprint23（Share Buyback）から開始。
 
 ---
 
@@ -540,6 +540,108 @@ D: 67点未満
 
 ---
 
+# Sprint22 完了内容
+
+## Capital Allocation（資本配分）分析
+
+### 新規作成
+
+engines/capital_allocation_engine.py
+
+Capital Allocation計算エンジン（ルールベース）
+
+3軸で評価（合計10点満点）：
+
+・再投資効率（4点）: ROICのトレンドと水準から、内部再投資の効率を評価
+・株主還元の規律（3点）: 配当性向・配当利回りから、安定した株主還元の規律を評価
+・自社株買いのタイミング（3点）: 買い戻し額と安全域（MOS）とのバランスから、適切なタイミングでの自社株買いを評価
+
+analysis/capital_allocation.py
+
+Capital Allocation分析モジュール（共通形式）
+
+### 修正
+
+data/data_fetcher.py
+
+Capital Allocation関連フィールド追加
+
+payout_ratio（配当性向）
+
+buyback_amount（自社株買い額）
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() に capital_allocation を追加（is_full時）
+
+analysis/overall_eval.py
+
+_score_capital_allocation() 追加（10点満点）
+
+判定基準を150点満点に合わせて全面更新（S:131 / A:110 / B:91 / C:72）
+
+ai/ai_analysis.py
+
+generate_capital_allocation_analysis() 追加（Gemini評価、フォールバック付き）
+
+report/report.py
+
+create_owner_earnings_display() の実装漏れを修正（Sprint20以降app.pyから参照されていたが未実装だった）
+
+create_capital_allocation_display() 追加
+
+report/pdf_report.py
+
+PDFにCapital Allocationセクション追加
+
+app.py
+
+定性分析タブ + PDFダウンロードにCapital Allocation表示追加
+
+（import / bundle展開 / 表示 / PDF引数の4箇所を編集）
+
+health_check.py
+
+Sprint22検証を追加（engines/analysis/ai/reportのimport確認、
+display関数の実import検証（create_owner_earnings_displayが実際にimport可能であること）、
+bundle["capital_allocation"]がNoneでないこと、overall detailへの配線確認）
+
+### スコア配分（150点満点、Sprint22時点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点
+
+Intrinsic Value: 15点
+
+Capital Allocation: 10点（新規）
+
+### 判定基準（Sprint22更新後）
+
+S: 131点以上
+
+A: 110点以上
+
+B: 91点以上
+
+C: 72点以上
+
+D: 72点未満
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -559,10 +661,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint22
-
-Capital Allocation
 
 Sprint23
 

@@ -434,3 +434,95 @@ def create_intrinsic_value_display(intrinsic_value: Dict[str, Any]) -> str:
         for w in warnings:
             md += f"- {w}\n"
     return md
+
+
+def create_owner_earnings_display(owner_earnings: Dict[str, Any]) -> str:
+    """
+    Owner Earnings（オーナーアーニングス）分析結果をMarkdown形式で表示する（Sprint20）。
+    ※Sprint20でapp.pyから参照されていたにもかかわらず実装漏れだった関数をSprint22で追加（バグ修正）。
+    """
+    if not owner_earnings:
+        return "*Owner Earnings分析結果がありません。*\n"
+
+    raw = owner_earnings.get("raw", {})
+    oe = raw.get("owner_earnings")
+    oe_yield = raw.get("owner_earnings_yield")
+    net_income = raw.get("net_income")
+    da = raw.get("depreciation_amortization")
+    capex = raw.get("capital_expenditures")
+
+    md = "#### Owner Earnings（オーナーアーニングス）分析\n\n"
+    if oe is not None:
+        md += f"**Owner Earnings:** {oe:,.0f}\n\n"
+    else:
+        md += "**Owner Earnings:** データ不足\n\n"
+
+    if oe_yield is not None:
+        md += f"**Owner Earnings利回り:** {oe_yield*100:.1f}%\n\n"
+
+    md += f"**評価:** {owner_earnings.get('summary', '')}\n\n"
+    md += f"**スコア:** {owner_earnings.get('score', 0)} / {owner_earnings.get('max_score', 10)}点\n\n"
+
+    md += "#### 内訳\n"
+    if net_income is not None:
+        md += f"- **当期純利益:** {net_income:,.0f}\n"
+    else:
+        md += "- **当期純利益:** データ不足\n"
+    if da is not None:
+        md += f"- **減価償却費等（推定）:** {da:,.0f}\n"
+    else:
+        md += "- **減価償却費等（推定）:** データ不足（0として計算）\n"
+    if capex is not None:
+        md += f"- **設備投資CapEx（推定）:** {capex:,.0f}\n"
+    else:
+        md += "- **設備投資CapEx（推定）:** データ不足（0として計算）\n"
+
+    md += "\n#### 計算式\n```\n"
+    md += "Owner Earnings = 当期純利益 + 減価償却費等（D&A） - 設備投資（CapEx）\n"
+    md += "D&A（推定） = EBITDA - 営業利益\n"
+    md += "CapEx（推定） = 営業キャッシュフロー - フリーキャッシュフロー\n"
+    md += "```\n"
+
+    warnings = owner_earnings.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md
+
+
+def create_capital_allocation_display(capital_allocation: Dict[str, Any]) -> str:
+    """Capital Allocation（資本配分）分析結果をMarkdown形式で表示する（Sprint22）。"""
+    if not capital_allocation:
+        return "*Capital Allocation分析結果がありません。*\n"
+
+    raw = capital_allocation.get("raw", {})
+    reinvestment_score = raw.get("reinvestment_score", 0)
+    reinvestment_detail = raw.get("reinvestment_detail", "")
+    payout_score = raw.get("payout_score", 0)
+    payout_detail = raw.get("payout_detail", "")
+    buyback_score = raw.get("buyback_score", 0)
+    buyback_detail = raw.get("buyback_detail", "")
+
+    md = "#### Capital Allocation（資本配分）分析\n\n"
+    md += f"**スコア:** {capital_allocation.get('score', 0)} / {capital_allocation.get('max_score', 10)}点\n\n"
+    md += f"**評価:** {capital_allocation.get('summary', '')}\n\n"
+
+    md += "#### 3つの評価軸\n"
+    md += f"- **再投資効率（ROIC基準）:** {reinvestment_score} / 4点\n  - {reinvestment_detail}\n"
+    md += f"- **株主還元の規律（配当性向）:** {payout_score} / 3点\n  - {payout_detail}\n"
+    md += f"- **自社株買いのタイミング（MOSとの突合）:** {buyback_score} / 3点\n  - {buyback_detail}\n"
+
+    md += "\n#### 計算方式\n```\n"
+    md += "資本配分 = 再投資効率(4) + 株主還元の規律(3) + 自社株買いのタイミング(3)\n"
+    md += "・再投資効率: ROICの水準から評価（既存 roic_engine 再利用）\n"
+    md += "・株主還元の規律: 配当性向の適切性で評価\n"
+    md += "・自社株買い: 安全余裕(MOS)との突合で評価（既存 intrinsic_engine 再利用）\n"
+    md += "```\n"
+
+    warnings = capital_allocation.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

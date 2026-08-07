@@ -44,6 +44,19 @@ def t_sprint21_members():
     print("   intrinsic_value wired: engine/analysis/ai/report OK")
 check("Sprint21 members (intrinsic_value)", t_sprint21_members)
 
+# 3c) Sprint22 members (Capital Allocation)
+def t_sprint22_members():
+    from engines import calculate_capital_allocation
+    from analysis import analyze_capital_allocation
+    from ai.ai_analysis import generate_capital_allocation_analysis
+    from report.report import create_capital_allocation_display
+    # 実import検証（Sprint20でapp.pyが参照していたのに実装漏れだった
+    # create_owner_earnings_display のようなImportErrorの再発防止）
+    from report.report import create_owner_earnings_display
+    print("   capital_allocation wired: engine/analysis/ai/report OK")
+    print("   display imports OK (owner_earnings/capital_allocation)")
+check("Sprint22 members (capital_allocation)", t_sprint22_members)
+
 # 4) bundle smoke (quick + full)
 def t_bundle():
     from analysis import create_analysis_bundle
@@ -57,12 +70,15 @@ def t_bundle():
     assert bf["roic"] is not None, "Sprint19 regression: bundle['roic'] is None in full mode"
     assert bf["owner_earnings"] is not None, "Sprint20 regression: bundle['owner_earnings'] is None in full mode"
     assert bf["intrinsic_value"] is not None, "Sprint21 regression: bundle['intrinsic_value'] is None in full mode"
+    assert bf["capital_allocation"] is not None, "Sprint22 regression: bundle['capital_allocation'] is None in full mode"
     assert bf["overall"]["detail"].get("roic", 0) >= 0, "roic score missing from overall detail"
     assert bf["overall"]["detail"].get("owner_earnings", 0) >= 0, "owner_earnings score missing from overall detail"
     assert bf["overall"]["detail"].get("intrinsic_value", 0) >= 0, "intrinsic_value score missing from overall detail"
+    assert bf["overall"]["detail"].get("capital_allocation", 0) >= 0, "capital_allocation score missing from overall detail"
     print("   roic wired:", bf["roic"]["score"], "/", bf["roic"]["max_score"],
           " owner_earnings wired:", bf["owner_earnings"]["score"], "/", bf["owner_earnings"]["max_score"],
-          " intrinsic_value wired:", bf["intrinsic_value"]["score"], "/", bf["intrinsic_value"]["max_score"])
+          " intrinsic_value wired:", bf["intrinsic_value"]["score"], "/", bf["intrinsic_value"]["max_score"],
+          " capital_allocation wired:", bf["capital_allocation"]["score"], "/", bf["capital_allocation"]["max_score"])
 check("bundle smoke (quick/full)", t_bundle)
 
 # 5) app.py compiles

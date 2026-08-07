@@ -5,6 +5,7 @@ from .checklist_engine import generate_buffett_checklist_rule
 from .roic_engine import calculate_roic
 from .owner_earnings_engine import calculate_owner_earnings
 from .intrinsic_engine import calculate_intrinsic_value
+from .capital_allocation_engine import calculate_capital_allocation
 
 __all__ = [
     "calculate_buffett_score",
@@ -13,5 +14,6 @@ __all__ = [
     "calculate_roic",
     "calculate_owner_earnings",
     "calculate_intrinsic_value",
+    "calculate_capital_allocation",
 ]
 

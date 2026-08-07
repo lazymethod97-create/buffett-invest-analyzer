@@ -1868,3 +1868,80 @@ def generate_intrinsic_value_analysis(data: dict, intrinsic_raw: dict) -> dict:
         return result
     except Exception:
         return fallback
+
+
+def generate_capital_allocation_analysis(data: dict, capital_allocation_raw: dict) -> dict:
+    """
+    Sprint22: Capital Allocation分析のAI考察を生成する。
+    ROIC / Owner Earnings / Intrinsic Value と同じく、ルールベースの数値(raw)は上書きせず、
+    Geminiの考察（buffet_view 等）だけを返す。AI不可時はfallback。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    total_score = capital_allocation_raw.get("total_score", 0)
+    max_score = capital_allocation_raw.get("max_score", 10)
+    rating = capital_allocation_raw.get("rating", "unknown")
+
+    fallback = {
+        "buffet_view": "Capital Allocation（資本配分）分析のAI考察は利用できませんでした。",
+        "competitive_advantage": "ルールベースの評価を参照してください。",
+        "capital_efficiency": "ルールベースの評価を参照してください。",
+        "improvement_area": "再投資効率・配当性向・自社株買いタイミングの3軸で経営者の資本配分判断を確認してください。",
+        "conclusion": capital_allocation_raw.get("summary", "データ不足"),
+    }
+
+    if not api_key:
+        return fallback
+
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
+
+以下の企業のCapital Allocation（資本配分）分析結果を、バフェットの視点から簡潔に考察してください。
+
+会社名：{data.get("company_name")}
+
+資本配分スコア：{total_score} / {max_score}点
+評価：{rating}
+所見：{capital_allocation_raw.get("summary", "")}
+
+再投資効率（ROIC基準）：{capital_allocation_raw.get("reinvestment_detail", "")}
+株主還元の規律（配当性向）：{capital_allocation_raw.get("payout_detail", "")}
+自社株買いのタイミング（MOSとの突合）：{capital_allocation_raw.get("buyback_detail", "")}
+
+以下のJSON形式だけで回答してください。
+{{
+  "buffet_view": "バフェット的視点から100文字以内の所見（経営者の資本配分能力は企業価値の鍵）",
+  "competitive_advantage": "50文字以内",
+  "capital_efficiency": "50文字以内",
+  "improvement_area": "改善点 50文字以内",
+  "conclusion": "総合結論 100文字以内"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "capital_allocation"
+        result["title"] = "Capital Allocation（資本配分）AI評価"
+        result["score"] = total_score
+        result["max_score"] = max_score
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if total_score < 6:
+            result["warnings"].append("資本配分スコアが低く、経営者の資本配分判断に課題があります。")
+        return result
+    except Exception:
+        return fallback

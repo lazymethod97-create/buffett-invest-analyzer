@@ -1,6 +1,34 @@
 import yfinance as yf
 
 
+def _extract_buyback_amount(stock) -> float:
+    """
+    現金フロー計算書から自社株買い額を取得する（Sprint22）。
+    yfinanceのバージョン・企業によってラベル名が揺れるため、複数の候補から探す。
+    取得できない場合はNoneを返す（絶対に例外を投げない）。
+    """
+    try:
+        cf = stock.cashflow
+        if cf is None or cf.empty:
+            return None
+        candidates = [
+            "Repurchase Of Capital Stock",
+            "BuyBack Shares",
+            "Common Stock Repurchased",
+            "Common Stock Repurchase",
+            "Stock Repurchased",
+            "Stock Buyback",
+        ]
+        for label in candidates:
+            if label in cf.index:
+                vals = cf.loc[label].dropna()
+                if len(vals) > 0:
+                    return abs(float(vals.iloc[0]))
+    except Exception:
+        pass
+    return None
+
+
 def get_stock_data(ticker: str) -> dict:
     """
     ティッカーシンボルから財務データを取得する。
@@ -70,6 +98,10 @@ def get_stock_data(ticker: str) -> dict:
             "operating_cashflow": info.get("operatingCashflow"),
             "total_revenue": info.get("totalRevenue"),
             "shares_outstanding": info.get("sharesOutstanding"),
+
+            # Sprint22: Capital Allocation分析用データ
+            "payout_ratio": info.get("payoutRatio"),
+            "buyback_amount": _extract_buyback_amount(stock),
         }
 
         return {"success": True, "error": None, "data": data}

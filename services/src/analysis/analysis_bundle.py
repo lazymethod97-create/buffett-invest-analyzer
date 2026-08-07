@@ -14,6 +14,7 @@ from .overall_eval import calculate_overall_grade
 from .roic import analyze_roic
 from .owner_earnings import analyze_owner_earnings
 from .intrinsic_value import analyze_intrinsic_value
+from .capital_allocation import analyze_capital_allocation
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -26,6 +27,7 @@ from ai.ai_analysis import (
     generate_roic_analysis,
     generate_owner_earnings_analysis,
     generate_intrinsic_value_analysis,
+    generate_capital_allocation_analysis,
 )
 
 
@@ -94,6 +96,7 @@ def create_analysis_bundle(
         "roic": None,
         "owner_earnings": None,
         "intrinsic_value": None,
+        "capital_allocation": None,
         "overall": None,
     }
 
@@ -159,6 +162,28 @@ def create_analysis_bundle(
             ai_iv = _safe_ai(generate_intrinsic_value_analysis, data, intrinsic_value.get("raw", {}))
             bundle["intrinsic_value"] = _merge_ai_narrative(intrinsic_value, ai_iv)
 
+            ####################################################
+            # Sprint22: Capital Allocation分析
+            # ROIC / Owner Earnings / Intrinsic Value の計算結果を再利用し、
+            # 同じ形式（ルールベース基礎 + AI考察の上乗せ）で実装する。
+            ####################################################
+            capital_allocation = analyze_capital_allocation(
+                data,
+                roic_result=bundle["roic"].get("raw", {}) if bundle.get("roic") else None,
+                owner_earnings_result=(
+                    bundle["owner_earnings"].get("raw", {}) if bundle.get("owner_earnings") else None
+                ),
+                intrinsic_value_result=(
+                    bundle["intrinsic_value"].get("raw", {}) if bundle.get("intrinsic_value") else None
+                ),
+            )
+            ai_ca = _safe_ai(
+                generate_capital_allocation_analysis,
+                data,
+                capital_allocation.get("raw", {}),
+            )
+            bundle["capital_allocation"] = _merge_ai_narrative(capital_allocation, ai_ca)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
@@ -174,6 +199,7 @@ def create_analysis_bundle(
         roic=bundle["roic"] or {},
         owner_earnings=bundle["owner_earnings"] or {},
         intrinsic_value=bundle["intrinsic_value"] or {},
+        capital_allocation=bundle["capital_allocation"] or {},
     )
 
     return bundle

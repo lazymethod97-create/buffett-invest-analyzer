@@ -112,22 +112,28 @@ def _score_intrinsic_value(intrinsic_value: Dict) -> int:
     return min(score, 15)
 
 
+def _score_capital_allocation(capital_allocation: Dict) -> int:
+    """Sprint22: Capital Allocationスコア（10点満点）"""
+    score = capital_allocation.get("score", 0) if capital_allocation else 0
+    return min(score, 10)
+
+
 def _grade(score):
     """
-    Sprint21: 140点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
-    +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15）に合わせた判定基準。
+    Sprint22: 150点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15+CapitalAllocation10）に合わせた判定基準。
     """
 
-    if score >= 122:
+    if score >= 131:
         return "S"
 
-    if score >= 103:
+    if score >= 110:
         return "A"
 
-    if score >= 85:
+    if score >= 91:
         return "B"
 
-    if score >= 67:
+    if score >= 72:
         return "C"
 
     return "D"
@@ -135,16 +141,16 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 122:
+    if score >= 131:
         return 5
 
-    if score >= 103:
+    if score >= 110:
         return 4
 
-    if score >= 85:
+    if score >= 91:
         return 3
 
-    if score >= 67:
+    if score >= 72:
         return 2
 
     return 1
@@ -216,6 +222,7 @@ def calculate_overall_grade(
     roic=None,
     owner_earnings=None,
     intrinsic_value=None,
+    capital_allocation=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -234,8 +241,9 @@ def calculate_overall_grade(
     s7 = _score_roic(roic) if roic else 0
     s8 = _score_owner_earnings(owner_earnings) if owner_earnings else 0
     s9 = _score_intrinsic_value(intrinsic_value) if intrinsic_value else 0
+    s10 = _score_capital_allocation(capital_allocation) if capital_allocation else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10
 
     grade = _grade(total)
 
@@ -273,6 +281,7 @@ def calculate_overall_grade(
             "roic":s7,
             "owner_earnings":s8,
             "intrinsic_value":s9,
+            "capital_allocation":s10,
 
         }
 
