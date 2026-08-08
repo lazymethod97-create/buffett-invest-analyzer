@@ -2108,3 +2108,86 @@ Share Buyback分析（別軸、負債の「量」の推移は評価済み）と�
         return result
     except Exception:
         return fallback
+
+
+def generate_moat_strength_analysis(data: dict, moat_strength_raw: dict) -> dict:
+    """
+    Sprint25: Economic Moat強化（経済的堀の定量的検証）分析のAI考察を生成する。
+    ROIC / Owner Earnings / Intrinsic Value / Capital Allocation / Share Buyback /
+    Debt Quality と同じく、ルールベースの数値(raw)は上書きせず、Geminiの考察
+    （buffet_view 等）だけを返す。AI不可時はfallback。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    total_score = moat_strength_raw.get("total_score", 0)
+    max_score = moat_strength_raw.get("max_score", 10)
+    rating = moat_strength_raw.get("rating", "unknown")
+
+    fallback = {
+        "buffet_view": "Economic Moat強化分析のAI考察は利用できませんでした。",
+        "competitive_advantage": "ルールベースの評価を参照してください。",
+        "capital_efficiency": "ルールベースの評価を参照してください。",
+        "improvement_area": "収益性の持続性・価格決定力・市場地位の安定性・既存MOAT判定との整合性の4軸で確認してください。",
+        "conclusion": moat_strength_raw.get("summary", "データ不足"),
+    }
+
+    if not api_key:
+        return fallback
+
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
+
+以下の企業のEconomic Moat強化（経済的堀の定量的検証）分析結果を、バフェットの視点から簡潔に考察してください。
+既存のMOAT分析（別軸、単年の断面データによるAI定性判定）とは異なり、
+ここでは複数年の定量トレンド（ROE・営業利益率・粗利率・売上高の推移）で
+moatが「本物」であるかどうかを検証しています。
+バフェットは「持続可能で、時の試練に耐えるmoat」を重視します。
+
+会社名：{data.get("company_name")}
+
+Economic Moat強化スコア：{total_score} / {max_score}点
+評価：{rating}
+所見：{moat_strength_raw.get("summary", "")}
+
+収益性の持続性・安定性：{moat_strength_raw.get("persistence_detail", "")}
+価格決定力の定量的検証：{moat_strength_raw.get("pricing_power_detail", "")}
+市場地位の安定性：{moat_strength_raw.get("market_position_detail", "")}
+既存MOAT判定との整合性：{moat_strength_raw.get("consistency_detail", "")}
+
+以下のJSON形式だけで回答してください。
+{{
+  "buffet_view": "バフェット的視点から100文字以内の所見（持続可能なmoatかどうかを重視）",
+  "competitive_advantage": "50文字以内",
+  "capital_efficiency": "50文字以内",
+  "improvement_area": "改善点 50文字以内",
+  "conclusion": "総合結論 100文字以内"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "moat_strength"
+        result["title"] = "Economic Moat強化（経済的堀の定量的検証）AI評価"
+        result["score"] = total_score
+        result["max_score"] = max_score
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if total_score < 6:
+            result["warnings"].append("Economic Moat強化スコアが低く、既存MOAT判定の定量的な裏付けに課題があります。")
+        return result
+    except Exception:
+        return fallback

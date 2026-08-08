@@ -8,6 +8,7 @@ from .intrinsic_engine import calculate_intrinsic_value
 from .capital_allocation_engine import calculate_capital_allocation
 from .share_buyback_engine import calculate_share_buyback
 from .debt_quality_engine import calculate_debt_quality
+from .moat_strength_engine import calculate_moat_strength
 
 __all__ = [
     "calculate_buffett_score",
@@ -19,5 +20,6 @@ __all__ = [
     "calculate_capital_allocation",
     "calculate_share_buyback",
     "calculate_debt_quality",
+    "calculate_moat_strength",
 ]
 

@@ -285,3 +285,16 @@ Sprint24以降のスコア配分（170点満点）。
 Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15 / Capital Allocation: 10 / Share Buyback: 10 / Debt Quality: 10
 
 判定基準（S:149 / A:124 / B:103 / C:82 / D:82未満）の詳細はAI_HANDOVER.mdを参照。
+
+# 22.
+
+Sprint25以降のスコア配分（180点満点）。
+
+Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15 / Capital Allocation: 10 / Share Buyback: 10 / Debt Quality: 10 / Economic Moat強化: 10
+
+判定基準（S:158 / A:131 / B:109 / C:87 / D:87未満）の詳細はAI_HANDOVER.mdを参照。
+
+Economic Moat強化（moat_strength）は、既存のMOAT定性判定（Sprint18、単年断面データのAI判定）とは
+評価データ・評価軸ともに重複しない、複数年の定量トレンドによる独立したルールベース検証軸である
+（ルール14）。既存MOAT判定は再計算せず、整合性チェックの引数として受け取るのみとする。
+

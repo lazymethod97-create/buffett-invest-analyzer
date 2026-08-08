@@ -128,6 +128,7 @@ def generate_pdf_report(
     capital_allocation: dict = None,
     share_buyback: dict = None,
     debt_quality: dict = None,
+    moat_strength: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -341,6 +342,22 @@ def generate_pdf_report(
         pdf.add_bullet(f"負債推移のトレンド：{tr_score}/2点 - {dq_raw.get('trend_detail', '')}")
     else:
         pdf.add_paragraph("Debt Quality分析結果がありません。")
+    # Economic Moat強化（Sprint25）
+    pdf.add_heading("🏰 Economic Moat強化（経済的堀の定量的検証）分析")
+    if moat_strength and moat_strength.get("raw"):
+        ms_raw = moat_strength.get("raw", {})
+        pdf.add_paragraph(f"スコア：{moat_strength.get('score', 0)} / {moat_strength.get('max_score', 10)}点")
+        pdf.add_paragraph(f"評価：{moat_strength.get('summary', '')}")
+        pe_score = ms_raw.get("persistence_score", 0)
+        pp_score = ms_raw.get("pricing_power_score", 0)
+        mp_score = ms_raw.get("market_position_score", 0)
+        co_score = ms_raw.get("consistency_score", 0)
+        pdf.add_bullet(f"収益性の持続性・安定性（ROE・営業利益率）：{pe_score}/3点 - {ms_raw.get('persistence_detail', '')}")
+        pdf.add_bullet(f"価格決定力の定量的検証（粗利率の防衛力）：{pp_score}/3点 - {ms_raw.get('pricing_power_detail', '')}")
+        pdf.add_bullet(f"市場地位の安定性（売上高成長率のブレ幅）：{mp_score}/2点 - {ms_raw.get('market_position_detail', '')}")
+        pdf.add_bullet(f"既存MOAT判定との整合性：{co_score}/2点 - {ms_raw.get('consistency_detail', '')}")
+    else:
+        pdf.add_paragraph("Economic Moat強化分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:

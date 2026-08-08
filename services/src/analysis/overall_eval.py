@@ -130,23 +130,29 @@ def _score_debt_quality(debt_quality: Dict) -> int:
     return min(score, 10)
 
 
+def _score_moat_strength(moat_strength: Dict) -> int:
+    """Sprint25: Economic Moat強化スコア（10点満点）"""
+    score = moat_strength.get("score", 0) if moat_strength else 0
+    return min(score, 10)
+
+
 def _grade(score):
     """
-    Sprint24: 170点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    Sprint25: 180点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
     +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15+CapitalAllocation10
-    +ShareBuyback10+DebtQuality10）に合わせた判定基準。
+    +ShareBuyback10+DebtQuality10+EconomicMoat強化10）に合わせた判定基準。
     """
 
-    if score >= 149:
+    if score >= 158:
         return "S"
 
-    if score >= 124:
+    if score >= 131:
         return "A"
 
-    if score >= 103:
+    if score >= 109:
         return "B"
 
-    if score >= 82:
+    if score >= 87:
         return "C"
 
     return "D"
@@ -154,16 +160,16 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 149:
+    if score >= 158:
         return 5
 
-    if score >= 124:
+    if score >= 131:
         return 4
 
-    if score >= 103:
+    if score >= 109:
         return 3
 
-    if score >= 82:
+    if score >= 87:
         return 2
 
     return 1
@@ -238,6 +244,7 @@ def calculate_overall_grade(
     capital_allocation=None,
     share_buyback=None,
     debt_quality=None,
+    moat_strength=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -259,8 +266,9 @@ def calculate_overall_grade(
     s10 = _score_capital_allocation(capital_allocation) if capital_allocation else 0
     s11 = _score_share_buyback(share_buyback) if share_buyback else 0
     s12 = _score_debt_quality(debt_quality) if debt_quality else 0
+    s13 = _score_moat_strength(moat_strength) if moat_strength else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11 + s12
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11 + s12 + s13
 
     grade = _grade(total)
 
@@ -301,6 +309,7 @@ def calculate_overall_grade(
             "capital_allocation":s10,
             "share_buyback":s11,
             "debt_quality":s12,
+            "moat_strength":s13,
 
         }
 

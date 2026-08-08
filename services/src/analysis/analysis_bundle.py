@@ -17,6 +17,7 @@ from .intrinsic_value import analyze_intrinsic_value
 from .capital_allocation import analyze_capital_allocation
 from .share_buyback import analyze_share_buyback
 from .debt_quality import analyze_debt_quality
+from .moat_strength import analyze_moat_strength
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -32,6 +33,7 @@ from ai.ai_analysis import (
     generate_capital_allocation_analysis,
     generate_share_buyback_analysis,
     generate_debt_quality_analysis,
+    generate_moat_strength_analysis,
 )
 
 
@@ -103,6 +105,7 @@ def create_analysis_bundle(
         "capital_allocation": None,
         "share_buyback": None,
         "debt_quality": None,
+        "moat_strength": None,
         "overall": None,
     }
 
@@ -221,6 +224,22 @@ def create_analysis_bundle(
             )
             bundle["debt_quality"] = _merge_ai_narrative(debt_quality, ai_dq)
 
+            ####################################################
+            # Sprint25: Economic Moat強化（経済的堀の定量的検証）分析
+            # 既存のMOAT判定（Sprint18、qualitative、断面データ）は
+            # bundle["moat"]として既に計算済みのため、そのまま引数として渡し、
+            # 再計算はしない（重複実装禁止・ルール14）。複数年の定量トレンド
+            # （ROE・営業利益率・粗利率・売上高）で裏付け・整合性検証を行う。
+            # 同じ形式（ルールベース基礎 + AI考察の上乗せ）。
+            ####################################################
+            moat_strength = analyze_moat_strength(data, moat_result=bundle["moat"])
+            ai_ms = _safe_ai(
+                generate_moat_strength_analysis,
+                data,
+                moat_strength.get("raw", {}),
+            )
+            bundle["moat_strength"] = _merge_ai_narrative(moat_strength, ai_ms)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
@@ -239,6 +258,7 @@ def create_analysis_bundle(
         capital_allocation=bundle["capital_allocation"] or {},
         share_buyback=bundle["share_buyback"] or {},
         debt_quality=bundle["debt_quality"] or {},
+        moat_strength=bundle["moat_strength"] or {},
     )
 
     return bundle

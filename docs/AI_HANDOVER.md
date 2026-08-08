@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint24完了。
+現在Sprint25完了。
 
-次回はSprint25（Economic Moat強化）から開始。
+次回はSprint26（Backtest）から開始。
 
 ---
 
@@ -872,6 +872,145 @@ D: 82点未満
 
 ---
 
+# Sprint25 完了内容
+
+## Economic Moat強化（経済的堀の定量的検証）分析
+
+既存のMOAT評価（Sprint18、ai/ai_analysis.pyのgenerate_moat_analysis）は、単年の
+ROE・営業利益率等の断面データをもとにGeminiが定性的に6観点（ブランド力／規模の
+経済／価格決定力／ネットワーク効果／スイッチングコスト／規制障壁）を判定し、
+wide/narrow/noneを決めるAI判定のみであり、複数年のルールベース検証が存在しな
+かった。Sprint25では、この定性判定を「複数年の定量トレンド」で裏付ける独立した
+ルールベース分析軸を新設した。既存のMOAT判定（qualitative）とは評価データ・
+評価軸ともに重複しない（重複実装禁止・ルール14）。
+
+### 新規作成
+
+engines/moat_strength_engine.py
+
+Economic Moat強化計算エンジン（ルールベース）
+
+4軸で評価（合計10点満点）：
+
+・収益性の持続性・安定性（3点）: ROE（優先）または営業利益率の複数年推移の
+　水準（平均）と変動係数（CV=標準偏差／平均）で評価。moatが「本物」であることの
+　定量的裏付けとする。
+・価格決定力の定量的検証（3点）: 粗利率（Gross Profit÷売上高、取得不可の場合は
+　EBITDAマージンで代替）の直近年 vs 過去平均の防衛度合いで評価。コスト上昇局面
+　でも利益率を防衛できているか（値上げ耐性）を検証する。
+・市場地位の安定性（2点）: 売上高成長率の複数年推移のブレ幅（標準偏差・最小値）
+　で評価。急激な浮沈がなく、安定的にシェアを維持・拡大しているかを見る。
+・既存MOAT判定との整合性（2点）: Sprint18のgenerate_moat_analysisによる
+　wide/narrow/none判定（引数として受け取るのみ、再計算しない）と、軸1〜3の
+　定量トレンド評価（8点満点）を突合する。乖離が大きい場合は「AI判定が楽観的
+　すぎる可能性があります」等の警告をwarningsに追加する。
+
+いずれの軸も、複数年データが不足する場合は中立評価（デフォルトスコア1点、
+Debt Qualityエンジンと同じ規約）とし、絶対に例外を投げない。
+
+analysis/moat_strength.py
+
+Economic Moat強化分析モジュール（共通形式）。analyze_moat_strength(data,
+moat_result) がSprint18のMOAT判定（bundle["moat"]）を引数で受け取り、
+整合性チェックに使う。
+
+### 修正
+
+data/data_fetcher.py
+
+Economic Moat強化関連フィールド追加（すべてyfinanceのincome_stmt／
+balance_sheetから複数年抽出、直近年が先頭、取得不可時は空リストを返し
+例外を投げない）
+
+revenue_history（売上高の複数年推移、income_stmtの"Total Revenue"）
+
+operating_margin_history（営業利益率の複数年推移、営業利益÷売上高を年ごとに算出）
+
+gross_margin_history（粗利率の複数年推移、売上総利益÷売上高。取得不可時はEBITDAマージンにフォールバック）
+
+roe_history（ROEの複数年推移、当期純利益÷自己資本を年ごとに算出。balance_sheetの自己資本行と突合）
+
+※total_debt_history等、Sprint23・24で追加済みの複数年抽出関数群の踏襲パターン
+（直近年から古い年の順でリスト化、取得不可時は空リストで例外を投げない）に準拠。
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() にmoat_strengthを追加（is_full時）。既存MOAT判定
+（bundle["moat"]、Sprint18で計算済み）をanalyze_moat_strength()に渡し、
+再計算はしない。
+
+analysis/overall_eval.py
+
+_score_moat_strength() 追加（10点満点）
+
+判定基準を180点満点に合わせて全面更新（S:158 / A:131 / B:109 / C:87）
+
+ai/ai_analysis.py
+
+generate_moat_strength_analysis() 追加（Gemini評価、フォールバック付き。
+ルールベースのraw数値は上書きせず、buffet_view等の考察のみ追加）
+
+report/report.py
+
+create_moat_strength_display() 追加
+
+report/pdf_report.py
+
+PDFにEconomic Moat強化セクション追加
+
+app.py
+
+定性分析タブ + PDFダウンロードにEconomic Moat強化表示追加
+
+（import / bundle展開 / 表示 / PDF引数の4箇所を編集）
+
+health_check.py
+
+Sprint25検証を追加（engines/analysis/ai/reportのimport確認、
+bundle["moat_strength"]がNoneでないこと、overall detailへの配線確認）
+
+### スコア配分（180点満点、Sprint25時点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点
+
+Intrinsic Value: 15点
+
+Capital Allocation: 10点
+
+Share Buyback: 10点
+
+Debt Quality: 10点
+
+Economic Moat強化: 10点（新規）
+
+### 判定基準（Sprint25更新後）
+
+S: 158点以上
+
+A: 131点以上
+
+B: 109点以上
+
+C: 87点以上
+
+D: 87点未満
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -891,10 +1030,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint25
-
-Economic Moat強化
 
 Sprint26
 

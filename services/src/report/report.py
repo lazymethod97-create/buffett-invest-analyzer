@@ -608,3 +608,44 @@ def create_debt_quality_display(debt_quality: Dict[str, Any]) -> str:
         for w in warnings:
             md += f"- {w}\n"
     return md
+
+
+def create_moat_strength_display(moat_strength: Dict[str, Any]) -> str:
+    """Economic Moat強化（経済的堀の定量的検証）分析結果をMarkdown形式で表示する（Sprint25）。"""
+    if not moat_strength:
+        return "*Economic Moat強化分析結果がありません。*\n"
+
+    raw = moat_strength.get("raw", {})
+    persistence_score = raw.get("persistence_score", 0)
+    persistence_detail = raw.get("persistence_detail", "")
+    pricing_power_score = raw.get("pricing_power_score", 0)
+    pricing_power_detail = raw.get("pricing_power_detail", "")
+    market_position_score = raw.get("market_position_score", 0)
+    market_position_detail = raw.get("market_position_detail", "")
+    consistency_score = raw.get("consistency_score", 0)
+    consistency_detail = raw.get("consistency_detail", "")
+
+    md = "#### Economic Moat強化（経済的堀の定量的検証）分析\n\n"
+    md += f"**スコア:** {moat_strength.get('score', 0)} / {moat_strength.get('max_score', 10)}点\n\n"
+    md += f"**評価:** {moat_strength.get('summary', '')}\n\n"
+
+    md += "#### 4つの評価軸\n"
+    md += f"- **収益性の持続性・安定性（ROE・営業利益率）:** {persistence_score} / 3点\n  - {persistence_detail}\n"
+    md += f"- **価格決定力の定量的検証（粗利率の防衛力）:** {pricing_power_score} / 3点\n  - {pricing_power_detail}\n"
+    md += f"- **市場地位の安定性（売上高成長率のブレ幅）:** {market_position_score} / 2点\n  - {market_position_detail}\n"
+    md += f"- **既存MOAT判定との整合性:** {consistency_score} / 2点\n  - {consistency_detail}\n"
+
+    md += "\n#### 計算方式\n```\n"
+    md += "Economic Moat強化 = 収益性の持続性(3) + 価格決定力(3) + 市場地位の安定性(2) + 既存MOAT判定との整合性(2)\n"
+    md += "・収益性の持続性: ROE（優先）または営業利益率の複数年推移の水準と変動係数で評価\n"
+    md += "・価格決定力: 粗利率（またはEBITDAマージン）の直近年 vs 過去平均の防衛度合いで評価\n"
+    md += "・市場地位の安定性: 売上高成長率の複数年推移のブレ幅（標準偏差・最小値）で評価\n"
+    md += "・既存MOAT判定との整合性: Sprint18のwide/narrow/none判定と本エンジンの定量トレンド評価を突合\n"
+    md += "```\n"
+
+    warnings = moat_strength.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

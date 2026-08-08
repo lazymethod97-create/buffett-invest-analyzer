@@ -36,6 +36,7 @@ from report import (
 	create_capital_allocation_display,
 	create_share_buyback_display,
 	create_debt_quality_display,
+	create_moat_strength_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -314,6 +315,7 @@ if (
 	capital_allocation = bundle.get("capital_allocation")
 	share_buyback = bundle.get("share_buyback")
 	debt_quality = bundle.get("debt_quality")
+	moat_strength = bundle.get("moat_strength")
 
 	currency = "¥" if data.get("country") == "Japan" else "$"
 	st.caption(f"現在の分析モード: **{current_mode}**")
@@ -524,6 +526,16 @@ if (
 			_mode_locked_message("🔎 フル（すべて）")
 
 		st.divider()
+		st.subheader("🏰 Economic Moat強化（経済的堀の定量的検証）分析")
+		if is_full:
+			if moat_strength:
+				st.markdown(create_moat_strength_display(moat_strength))
+			else:
+				st.info("Economic Moat強化分析結果がありません。")
+		else:
+			_mode_locked_message("🔎 フル（すべて）")
+
+		st.divider()
 		st.subheader("🏷️ ブランド力評価")
 		if is_full:
 			st.markdown(create_brand_display(brand))
@@ -714,6 +726,7 @@ if (
 					capital_allocation,
 					share_buyback,
 					debt_quality,
+					moat_strength,
 				)
 				st.download_button(
 					"⬇️ PDFをダウンロード",

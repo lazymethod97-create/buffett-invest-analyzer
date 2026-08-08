@@ -11,6 +11,7 @@ from .intrinsic_value import analyze_intrinsic_value
 from .capital_allocation import analyze_capital_allocation
 from .share_buyback import analyze_share_buyback
 from .debt_quality import analyze_debt_quality
+from .moat_strength import analyze_moat_strength
 
 __all__ = [
     "calculate_overall_grade",
@@ -25,5 +26,6 @@ __all__ = [
     "analyze_capital_allocation",
     "analyze_share_buyback",
     "analyze_debt_quality",
+    "analyze_moat_strength",
 ]
 
