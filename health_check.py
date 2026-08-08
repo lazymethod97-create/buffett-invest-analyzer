@@ -57,6 +57,15 @@ def t_sprint22_members():
     print("   display imports OK (owner_earnings/capital_allocation)")
 check("Sprint22 members (capital_allocation)", t_sprint22_members)
 
+# 3d) Sprint23 members (Share Buyback)
+def t_sprint23_members():
+    from engines import calculate_share_buyback
+    from analysis import analyze_share_buyback
+    from ai.ai_analysis import generate_share_buyback_analysis
+    from report.report import create_share_buyback_display
+    print("   share_buyback wired: engine/analysis/ai/report OK")
+check("Sprint23 members (share_buyback)", t_sprint23_members)
+
 # 4) bundle smoke (quick + full)
 def t_bundle():
     from analysis import create_analysis_bundle
@@ -71,14 +80,17 @@ def t_bundle():
     assert bf["owner_earnings"] is not None, "Sprint20 regression: bundle['owner_earnings'] is None in full mode"
     assert bf["intrinsic_value"] is not None, "Sprint21 regression: bundle['intrinsic_value'] is None in full mode"
     assert bf["capital_allocation"] is not None, "Sprint22 regression: bundle['capital_allocation'] is None in full mode"
+    assert bf["share_buyback"] is not None, "Sprint23 regression: bundle['share_buyback'] is None in full mode"
     assert bf["overall"]["detail"].get("roic", 0) >= 0, "roic score missing from overall detail"
     assert bf["overall"]["detail"].get("owner_earnings", 0) >= 0, "owner_earnings score missing from overall detail"
     assert bf["overall"]["detail"].get("intrinsic_value", 0) >= 0, "intrinsic_value score missing from overall detail"
     assert bf["overall"]["detail"].get("capital_allocation", 0) >= 0, "capital_allocation score missing from overall detail"
+    assert bf["overall"]["detail"].get("share_buyback", 0) >= 0, "share_buyback score missing from overall detail"
     print("   roic wired:", bf["roic"]["score"], "/", bf["roic"]["max_score"],
           " owner_earnings wired:", bf["owner_earnings"]["score"], "/", bf["owner_earnings"]["max_score"],
           " intrinsic_value wired:", bf["intrinsic_value"]["score"], "/", bf["intrinsic_value"]["max_score"],
-          " capital_allocation wired:", bf["capital_allocation"]["score"], "/", bf["capital_allocation"]["max_score"])
+          " capital_allocation wired:", bf["capital_allocation"]["score"], "/", bf["capital_allocation"]["max_score"],
+          " share_buyback wired:", bf["share_buyback"]["score"], "/", bf["share_buyback"]["max_score"])
 check("bundle smoke (quick/full)", t_bundle)
 
 # 5) app.py compiles

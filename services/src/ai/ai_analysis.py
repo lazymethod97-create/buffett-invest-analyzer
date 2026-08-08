@@ -1945,3 +1945,84 @@ def generate_capital_allocation_analysis(data: dict, capital_allocation_raw: dic
         return result
     except Exception:
         return fallback
+
+
+def generate_share_buyback_analysis(data: dict, share_buyback_raw: dict) -> dict:
+    """
+    Sprint23: Share Buyback（自社株買い）分析のAI考察を生成する。
+    ROIC / Owner Earnings / Intrinsic Value / Capital Allocation と同じく、
+    ルールベースの数値(raw)は上書きせず、Geminiの考察（buffet_view 等）だけを返す。
+    AI不可時はfallback。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    total_score = share_buyback_raw.get("total_score", 0)
+    max_score = share_buyback_raw.get("max_score", 10)
+    rating = share_buyback_raw.get("rating", "unknown")
+
+    fallback = {
+        "buffet_view": "Share Buyback（自社株買い）分析のAI考察は利用できませんでした。",
+        "competitive_advantage": "ルールベースの評価を参照してください。",
+        "capital_efficiency": "ルールベースの評価を参照してください。",
+        "improvement_area": "一貫性・株式数減少効果・財務健全性・PER水準の4軸で確認してください。",
+        "conclusion": share_buyback_raw.get("summary", "データ不足"),
+    }
+
+    if not api_key:
+        return fallback
+
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
+
+以下の企業のShare Buyback（自社株買い）分析結果を、バフェットの視点から簡潔に考察してください。
+Capital Allocation分析（別軸、自社株買いのタイミングをMOSで評価済み）とは異なり、
+ここでは自社株買いそのものの質・効果・一貫性を評価しています。
+
+会社名：{data.get("company_name")}
+
+自社株買いスコア：{total_score} / {max_score}点
+評価：{rating}
+所見：{share_buyback_raw.get("summary", "")}
+
+買い入れの一貫性：{share_buyback_raw.get("consistency_detail", "")}
+発行済株式数の減少効果：{share_buyback_raw.get("reduction_detail", "")}
+財務健全性とのバランス：{share_buyback_raw.get("balance_detail", "")}
+買い入れの効果的なタイミング（PER水準）：{share_buyback_raw.get("timing_detail", "")}
+
+以下のJSON形式だけで回答してください。
+{{
+  "buffet_view": "バフェット的視点から100文字以内の所見（自社株買いは価値ある時にのみ行うべき）",
+  "competitive_advantage": "50文字以内",
+  "capital_efficiency": "50文字以内",
+  "improvement_area": "改善点 50文字以内",
+  "conclusion": "総合結論 100文字以内"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "share_buyback"
+        result["title"] = "Share Buyback（自社株買い）AI評価"
+        result["score"] = total_score
+        result["max_score"] = max_score
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if total_score < 6:
+            result["warnings"].append("自社株買いスコアが低く、質・効果・一貫性に課題があります。")
+        return result
+    except Exception:
+        return fallback

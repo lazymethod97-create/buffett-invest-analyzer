@@ -6,6 +6,7 @@ from .roic_engine import calculate_roic
 from .owner_earnings_engine import calculate_owner_earnings
 from .intrinsic_engine import calculate_intrinsic_value
 from .capital_allocation_engine import calculate_capital_allocation
+from .share_buyback_engine import calculate_share_buyback
 
 __all__ = [
     "calculate_buffett_score",
@@ -15,5 +16,6 @@ __all__ = [
     "calculate_owner_earnings",
     "calculate_intrinsic_value",
     "calculate_capital_allocation",
+    "calculate_share_buyback",
 ]
 

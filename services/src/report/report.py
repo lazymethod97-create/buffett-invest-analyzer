@@ -526,3 +526,44 @@ def create_capital_allocation_display(capital_allocation: Dict[str, Any]) -> str
         for w in warnings:
             md += f"- {w}\n"
     return md
+
+
+def create_share_buyback_display(share_buyback: Dict[str, Any]) -> str:
+    """Share Buyback（自社株買い）分析結果をMarkdown形式で表示する（Sprint23）。"""
+    if not share_buyback:
+        return "*Share Buyback分析結果がありません。*\n"
+
+    raw = share_buyback.get("raw", {})
+    consistency_score = raw.get("consistency_score", 0)
+    consistency_detail = raw.get("consistency_detail", "")
+    reduction_score = raw.get("reduction_score", 0)
+    reduction_detail = raw.get("reduction_detail", "")
+    balance_score = raw.get("balance_score", 0)
+    balance_detail = raw.get("balance_detail", "")
+    timing_score = raw.get("timing_score", 0)
+    timing_detail = raw.get("timing_detail", "")
+
+    md = "#### Share Buyback（自社株買い）分析\n\n"
+    md += f"**スコア:** {share_buyback.get('score', 0)} / {share_buyback.get('max_score', 10)}点\n\n"
+    md += f"**評価:** {share_buyback.get('summary', '')}\n\n"
+
+    md += "#### 4つの評価軸\n"
+    md += f"- **買い入れの一貫性:** {consistency_score} / 3点\n  - {consistency_detail}\n"
+    md += f"- **発行済株式数の減少効果:** {reduction_score} / 3点\n  - {reduction_detail}\n"
+    md += f"- **財務健全性とのバランス:** {balance_score} / 2点\n  - {balance_detail}\n"
+    md += f"- **買い入れの効果的なタイミング（PER水準）:** {timing_score} / 2点\n  - {timing_detail}\n"
+
+    md += "\n#### 計算方式\n```\n"
+    md += "自社株買い = 一貫性(3) + 株式数減少効果(3) + 財務健全性バランス(2) + タイミング(2)\n"
+    md += "・一貫性: 複数年の自社株買い実施率で評価\n"
+    md += "・株式数減少効果: 期中平均株式数の減少率で評価\n"
+    md += "・財務健全性バランス: 負債推移とのバランスで評価\n"
+    md += "・タイミング: 現在PERと過去5年平均PER（簡易推定）の比較で評価\n"
+    md += "```\n"
+
+    warnings = share_buyback.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

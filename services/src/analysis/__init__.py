@@ -9,6 +9,7 @@ from .roic import analyze_roic
 from .owner_earnings import analyze_owner_earnings
 from .intrinsic_value import analyze_intrinsic_value
 from .capital_allocation import analyze_capital_allocation
+from .share_buyback import analyze_share_buyback
 
 __all__ = [
     "calculate_overall_grade",
@@ -21,5 +22,6 @@ __all__ = [
     "analyze_owner_earnings",
     "analyze_intrinsic_value",
     "analyze_capital_allocation",
+    "analyze_share_buyback",
 ]
 

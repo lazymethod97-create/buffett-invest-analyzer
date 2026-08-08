@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint22完了。
+現在Sprint23完了。
 
-次回はSprint23（Share Buyback）から開始。
+次回はSprint24（Debt Quality）から開始。
 
 ---
 
@@ -642,6 +642,120 @@ D: 72点未満
 
 ---
 
+# Sprint23 完了内容
+
+## Share Buyback（自社株買い）分析
+
+Capital Allocation（Sprint22）では自社株買いの「タイミング」を
+安全余裕（MOS）との突合で単年評価済み。Sprint23では自社株買い
+そのものの「質・効果・一貫性」を、複数年の推移データから
+独立した分析軸として評価する（Sprint22との重複なし）。
+
+### 新規作成
+
+engines/share_buyback_engine.py
+
+Share Buyback計算エンジン（ルールベース）
+
+4軸で評価（合計10点満点）：
+
+・買い入れの一貫性（3点）: 複数年の自社株買い実施率で評価
+・発行済株式数の減少効果（3点）: 期中平均株式数の減少率で評価
+・財務健全性とのバランス（2点）: 負債推移とのバランスで評価
+・買い入れの効果的なタイミング（2点）: 現在PERと過去5年平均PER（簡易推定）の比較で評価
+　（Sprint22はMOS基準・単年、Sprint23はPER基準・複数年トレンドで異なる）
+
+analysis/share_buyback.py
+
+Share Buyback分析モジュール（共通形式）
+
+### 修正
+
+data/data_fetcher.py
+
+Share Buyback関連フィールド追加（複数年データ、yfinanceの複数年カラムをそのまま利用）
+
+buyback_history（自社株買い額の複数年推移）
+
+shares_outstanding_history（期中平均株式数の複数年推移）
+
+total_debt_history（総負債の複数年推移）
+
+avg_price_5y（過去5年終値平均）
+
+trailing_eps（トレーリングEPS）
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() に share_buyback を追加（is_full時）
+
+analysis/overall_eval.py
+
+_score_share_buyback() 追加（10点満点）
+
+判定基準を160点満点に合わせて全面更新（S:140 / A:117 / B:97 / C:77）
+
+ai/ai_analysis.py
+
+generate_share_buyback_analysis() 追加（Gemini評価、フォールバック付き）
+
+report/report.py
+
+create_share_buyback_display() 追加
+
+report/pdf_report.py
+
+PDFにShare Buybackセクション追加
+
+app.py
+
+定性分析タブ + PDFダウンロードにShare Buyback表示追加
+
+（import / bundle展開 / 表示 / PDF引数の4箇所を編集）
+
+health_check.py
+
+Sprint23検証を追加（engines/analysis/ai/reportのimport確認、
+bundle["share_buyback"]がNoneでないこと、overall detailへの配線確認）
+
+### スコア配分（160点満点、Sprint23時点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点
+
+Intrinsic Value: 15点
+
+Capital Allocation: 10点
+
+Share Buyback: 10点（新規）
+
+### 判定基準（Sprint23更新後）
+
+S: 140点以上
+
+A: 117点以上
+
+B: 97点以上
+
+C: 77点以上
+
+D: 77点未満
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -661,10 +775,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint23
-
-Share Buyback
 
 Sprint24
 
