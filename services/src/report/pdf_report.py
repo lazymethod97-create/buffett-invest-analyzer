@@ -127,6 +127,7 @@ def generate_pdf_report(
     intrinsic_value: dict = None,
     capital_allocation: dict = None,
     share_buyback: dict = None,
+    debt_quality: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -324,6 +325,22 @@ def generate_pdf_report(
         pdf.add_bullet(f"買い入れの効果的なタイミング（PER水準）：{ti_score}/2点 - {sb_raw.get('timing_detail', '')}")
     else:
         pdf.add_paragraph("Share Buyback分析結果がありません。")
+    # Debt Quality（Sprint24）
+    pdf.add_heading("🏦 Debt Quality（負債の質）分析")
+    if debt_quality and debt_quality.get("raw"):
+        dq_raw = debt_quality.get("raw", {})
+        pdf.add_paragraph(f"スコア：{debt_quality.get('score', 0)} / {debt_quality.get('max_score', 10)}点")
+        pdf.add_paragraph(f"評価：{debt_quality.get('summary', '')}")
+        lv_score = dq_raw.get("level_score", 0)
+        cv_score = dq_raw.get("coverage_score", 0)
+        cp_score = dq_raw.get("composition_score", 0)
+        tr_score = dq_raw.get("trend_score", 0)
+        pdf.add_bullet(f"負債水準の適正さ（D/E・Debt/EBITDA）：{lv_score}/3点 - {dq_raw.get('level_detail', '')}")
+        pdf.add_bullet(f"金利負担能力（インタレスト・カバレッジ・レシオ）：{cv_score}/3点 - {dq_raw.get('coverage_detail', '')}")
+        pdf.add_bullet(f"負債の質・構成（短期負債比率）：{cp_score}/2点 - {dq_raw.get('composition_detail', '')}")
+        pdf.add_bullet(f"負債推移のトレンド：{tr_score}/2点 - {dq_raw.get('trend_detail', '')}")
+    else:
+        pdf.add_paragraph("Debt Quality分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:

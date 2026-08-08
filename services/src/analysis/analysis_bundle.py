@@ -16,6 +16,7 @@ from .owner_earnings import analyze_owner_earnings
 from .intrinsic_value import analyze_intrinsic_value
 from .capital_allocation import analyze_capital_allocation
 from .share_buyback import analyze_share_buyback
+from .debt_quality import analyze_debt_quality
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -30,6 +31,7 @@ from ai.ai_analysis import (
     generate_intrinsic_value_analysis,
     generate_capital_allocation_analysis,
     generate_share_buyback_analysis,
+    generate_debt_quality_analysis,
 )
 
 
@@ -100,6 +102,7 @@ def create_analysis_bundle(
         "intrinsic_value": None,
         "capital_allocation": None,
         "share_buyback": None,
+        "debt_quality": None,
         "overall": None,
     }
 
@@ -201,6 +204,23 @@ def create_analysis_bundle(
             )
             bundle["share_buyback"] = _merge_ai_narrative(share_buyback, ai_sb)
 
+            ####################################################
+            # Sprint24: Debt Quality分析
+            # ROIC（総負債を投下資本に使用）、Capital Allocation（財務健全性の
+            # 一部評価）、Share Buyback（total_debt_historyで負債推移を取得済み）
+            # とは異なる評価軸（D/E・Debt/EBITDA水準、インタレスト・カバレッジ・
+            # レシオ、短期負債依存度、負債推移の年平均変化率）で、負債の
+            # 返済能力・構成・リスクを評価する。同じ形式（ルールベース基礎 +
+            # AI考察の上乗せ）。
+            ####################################################
+            debt_quality = analyze_debt_quality(data)
+            ai_dq = _safe_ai(
+                generate_debt_quality_analysis,
+                data,
+                debt_quality.get("raw", {}),
+            )
+            bundle["debt_quality"] = _merge_ai_narrative(debt_quality, ai_dq)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
@@ -218,6 +238,7 @@ def create_analysis_bundle(
         intrinsic_value=bundle["intrinsic_value"] or {},
         capital_allocation=bundle["capital_allocation"] or {},
         share_buyback=bundle["share_buyback"] or {},
+        debt_quality=bundle["debt_quality"] or {},
     )
 
     return bundle

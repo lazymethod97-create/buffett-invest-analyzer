@@ -124,23 +124,29 @@ def _score_share_buyback(share_buyback: Dict) -> int:
     return min(score, 10)
 
 
+def _score_debt_quality(debt_quality: Dict) -> int:
+    """Sprint24: Debt Qualityスコア（10点満点）"""
+    score = debt_quality.get("score", 0) if debt_quality else 0
+    return min(score, 10)
+
+
 def _grade(score):
     """
-    Sprint23: 160点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    Sprint24: 170点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
     +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15+CapitalAllocation10
-    +ShareBuyback10）に合わせた判定基準。
+    +ShareBuyback10+DebtQuality10）に合わせた判定基準。
     """
 
-    if score >= 140:
+    if score >= 149:
         return "S"
 
-    if score >= 117:
+    if score >= 124:
         return "A"
 
-    if score >= 97:
+    if score >= 103:
         return "B"
 
-    if score >= 77:
+    if score >= 82:
         return "C"
 
     return "D"
@@ -148,16 +154,16 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 140:
+    if score >= 149:
         return 5
 
-    if score >= 117:
+    if score >= 124:
         return 4
 
-    if score >= 97:
+    if score >= 103:
         return 3
 
-    if score >= 77:
+    if score >= 82:
         return 2
 
     return 1
@@ -231,6 +237,7 @@ def calculate_overall_grade(
     intrinsic_value=None,
     capital_allocation=None,
     share_buyback=None,
+    debt_quality=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -251,8 +258,9 @@ def calculate_overall_grade(
     s9 = _score_intrinsic_value(intrinsic_value) if intrinsic_value else 0
     s10 = _score_capital_allocation(capital_allocation) if capital_allocation else 0
     s11 = _score_share_buyback(share_buyback) if share_buyback else 0
+    s12 = _score_debt_quality(debt_quality) if debt_quality else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11 + s12
 
     grade = _grade(total)
 
@@ -292,6 +300,7 @@ def calculate_overall_grade(
             "intrinsic_value":s9,
             "capital_allocation":s10,
             "share_buyback":s11,
+            "debt_quality":s12,
 
         }
 

@@ -277,3 +277,11 @@ Sprint23以降のスコア配分（160点満点）。
 Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15 / Capital Allocation: 10 / Share Buyback: 10
 
 判定基準（S:140 / A:117 / B:97 / C:77 / D:77未満）の詳細はAI_HANDOVER.mdを参照。
+
+# 21.
+
+Sprint24以降のスコア配分（170点満点）。
+
+Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15 / Capital Allocation: 10 / Share Buyback: 10 / Debt Quality: 10
+
+判定基準（S:149 / A:124 / B:103 / C:82 / D:82未満）の詳細はAI_HANDOVER.mdを参照。

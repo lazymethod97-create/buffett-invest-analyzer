@@ -567,3 +567,44 @@ def create_share_buyback_display(share_buyback: Dict[str, Any]) -> str:
         for w in warnings:
             md += f"- {w}\n"
     return md
+
+
+def create_debt_quality_display(debt_quality: Dict[str, Any]) -> str:
+    """Debt Quality（負債の質）分析結果をMarkdown形式で表示する（Sprint24）。"""
+    if not debt_quality:
+        return "*Debt Quality分析結果がありません。*\n"
+
+    raw = debt_quality.get("raw", {})
+    level_score = raw.get("level_score", 0)
+    level_detail = raw.get("level_detail", "")
+    coverage_score = raw.get("coverage_score", 0)
+    coverage_detail = raw.get("coverage_detail", "")
+    composition_score = raw.get("composition_score", 0)
+    composition_detail = raw.get("composition_detail", "")
+    trend_score = raw.get("trend_score", 0)
+    trend_detail = raw.get("trend_detail", "")
+
+    md = "#### Debt Quality（負債の質）分析\n\n"
+    md += f"**スコア:** {debt_quality.get('score', 0)} / {debt_quality.get('max_score', 10)}点\n\n"
+    md += f"**評価:** {debt_quality.get('summary', '')}\n\n"
+
+    md += "#### 4つの評価軸\n"
+    md += f"- **負債水準の適正さ（D/E・Debt/EBITDA）:** {level_score} / 3点\n  - {level_detail}\n"
+    md += f"- **金利負担能力（インタレスト・カバレッジ・レシオ）:** {coverage_score} / 3点\n  - {coverage_detail}\n"
+    md += f"- **負債の質・構成（短期負債比率）:** {composition_score} / 2点\n  - {composition_detail}\n"
+    md += f"- **負債推移のトレンド:** {trend_score} / 2点\n  - {trend_detail}\n"
+
+    md += "\n#### 計算方式\n```\n"
+    md += "負債の質 = 水準適正さ(3) + 金利負担能力(3) + 質・構成(2) + トレンド(2)\n"
+    md += "・水準適正さ: D/E比率とDebt/EBITDA倍率のうち厳しい方の水準で評価\n"
+    md += "・金利負担能力: インタレスト・カバレッジ・レシオ(営業利益÷支払利息)で評価\n"
+    md += "・質・構成: 短期負債 ÷ 総負債の比率（借り換えリスク）で評価\n"
+    md += "・トレンド: 直近数年の総負債の年平均変化率で評価（Sprint23のtotal_debt_historyを再利用）\n"
+    md += "```\n"
+
+    warnings = debt_quality.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

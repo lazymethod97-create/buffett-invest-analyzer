@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint23完了。
+現在Sprint24完了。
 
-次回はSprint24（Debt Quality）から開始。
+次回はSprint25（Economic Moat強化）から開始。
 
 ---
 
@@ -756,6 +756,122 @@ D: 77点未満
 
 ---
 
+# Sprint24 完了内容
+
+## Debt Quality（負債の質）分析
+
+負債の「量」（Share Buyback／Sprint23で複数年推移を評価済み）ではなく「質」を
+評価する分析軸を新設。既存のROIC分析（投下資本に総負債を使用）、Capital
+Allocation分析（財務健全性の一部評価）、Share Buyback分析（total_debt_history
+で負債推移を取得済み）とは異なる切り口で、負債の返済能力・構成・リスクを
+独立して深掘りする（重複実装禁止・ルール14）。
+
+### 新規作成
+
+engines/debt_quality_engine.py
+
+Debt Quality計算エンジン（ルールベース）
+
+4軸で評価（合計10点満点）：
+
+・負債水準の適正さ（3点）: D/E比率とDebt/EBITDA倍率のうち、厳しい方の水準を採用して評価
+・金利負担能力（3点）: インタレスト・カバレッジ・レシオ（営業利益 ÷ 支払利息）で評価
+・負債の質・構成（2点）: 短期負債 ÷ 総負債の比率（借り換えリスク）で評価
+・負債推移のトレンド（2点）: total_debt_history（Sprint23で取得済み）の年平均変化率で評価
+　（Sprint23の「財務健全性とのバランス」軸は自社株買いと負債増の同時発生を
+　単純な始点・終点比較で見る一方、本軸は自社株買いと無関係に負債推移そのものの
+　年平均変化率を独立して評価する点で異なる）
+
+無借金企業（total_debt <= 0）は水準・金利負担・構成の3軸を満点として扱う特例あり。
+
+analysis/debt_quality.py
+
+Debt Quality分析モジュール（共通形式）
+
+### 修正
+
+data/data_fetcher.py
+
+Debt Quality関連フィールド追加
+
+interest_expense（支払利息、income_stmtから複数ラベル候補で取得）
+
+※debt_to_equity / total_debt / long_term_debt / short_term_debt / ebitda /
+operating_income は既存フィールドをそのまま再利用（重複取得なし）
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() に debt_quality を追加（is_full時）
+
+analysis/overall_eval.py
+
+_score_debt_quality() 追加（10点満点）
+
+判定基準を170点満点に合わせて全面更新（S:149 / A:124 / B:103 / C:82）
+
+ai/ai_analysis.py
+
+generate_debt_quality_analysis() 追加（Gemini評価、フォールバック付き）
+
+report/report.py
+
+create_debt_quality_display() 追加
+
+report/pdf_report.py
+
+PDFにDebt Qualityセクション追加
+
+app.py
+
+定性分析タブ + PDFダウンロードにDebt Quality表示追加
+
+（import / bundle展開 / 表示 / PDF引数の4箇所を編集）
+
+health_check.py
+
+Sprint24検証を追加（engines/analysis/ai/reportのimport確認、
+bundle["debt_quality"]がNoneでないこと、overall detailへの配線確認）
+
+### スコア配分（170点満点、Sprint24時点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点
+
+Intrinsic Value: 15点
+
+Capital Allocation: 10点
+
+Share Buyback: 10点
+
+Debt Quality: 10点（新規）
+
+### 判定基準（Sprint24更新後）
+
+S: 149点以上
+
+A: 124点以上
+
+B: 103点以上
+
+C: 82点以上
+
+D: 82点未満
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -775,10 +891,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint24
-
-Debt Quality
 
 Sprint25
 

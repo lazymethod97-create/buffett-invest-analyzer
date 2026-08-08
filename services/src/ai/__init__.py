@@ -17,6 +17,7 @@ from .ai_analysis import (
     generate_intrinsic_value_analysis,
     generate_capital_allocation_analysis,
     generate_share_buyback_analysis,
+    generate_debt_quality_analysis,
 )
 
 __all__ = [
@@ -37,5 +38,6 @@ __all__ = [
     "generate_intrinsic_value_analysis",
     "generate_capital_allocation_analysis",
     "generate_share_buyback_analysis",
+    "generate_debt_quality_analysis",
 ]
 

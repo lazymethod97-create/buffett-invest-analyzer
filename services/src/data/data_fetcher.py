@@ -117,6 +117,32 @@ def _extract_debt_history(stock) -> list:
     return []
 
 
+def _extract_interest_expense(stock) -> float:
+    """
+    支払利息（Interest Expense）を取得する（Sprint24、インタレスト・カバレッジ・レシオ用）。
+    損益計算書（income_stmt）から直近年度分を取得する。
+    yfinanceのバージョン・企業によってラベル名が揺れるため、複数の候補から探す。
+    取得できない場合はNoneを返す（絶対に例外を投げない）。
+    """
+    try:
+        stmt = stock.income_stmt
+        if stmt is None or stmt.empty:
+            return None
+        candidates = [
+            "Interest Expense",
+            "Interest Expense Non Operating",
+            "Net Interest Income",
+        ]
+        for label in candidates:
+            if label in stmt.index:
+                vals = stmt.loc[label].dropna()
+                if len(vals) > 0:
+                    return abs(float(vals.iloc[0]))
+    except Exception:
+        pass
+    return None
+
+
 def _extract_avg_price_5y(stock) -> float:
     """
     過去5年間の終値平均を取得する（Sprint23、PER水準比較用の簡易推定に使用）。
@@ -214,6 +240,9 @@ def get_stock_data(ticker: str) -> dict:
             "total_debt_history": _extract_debt_history(stock),
             "avg_price_5y": _extract_avg_price_5y(stock),
             "trailing_eps": info.get("trailingEps"),
+
+            # Sprint24: Debt Quality分析用データ
+            "interest_expense": _extract_interest_expense(stock),
         }
 
         return {"success": True, "error": None, "data": data}

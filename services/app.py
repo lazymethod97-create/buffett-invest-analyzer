@@ -35,6 +35,7 @@ from report import (
 	create_intrinsic_value_display,
 	create_capital_allocation_display,
 	create_share_buyback_display,
+	create_debt_quality_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -312,6 +313,7 @@ if (
 	intrinsic_value = bundle.get("intrinsic_value")
 	capital_allocation = bundle.get("capital_allocation")
 	share_buyback = bundle.get("share_buyback")
+	debt_quality = bundle.get("debt_quality")
 
 	currency = "¥" if data.get("country") == "Japan" else "$"
 	st.caption(f"現在の分析モード: **{current_mode}**")
@@ -512,6 +514,16 @@ if (
 			_mode_locked_message("🔎 フル（すべて）")
 
 		st.divider()
+		st.subheader("🏦 Debt Quality（負債の質）分析")
+		if is_full:
+			if debt_quality:
+				st.markdown(create_debt_quality_display(debt_quality))
+			else:
+				st.info("Debt Quality分析結果がありません。")
+		else:
+			_mode_locked_message("🔎 フル（すべて）")
+
+		st.divider()
 		st.subheader("🏷️ ブランド力評価")
 		if is_full:
 			st.markdown(create_brand_display(brand))
@@ -701,6 +713,7 @@ if (
 					intrinsic_value,
 					capital_allocation,
 					share_buyback,
+					debt_quality,
 				)
 				st.download_button(
 					"⬇️ PDFをダウンロード",
