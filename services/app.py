@@ -34,6 +34,7 @@ from report import (
 	create_owner_earnings_display,
 	create_intrinsic_value_display,
 	create_capital_allocation_display,
+	create_share_buyback_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -310,6 +311,7 @@ if (
 	owner_earnings = bundle.get("owner_earnings")
 	intrinsic_value = bundle.get("intrinsic_value")
 	capital_allocation = bundle.get("capital_allocation")
+	share_buyback = bundle.get("share_buyback")
 
 	currency = "¥" if data.get("country") == "Japan" else "$"
 	st.caption(f"現在の分析モード: **{current_mode}**")
@@ -496,6 +498,16 @@ if (
 				st.markdown(create_capital_allocation_display(capital_allocation))
 			else:
 				st.info("Capital Allocation分析結果がありません。")
+		else:
+			_mode_locked_message("🔎 フル（すべて）")
+
+		st.divider()
+		st.subheader("🔁 Share Buyback（自社株買い）分析")
+		if is_full:
+			if share_buyback:
+				st.markdown(create_share_buyback_display(share_buyback))
+			else:
+				st.info("Share Buyback分析結果がありません。")
 		else:
 			_mode_locked_message("🔎 フル（すべて）")
 
@@ -688,6 +700,7 @@ if (
 					owner_earnings,
 					intrinsic_value,
 					capital_allocation,
+					share_buyback,
 				)
 				st.download_button(
 					"⬇️ PDFをダウンロード",

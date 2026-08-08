@@ -15,6 +15,7 @@ from .roic import analyze_roic
 from .owner_earnings import analyze_owner_earnings
 from .intrinsic_value import analyze_intrinsic_value
 from .capital_allocation import analyze_capital_allocation
+from .share_buyback import analyze_share_buyback
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -28,6 +29,7 @@ from ai.ai_analysis import (
     generate_owner_earnings_analysis,
     generate_intrinsic_value_analysis,
     generate_capital_allocation_analysis,
+    generate_share_buyback_analysis,
 )
 
 
@@ -97,6 +99,7 @@ def create_analysis_bundle(
         "owner_earnings": None,
         "intrinsic_value": None,
         "capital_allocation": None,
+        "share_buyback": None,
         "overall": None,
     }
 
@@ -184,6 +187,20 @@ def create_analysis_bundle(
             )
             bundle["capital_allocation"] = _merge_ai_narrative(capital_allocation, ai_ca)
 
+            ####################################################
+            # Sprint23: Share Buyback分析
+            # Capital Allocationとは異なる評価軸（複数年の一貫性・株式数減少効果・
+            # 財務健全性とのバランス・PER水準比較）で、自社株買いそのものの
+            # 質・効果・一貫性を評価する。同じ形式（ルールベース基礎 + AI考察の上乗せ）。
+            ####################################################
+            share_buyback = analyze_share_buyback(data)
+            ai_sb = _safe_ai(
+                generate_share_buyback_analysis,
+                data,
+                share_buyback.get("raw", {}),
+            )
+            bundle["share_buyback"] = _merge_ai_narrative(share_buyback, ai_sb)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
@@ -200,6 +217,7 @@ def create_analysis_bundle(
         owner_earnings=bundle["owner_earnings"] or {},
         intrinsic_value=bundle["intrinsic_value"] or {},
         capital_allocation=bundle["capital_allocation"] or {},
+        share_buyback=bundle["share_buyback"] or {},
     )
 
     return bundle

@@ -126,6 +126,7 @@ def generate_pdf_report(
     owner_earnings: dict = None,
     intrinsic_value: dict = None,
     capital_allocation: dict = None,
+    share_buyback: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -307,6 +308,22 @@ def generate_pdf_report(
         pdf.add_bullet(f"自社株買いのタイミング（MOSとの突合）：{bb_score}/3点 - {ca_raw.get('buyback_detail', '')}")
     else:
         pdf.add_paragraph("Capital Allocation分析結果がありません。")
+    # Share Buyback（Sprint23）
+    pdf.add_heading("🔁 Share Buyback（自社株買い）分析")
+    if share_buyback and share_buyback.get("raw"):
+        sb_raw = share_buyback.get("raw", {})
+        pdf.add_paragraph(f"スコア：{share_buyback.get('score', 0)} / {share_buyback.get('max_score', 10)}点")
+        pdf.add_paragraph(f"評価：{share_buyback.get('summary', '')}")
+        co_score = sb_raw.get("consistency_score", 0)
+        rd_score = sb_raw.get("reduction_score", 0)
+        ba_score = sb_raw.get("balance_score", 0)
+        ti_score = sb_raw.get("timing_score", 0)
+        pdf.add_bullet(f"買い入れの一貫性：{co_score}/3点 - {sb_raw.get('consistency_detail', '')}")
+        pdf.add_bullet(f"発行済株式数の減少効果：{rd_score}/3点 - {sb_raw.get('reduction_detail', '')}")
+        pdf.add_bullet(f"財務健全性とのバランス：{ba_score}/2点 - {sb_raw.get('balance_detail', '')}")
+        pdf.add_bullet(f"買い入れの効果的なタイミング（PER水準）：{ti_score}/2点 - {sb_raw.get('timing_detail', '')}")
+    else:
+        pdf.add_paragraph("Share Buyback分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:

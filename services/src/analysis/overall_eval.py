@@ -118,22 +118,29 @@ def _score_capital_allocation(capital_allocation: Dict) -> int:
     return min(score, 10)
 
 
+def _score_share_buyback(share_buyback: Dict) -> int:
+    """Sprint23: Share Buybackスコア（10点満点）"""
+    score = share_buyback.get("score", 0) if share_buyback else 0
+    return min(score, 10)
+
+
 def _grade(score):
     """
-    Sprint22: 150点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
-    +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15+CapitalAllocation10）に合わせた判定基準。
+    Sprint23: 160点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15+CapitalAllocation10
+    +ShareBuyback10）に合わせた判定基準。
     """
 
-    if score >= 131:
+    if score >= 140:
         return "S"
 
-    if score >= 110:
+    if score >= 117:
         return "A"
 
-    if score >= 91:
+    if score >= 97:
         return "B"
 
-    if score >= 72:
+    if score >= 77:
         return "C"
 
     return "D"
@@ -141,16 +148,16 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 131:
+    if score >= 140:
         return 5
 
-    if score >= 110:
+    if score >= 117:
         return 4
 
-    if score >= 91:
+    if score >= 97:
         return 3
 
-    if score >= 72:
+    if score >= 77:
         return 2
 
     return 1
@@ -223,6 +230,7 @@ def calculate_overall_grade(
     owner_earnings=None,
     intrinsic_value=None,
     capital_allocation=None,
+    share_buyback=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -242,8 +250,9 @@ def calculate_overall_grade(
     s8 = _score_owner_earnings(owner_earnings) if owner_earnings else 0
     s9 = _score_intrinsic_value(intrinsic_value) if intrinsic_value else 0
     s10 = _score_capital_allocation(capital_allocation) if capital_allocation else 0
+    s11 = _score_share_buyback(share_buyback) if share_buyback else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11
 
     grade = _grade(total)
 
@@ -282,6 +291,7 @@ def calculate_overall_grade(
             "owner_earnings":s8,
             "intrinsic_value":s9,
             "capital_allocation":s10,
+            "share_buyback":s11,
 
         }
 
