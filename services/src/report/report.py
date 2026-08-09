@@ -800,3 +800,83 @@ def create_portfolio_risk_display(portfolio_risk: Dict[str, Any]) -> str:
             md += f"\n**総合結論:** {portfolio_risk.get('ai_conclusion')}\n"
 
     return md
+
+
+def create_watchlist_insights_display(insights: Dict[str, Any]) -> str:
+    """
+    Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）結果を
+    Markdown形式で表示する（Sprint28）。Portfolio Riskと異なり得点化は
+    行わないため、スコア・rating・警告条件による色分け等は扱わず、
+    ランキング表・集計表のみを表示する。
+    """
+    if not insights or not insights.get("success"):
+        summary = (insights or {}).get(
+            "summary", "Watchlist Insightsを表示するためのデータがありません。"
+        )
+        return f"*{summary}*\n"
+
+    md = "#### 📊 Watchlist Insights（ウォッチリスト横断分析）\n\n"
+    md += f"**{insights.get('summary', '')}**\n\n"
+
+    target_ranking = insights.get("target_price_ranking", [])
+    if target_ranking:
+        md += "#### 🎯 目標株価接近度ランキング（到達済み・近い順）\n"
+        md += "| 銘柄 | 現在値 | 目標株価 | 差分 | 状態 |\n|---|---|---|---|---|\n"
+        for t in target_ranking:
+            currency = t.get("currency", "")
+            diff_pct = t.get("diff_pct")
+            diff_text = f"{diff_pct:+.1f}%" if diff_pct is not None else "-"
+            status = "🎯 到達済み" if t.get("reached") else "未到達"
+            md += (
+                f"| {t.get('company_name', '')}（{t.get('ticker', '')}） | "
+                f"{currency}{t.get('current_price', 0):,.2f} | "
+                f"{currency}{t.get('target_price', 0):,.2f} | {diff_text} | {status} |\n"
+            )
+        no_target = insights.get("no_target_count", 0)
+        if no_target:
+            md += f"\n※目標株価が未設定の銘柄（{no_target}件）はランキング対象外です。\n"
+    else:
+        md += "#### 🎯 目標株価接近度ランキング\n"
+        md += "*目標株価を設定した銘柄がないため、ランキングを表示できません。*\n"
+
+    score_ranking = insights.get("score_ranking", [])
+    if score_ranking:
+        md += "\n#### 🏆 ウォッチリスト内 Buffett Score ランキング\n"
+        md += "| 銘柄 | Buffett Score | 判定 |\n|---|---|---|\n"
+        for s in score_ranking:
+            md += (
+                f"| {s.get('company_name', '')}（{s.get('ticker', '')}） | "
+                f"{s.get('score', 0)} / {s.get('max_score', 0)}点 | {s.get('verdict', '')} |\n"
+            )
+
+    sector_overlap = insights.get("sector_overlap", [])
+    if sector_overlap:
+        md += "\n#### 🗂 セクター別 件数（ウォッチリスト vs Portfolio、参考）\n"
+        md += "| セクター | ウォッチリスト件数 | Portfolio件数 | 重複 |\n|---|---|---|---|\n"
+        for s in sector_overlap:
+            overlap_mark = "⚠️ あり" if s.get("overlap") else "-"
+            md += (
+                f"| {s.get('sector', '')} | {s.get('watchlist_count', 0)} | "
+                f"{s.get('portfolio_count', 0)} | {overlap_mark} |\n"
+            )
+        md += (
+            "\n※時価評価額加重のHHI計算（Portfolio Riskで使用）ではなく、"
+            "単純な銘柄数の集計による参考情報です。\n"
+        )
+
+    md += "\n#### 計算方式\n```\n"
+    md += "Watchlist Insightsは得点化を行わない集計・ランキング表示のみの機能です。\n"
+    md += "・目標株価接近度: (現在値 - 目標株価) / 目標株価 × 100（マイナスまたは0は到達済み）\n"
+    md += "・Buffett Scoreランキング: 既存calculate_buffett_scoreの結果を降順ソート（再計算なし）\n"
+    md += "・セクター件数: ウォッチリスト・Portfolioそれぞれのsector値を単純カウント\n"
+    md += "・単一銘柄向けのBuffett Score（190点満点）や総合判定（BUY/WATCH/PASS）には\n"
+    md += "  含まれない、独立したウォッチリスト横断の参考情報です\n"
+    md += "```\n"
+
+    warnings = insights.get("warnings", [])
+    if warnings:
+        md += "\n#### 注意事項\n"
+        for w in warnings:
+            md += f"- {w}\n"
+
+    return md

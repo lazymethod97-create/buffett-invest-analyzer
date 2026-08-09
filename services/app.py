@@ -39,6 +39,7 @@ from report import (
 	create_moat_strength_display,
 	create_backtest_display,
 	create_portfolio_risk_display,
+	create_watchlist_insights_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -85,6 +86,14 @@ from earnings_material import extract_text_from_pdf
 ####################################################
 from analysis.portfolio_risk import analyze_portfolio_risk
 from report import generate_portfolio_pdf_report
+
+####################################################
+# Sprint28: Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）
+# Portfolio Risk（Sprint27）と同じく複数銘柄が評価単位のため独立機能とし、
+# 新パッケージ（analysis / report）から直接importする。得点化は行わない
+# （PROJECT_RULES.md / docs/AI_HANDOVER.md Sprint28セクション参照）。
+####################################################
+from analysis.watchlist_insights import build_watchlist_insights
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -1206,6 +1215,63 @@ if (
 					if col_e.button("🗑 削除", key=f"watchlist_delete_{w.id}"):
 						watchlist_manager.delete(w.id)
 						st.rerun()
+
+				####################################################
+				# 📊 Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）（Sprint28）
+				# 上で計算済みのwatchlist_rows（cached_get_stock_data /
+				# calculate_buffett_scoreの結果）をそのまま再利用する。新たな
+				# データ取得・スコア再計算は行わない（ルール14）。
+				# Portfolio Risk（Sprint27）と同じく複数銘柄が評価単位のため
+				# analysis_bundle / overall_eval（BUY/WATCH/PASS判定）には
+				# 組み込まない独立表示だが、Portfolio Riskとは異なり得点化は
+				# 行わない（集計・ランキング表示のみ。設計判断はきたと確認済み。
+				# 詳細はdocs/AI_HANDOVER.mdのSprint28セクションを参照）。
+				# AI考察（Gemini）も追加しない（数値が既に自己説明的であり、
+				# 得点化しない集計機能にまでAI呼び出しを増やす必要性が低いため）。
+				####################################################
+				st.divider()
+				st.subheader("📊 Watchlist Insights（ウォッチリスト横断分析）")
+				st.caption(
+					"ウォッチリスト登録銘柄全体を、目標株価接近度・Buffett Scoreの高さで"
+					"ランキング表示します。得点化は行わず、総合判定（BUY/WATCH/PASS）にも含まれません。"
+				)
+
+				# 保有銘柄（Portfolio）が未登録の場合、portfolio_rowsは定義されない
+				# （portfolio_holdings truthyのときのみ定義される）ため、その場合は
+				# 空リストとして扱う（セクター重複の参考表示なしで動作する）。
+				portfolio_rows_for_insights = portfolio_rows if portfolio_holdings else []
+
+				watchlist_insights_result = build_watchlist_insights(
+					watchlist_rows, portfolio_rows_for_insights
+				)
+
+				if not watchlist_insights_result.get("success"):
+					st.info(watchlist_insights_result.get("summary", "集計できるデータがありません。"))
+				else:
+					wi_col1, wi_col2, wi_col3 = st.columns(3)
+					wi_col1.metric(
+						"ウォッチリスト銘柄数",
+						f"{watchlist_insights_result['watchlist_count']}銘柄",
+					)
+					wi_target_ranking = watchlist_insights_result.get("target_price_ranking", [])
+					wi_reached = sum(1 for t in wi_target_ranking if t.get("reached"))
+					wi_col2.metric(
+						"目標株価 到達済み",
+						f"{wi_reached} / {len(wi_target_ranking)}件"
+						if wi_target_ranking
+						else "未設定",
+					)
+					wi_score_ranking = watchlist_insights_result.get("score_ranking", [])
+					wi_col3.metric(
+						"Buffett Score 集計対象",
+						f"{len(wi_score_ranking)}銘柄",
+					)
+
+					for w_warn in watchlist_insights_result.get("warnings", []):
+						st.warning(w_warn)
+
+					with st.expander("📋 詳細を見る（ランキング・セクター件数）", expanded=False):
+						st.markdown(create_watchlist_insights_display(watchlist_insights_result))
 
 	####################################################
 	# ⚖️ 比較分析タブ（Sprint15）

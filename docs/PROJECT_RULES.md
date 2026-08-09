@@ -334,3 +334,23 @@ overall_eval.pyには組み込まない、独立した10点満点の分析とし
 analysis_bundle.py → overall_eval.py → app.py → report/ → health_check.pyまで
 一通り配線すること（ルール11）。
 
+# 25.
+
+複数銘柄横断の分析（ルール24）は、必ずしもPortfolio Riskのような
+スコア・rating付きの「共通形式」（id/title/score/max_score/rating/summary/
+details/warnings）に従う必要はない。
+
+Watchlist Insights（Sprint28、analysis/watchlist_insights.py）は、
+複数銘柄横断（ウォッチリスト登録銘柄全体）でありながら得点化を行わない
+（build_watchlist_insights()の戻り値に"score"キーは含まれない）。単なる
+集計・ランキング表示であり、点数化する明確な唯一の評価基準が無い機能まで
+無理にスコアへ圧縮する必要はない、という判断による（詳細はdocs/AI_HANDOVER.md
+のSprint28セクションを参照）。
+
+今後、複数銘柄横断の新規機能を追加する際は、まず「点数化して優劣を判定する
+性質の機能か」「集計・ランキング等の参考表示にとどめるべき機能か」をきたに
+確認すること。前者であればPortfolio Risk（ルール24）と同じ共通形式に従い、
+後者であればWatchlist Insightsと同じく専用の戻り値形式でよい。いずれの場合も
+analysis_bundle.py / overall_eval.py（単一銘柄の190点満点スコア）には
+組み込まない。
+

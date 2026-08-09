@@ -124,6 +124,37 @@ def t_sprint27_members():
     print("   portfolio_risk smoke OK: score=", result["score"], "/", result["max_score"])
 check("Sprint27 members (portfolio_risk)", t_sprint27_members)
 
+# 3i) Sprint28 members (Watchlist Insights)
+def t_sprint28_members():
+    from analysis import build_watchlist_insights
+    from report.report import create_watchlist_insights_display
+    print("   watchlist_insights wired: analysis/report OK")
+    # Watchlist Insights is, like Portfolio Risk, a multi-ticker analysis and is
+    # intentionally NOT wired into create_analysis_bundle() / calculate_overall_grade().
+    # Unlike Portfolio Risk it does NOT produce a score (no score/max_score/rating) -
+    # see docs/AI_HANDOVER.md Sprint28 section for the design rationale.
+    class _FakeItem:
+        def __init__(self, ticker, target_price=None):
+            self.ticker = ticker
+            self.target_price = target_price
+            self.memo = ""
+            self.id = 1
+    rows = [
+        {"item": _FakeItem("AAPL", 190.0), "data": {"company_name": "Apple Inc.", "current_price": 200.0, "sector": "Technology", "country": "United States"}, "score_result": {"total_score": 140, "max_score": 190, "verdict": "A"}, "error": None},
+        {"item": _FakeItem("7203", 3000.0), "data": {"company_name": "トヨタ自動車", "current_price": 2500.0, "sector": "Consumer Cyclical", "country": "Japan"}, "score_result": {"total_score": 160, "max_score": 190, "verdict": "S"}, "error": None},
+        {"item": _FakeItem("MSFT", None), "data": {"company_name": "Microsoft", "current_price": 400.0, "sector": "Technology", "country": "United States"}, "score_result": {"total_score": 120, "max_score": 190, "verdict": "B"}, "error": None},
+    ]
+    result = build_watchlist_insights(rows, [])
+    assert result["success"] is True, "Sprint28 regression: build_watchlist_insights should succeed for non-empty watchlist"
+    assert result["watchlist_count"] == 3, "Sprint28 regression: watchlist_count mismatch"
+    assert "score" not in result, "Sprint28 regression: Watchlist Insights must NOT be score-based (no 'score' key)"
+    assert result["target_price_ranking"][0]["ticker"] == "7203", "Sprint28 regression: target price ranking order wrong (reached items should sort first)"
+    empty_result = build_watchlist_insights([], [])
+    assert empty_result["success"] is False, "Sprint28 regression: empty watchlist should return success=False"
+    _ = create_watchlist_insights_display(result)
+    print("   watchlist_insights smoke OK: watchlist_count=", result["watchlist_count"])
+check("Sprint28 members (watchlist_insights)", t_sprint28_members)
+
 # 4) bundle smoke (quick + full)
 def t_bundle():
     from analysis import create_analysis_bundle

@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint27完了。
+現在Sprint28完了。
 
-次回はSprint28（Watchlist）から開始。
+次回はSprint29（Performance改善）から開始。
 
 ---
 
@@ -1268,6 +1268,139 @@ Sprint26時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点
 
 ---
 
+# Sprint28 完了内容
+
+## Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）
+
+既存の「👀 ウォッチリスト」（Sprint14実装、target_price到達判定のみ）を拡張し、
+登録銘柄全体を横断した集計・ランキングを表示する機能。主目的は既存Sprint14機能の
+拡張（分析軸追加）であり、通知・アラート機能や新規タブの追加ではない。
+
+着手前にきたと以下を確認した（依頼書の指示どおり、実装前に方針を確定してから
+着手）。
+
+・主目的：既存Sprint14ウォッチリスト機能の拡張
+
+・評価単位：複数銘柄横断（Sprint27のPortfolio Riskと同じ設計判断を踏襲）
+
+・190点満点スコアへの影響：なし（200点満点への拡張は行わない）
+
+・得点化の要否：**しない**（Portfolio Riskとは異なる決定）
+
+### 設計上の重要な決定（1）：複数銘柄横断のため独立機能とする
+
+Sprint27のPortfolio Riskと同じ理由により、Watchlist Insightsも
+analysis_bundle.py / overall_eval.py（単一銘柄のBUY/WATCH/PASS判定）には
+組み込まない。ウォッチリスト全体の集計結果によって、個別銘柄の投資判断が
+変わるわけではないため、単一銘柄の総合判定に混ぜるのは設計として不整合になる。
+
+### 設計上の重要な決定（2）：Portfolio Riskと異なり得点化しない
+
+Portfolio Risk（Sprint27）は複数銘柄横断でありながら10点満点のスコア・rating
+を持つ「共通形式」（PROJECT_RULES.md Rule 12）で結果を返すが、Watchlist
+Insightsはスコア・rating・共通形式のいずれも持たない。理由：
+
+・目標株価接近度やBuffett Scoreの高さは、ランキング表示自体が既に
+　自己説明的であり、あらためて0〜10点のような合成スコアに圧縮する意味が薄い
+　（Portfolio Riskのセクター分散度のような「複数要素を1つの指標に集約する
+　必要がある」評価軸ではない）。
+・「ウォッチリストの質」を採点する明確な唯一の正解（例：分散されているほど
+　良い、といったPortfolio Riskのような一方向の評価基準）が無く、無理に
+　点数化すると恣意的な基準になりやすい。
+・得点化しないことで、`analysis_bundle.py`の共通形式（id/title/score/
+　max_score/rating/summary/details/warnings）に従う必要が無くなり、
+　実装・保守がシンプルになる。
+
+そのため、`analysis/watchlist_insights.py`の`build_watchlist_insights()`は
+共通形式に従わない専用の戻り値形式（target_price_ranking / score_ranking /
+sector_overlap 等）を返す。`engines/`にも計算エンジンを置いていない
+（数値計算はソート・差分%計算のみで、Portfolio Riskのような多段階の
+ルールベース採点ロジックが無いため、`analysis/watchlist_insights.py`内で
+完結させた）。
+
+### 表示内容（3項目、いずれもスコアなし）
+
+・目標株価接近度ランキング：目標株価を設定した銘柄を、
+　(現在値-目標株価)/目標株価×100 の昇順（到達済み＝マイナス値が先頭）で
+　ソート表示。目標株価未設定の銘柄はランキング対象外（no_target_countで件数のみ表示）。
+・ウォッチリスト内Buffett Scoreランキング：登録銘柄をBuffett Scoreの高い順に
+　ソート表示。既存の`calculate_buffett_score`の結果（score_result、Sprint14の
+　ウォッチリスト一覧で計算済み）をそのまま再利用し、新規のスコア計算は行わない
+　（ルール14）。
+・Portfolioとの重複・セクター構成 参考表示：保有銘柄（Portfolio）と同じ
+　セクターの銘柄がウォッチリストに含まれていないかを、単純な件数集計で表示。
+　Portfolio Riskのような時価評価額加重のHHI計算は行わない（得点化しない方針と
+　整合させ、あくまで参考情報にとどめる）。
+
+複数のシナリオ（通常ケース／ウォッチリスト0件／全銘柄データ取得エラー／
+目標株価と現在値が完全一致する境界値／portfolio_rows省略時）で検証済み。
+
+### AI考察（Gemini）は追加しない
+
+Portfolio Risk・Backtest等とは異なり、Watchlist Insightsには
+`generate_watchlist_insights_analysis()`のようなAI考察関数を追加していない。
+理由：
+
+・得点化しない設計であり、ランキングの数値自体が既に自己説明的なため、
+　AIによる解釈の付加価値が小さい。
+・Gemini呼び出しは必要最小限に留める方針（docs/AI_HANDOVER.md全体の方針）に
+　照らし、スコア化しない集計機能にまでAI呼び出しを追加するのは過剰。
+・個別銘柄をより深く知りたい場合は、既存のフルモード分析でAI考察を確認できる
+　（Watchlist Insightsは「どれから見るべきか」のトリアージという位置づけ）。
+
+将来的にニーズが生じた場合は、Sprint29以降で`ai_analysis.py`に追加する形で
+拡張可能（後方互換を壊さずに追加できる設計）。
+
+### PDF出力は今回追加しない
+
+Sprint14のウォッチリスト自体に元々PDF出力機能が無く、Portfolio Riskのように
+既存PDFへの追記対象も無い。得点化しないシンプルな集計機能であるため、
+Sprint28では新規のPDF生成関数を追加していない。必要になった場合は
+`report/pdf_report.py`に`generate_watchlist_insights_pdf_report()`のような
+形で追加できる（Portfolio Riskの`generate_portfolio_pdf_report()`と同様の
+パターンを踏襲すればよい）。
+
+### 新規作成
+
+analysis/watchlist_insights.py
+
+Watchlist Insights集計モジュール（共通形式には従わない）。
+`build_watchlist_insights(watchlist_rows, portfolio_rows=None)`。
+watchlist_rowsはapp.py「👀 ウォッチリスト」タブで既に構築済みの一覧
+（item/data/score_result/errorのリスト）をそのまま渡す。portfolio_rowsは
+「💼 Portfolio」タブの一覧（省略可、省略時はセクター重複表示なしで動作）。
+
+### 修正
+
+report/report.py
+
+create_watchlist_insights_display() 追加（目標株価接近度ランキング・
+Buffett Scoreランキング・セクター件数の3テーブルをMarkdownで表示）。
+
+app.py
+
+「👀 ウォッチリスト」セクション（Sprint14実装の一覧表示の直後）に
+「📊 Watchlist Insights」セクションを追加（import / 集計呼び出し / 表示の
+3箇所を編集）。保有銘柄（Portfolio）が未登録の場合はportfolio_rowsが
+未定義になるため、`portfolio_rows if portfolio_holdings else []`で
+安全に空リストへフォールバックしている。
+
+health_check.py
+
+Sprint28検証を追加（analysis/reportのimport確認、build_watchlist_insights()の
+スモークテスト。Portfolio Riskとの違いを明示するため、戻り値に"score"キーが
+含まれないことも検証している）。watchlist_insightsもportfolio_riskと同様、
+bundle（単一銘柄のcreate_analysis_bundle()の戻り値）には含まれない設計のため、
+bundleへの組み込み確認は行わない。
+
+### スコア配分（190点満点、Sprint28時点。変更なし）
+
+Sprint27時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）から
+変更なし。Watchlist Insightsは190点満点にもPortfolio Risk（10点満点）にも
+含まれない、得点を持たない独立した集計・ランキング表示機能。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -1287,10 +1420,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint28
-
-Watchlist
 
 Sprint29
 
