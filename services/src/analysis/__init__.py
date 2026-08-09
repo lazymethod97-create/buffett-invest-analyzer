@@ -13,6 +13,7 @@ from .share_buyback import analyze_share_buyback
 from .debt_quality import analyze_debt_quality
 from .moat_strength import analyze_moat_strength
 from .backtest import analyze_backtest
+from .portfolio_risk import analyze_portfolio_risk
 
 __all__ = [
     "calculate_overall_grade",
@@ -29,5 +30,6 @@ __all__ = [
     "analyze_debt_quality",
     "analyze_moat_strength",
     "analyze_backtest",
+    "analyze_portfolio_risk",
 ]
 

@@ -2275,3 +2275,98 @@ Backtestスコア：{total_score} / {max_score}点
         return result
     except Exception:
         return fallback
+
+
+def generate_portfolio_risk_analysis(portfolio_raw: dict) -> dict:
+    """
+    Sprint27: Portfolio Risk（保有ポートフォリオのリスク分散評価）分析のAI考察を生成する。
+
+    他のgenerate_X_analysis関数は単一銘柄のdata辞書を第一引数に取るが、本関数は
+    複数銘柄からなるポートフォリオ全体を評価対象とするため、単一銘柄のdataは
+    存在しない。代わりにengines.portfolio_risk_engine.calculate_portfolio_risk()の
+    戻り値（portfolio_raw）のみを引数に取る。
+    ルールベースの数値(portfolio_raw)は上書きせず、Geminiの考察
+    （buffet_view等）だけを返す。AI不可時はfallback。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    total_score = portfolio_raw.get("total_score", 0)
+    max_score = portfolio_raw.get("max_score", 10)
+    rating = portfolio_raw.get("rating", "unknown")
+
+    fallback = {
+        "buffet_view": "Portfolio Risk分析のAI考察は利用できませんでした。",
+        "competitive_advantage": "ルールベースの評価を参照してください。",
+        "capital_efficiency": "ルールベースの評価を参照してください。",
+        "improvement_area": "セクター分散度・銘柄集中度・地域分散度・保有銘柄数の充足度の4軸で確認してください。",
+        "conclusion": portfolio_raw.get("summary", "データ不足"),
+    }
+
+    if not api_key:
+        return fallback
+
+    try:
+        client = genai.Client(api_key=api_key)
+        raw = portfolio_raw.get("raw", {})
+        sector_weights = raw.get("sector_weights", {}) or {}
+        top_sectors = sorted(sector_weights.items(), key=lambda kv: kv[1], reverse=True)[:3]
+        top_sectors_text = "、".join(f"{s}（{w*100:.1f}%）" for s, w in top_sectors) or "データ不足"
+        max_holding_weight = raw.get("max_holding_weight") or 0
+
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
+
+以下は、ある個人投資家が保有している複数銘柄からなるポートフォリオ全体の
+リスク分散評価結果です。バフェット自身は「よく理解している少数の優良企業に
+集中投資すべき」という考えを持つ一方、個人投資家（特に自分で個別銘柄を
+深く分析する時間が無い層）に対しては「幅広い分散が望ましい」とも述べています。
+この二面性を踏まえて、バフェットの視点から簡潔に考察してください。
+
+保有銘柄数：{raw.get('holding_count', 0)}銘柄
+Portfolio Riskスコア：{total_score} / {max_score}点
+評価：{rating}
+所見：{portfolio_raw.get('summary', '')}
+
+セクター構成比（上位）：{top_sectors_text}
+最大保有銘柄の構成比：{max_holding_weight*100:.1f}%（{raw.get('max_holding_ticker', '')}）
+
+セクター分散度：{portfolio_raw.get('sector_detail', '')}
+銘柄集中度：{portfolio_raw.get('concentration_detail', '')}
+地域分散度：{portfolio_raw.get('region_detail', '')}
+保有銘柄数の充足度：{portfolio_raw.get('count_detail', '')}
+
+以下のJSON形式だけで回答してください。
+{{
+  "buffet_view": "バフェット的視点から100文字以内の所見（集中投資と分散のバランスを重視）",
+  "competitive_advantage": "50文字以内",
+  "capital_efficiency": "50文字以内",
+  "improvement_area": "改善点 50文字以内",
+  "conclusion": "総合結論 100文字以内"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "portfolio_risk"
+        result["title"] = "Portfolio Risk（保有ポートフォリオのリスク分散評価）AI評価"
+        result["score"] = total_score
+        result["max_score"] = max_score
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if total_score < 6:
+            result["warnings"].append("Portfolio Riskスコアが低く、特定のセクター・銘柄・地域への偏りが大きい状態です。")
+        return result
+    except Exception:
+        return fallback

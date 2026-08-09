@@ -317,3 +317,20 @@ Red Team等を含む）を再計算することが事実上不可能なため、
 （直近年のみ現在）までの約1年間」に統一する。決算期が古いほど保有期間が長くなり
 複利で見かけ上リターンが伸びる交絡（期間長の効果）を避けるためである。
 
+# 24.
+
+スコア配分（190点満点）はSprint26以降変更なし。Sprint27（Portfolio Risk）は
+190点満点に含めない。
+
+Portfolio Risk（保有ポートフォリオのリスク分散評価、engines/portfolio_risk_engine.py /
+analysis/portfolio_risk.py）は、Sprint19〜26までの全分析軸と異なり「複数銘柄からなる
+ポートフォリオ全体」を評価単位とする。単一銘柄の190点満点スコア・BUY/WATCH/PASS判定
+（overall_eval.py）とは評価単位が根本的に異なるため、analysis_bundle.py /
+overall_eval.pyには組み込まない、独立した10点満点の分析として実装する。
+
+今後、複数銘柄・ポートフォリオ全体を評価単位とする機能を追加する場合も、
+単一銘柄の190点満点スコアには含めず、同様に独立した分析として実装すること。
+逆に、単一銘柄を評価単位とする新規分析軸は、Sprint19〜26と同様に
+analysis_bundle.py → overall_eval.py → app.py → report/ → health_check.pyまで
+一通り配線すること（ルール11）。
+

@@ -93,6 +93,37 @@ def t_sprint26_members():
     print("   backtest wired: engine/analysis/ai/report OK")
 check("Sprint26 members (backtest)", t_sprint26_members)
 
+# 3h) Sprint27 members (Portfolio Risk)
+def t_sprint27_members():
+    from engines import calculate_portfolio_risk
+    from analysis import analyze_portfolio_risk
+    from ai.ai_analysis import generate_portfolio_risk_analysis
+    from report.report import create_portfolio_risk_display
+    from report.pdf_report import generate_portfolio_pdf_report
+    print("   portfolio_risk wired: engine/analysis/ai/report/pdf OK")
+    # Portfolio Risk is a portfolio-level analysis (multiple tickers), unlike
+    # every other Sprint19-26 axis (single ticker). It is intentionally NOT
+    # wired into create_analysis_bundle() / calculate_overall_grade() -
+    # see docs/AI_HANDOVER.md Sprint27 section for the design rationale.
+    # A quick smoke test of the engine/analysis functions with fake holdings:
+    class _FakeHolding:
+        def __init__(self, ticker, shares):
+            self.ticker = ticker
+            self.shares = shares
+            self.id = 1
+    rows = [
+        {"holding": _FakeHolding("AAPL", 5), "data": {"company_name": "Apple Inc.", "current_price": 200.0, "sector": "Technology", "country": "United States"}, "score_result": {"total_score": 140, "max_score": 190}, "error": None},
+        {"holding": _FakeHolding("7203", 100), "data": {"company_name": "トヨタ自動車", "current_price": 2500.0, "sector": "Consumer Cyclical", "country": "Japan"}, "score_result": {"total_score": 160, "max_score": 190}, "error": None},
+    ]
+    result = analyze_portfolio_risk(rows, generate_ai_narrative=False)
+    assert result["max_score"] == 10, "Sprint27 regression: portfolio_risk max_score should be 10"
+    assert result["raw"]["raw"]["holding_count"] == 2, "Sprint27 regression: holding_count mismatch"
+    _ = create_portfolio_risk_display(result)
+    _pdf = generate_portfolio_pdf_report(result)
+    assert _pdf, "Sprint27 regression: generate_portfolio_pdf_report returned empty bytes"
+    print("   portfolio_risk smoke OK: score=", result["score"], "/", result["max_score"])
+check("Sprint27 members (portfolio_risk)", t_sprint27_members)
+
 # 4) bundle smoke (quick + full)
 def t_bundle():
     from analysis import create_analysis_bundle

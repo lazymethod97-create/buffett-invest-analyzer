@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint26完了。
+現在Sprint27完了。
 
-次回はSprint27（Portfolio Analyzer）から開始。
+次回はSprint28（Watchlist）から開始。
 
 ---
 
@@ -1159,6 +1159,115 @@ D: 92点未満
 
 ---
 
+# Sprint27 完了内容
+
+## Portfolio Risk（保有ポートフォリオのリスク分散評価）分析
+
+「保有銘柄全体として、リスクがどれだけ分散されているか」を評価する機能。
+主目的はリスク分散評価（セクター・銘柄・地域の集中度の偏り検出）。
+
+### 設計上の重要な決定（単一銘柄向けスコアに含めない）
+
+Sprint19〜26のすべての分析軸（ROIC・Owner Earnings・Backtest等）は「単一銘柄」を
+評価単位とし、190点満点のBuffett Scoreに積み上げてBUY/WATCH/PASSを判定する
+（overall_eval.py）。一方、Portfolio Riskは「複数銘柄からなるポートフォリオ全体」を
+評価単位とするため、単一銘柄の総合判定に組み込むのは設計として不整合になる
+（例：ポートフォリオの分散度が低いからといって、個別銘柄Aの投資判断
+BUY/WATCH/PASSが変わるわけではない）。
+
+そのため、Portfolio Riskはanalysis_bundle.py / overall_eval.pyには一切組み込まず、
+独立した10点満点のポートフォリオレベル分析として実装した（200点満点への拡張は
+行っていない。190点満点・判定基準（S:167/A:138/B:115/C:92）は変更なし）。
+
+### 既存「💼 Portfolio」タブ（Sprint13〜16）との関係
+
+新規タブとして分離せず、既存の「💼 Portfolio」タブ内の「📋 保有銘柄一覧」の下に
+新セクション「🎯 Portfolio Risk」として追加した。理由：
+
+・既存タブが既にcached_get_stock_data / calculate_buffett_scoreで各保有銘柄の
+　sector・country・current_price・Buffett Scoreを取得済み（portfolio_rows）であり、
+　これをそのまま再利用できる（重複実装禁止・ルール14。新規のデータ取得関数は
+　一切追加していない）。
+・分析対象となる「保有銘柄」の登録・削除UIと、その分析結果を同一画面内に
+　置く方が自然。
+
+### 評価軸（4観点、合計10点）
+
+・セクター分散度（3点）: 時価評価額ベースのセクター別構成比のHHI
+　（ハーフィンダール・ハーシュマン指数）で評価。
+・銘柄集中度（3点）: 時価評価額ベースで最大の構成比を持つ1銘柄の比率で評価。
+　セクター分散度とは異なり、個別銘柄単位での偏りを検証する（同一セクター内で
+　あっても特定1社への集中を捕捉できる）。
+・地域分散度（2点）: 国内（日本）／海外の構成比の内訳で評価。
+・保有銘柄数の充足度（2点）: 分散効果を得るために必要な最低限の銘柄数
+　（4銘柄未満は0点、8銘柄以上で満点）が確保されているかで評価。
+
+複数のシナリオ（0銘柄・1銘柄集中・8銘柄均等分散・同一セクターへの多銘柄集中・
+一部データ取得失敗）で検証済み。「同一セクターに銘柄数だけ多い」ケースで
+セクター分散度が正しく0点になり、銘柄数の多さだけでは高スコアにならないこと
+（軸間の交絡が無いこと）を確認した。
+
+参考情報として、保有銘柄の時価評価額加重平均Buffett Score
+（weighted_avg_buffett_score）も算出しているが、これはPortfolio Riskスコア
+（10点満点）には含まれない、あくまで参考値。既存のscore_result
+（app.py側で計算済み）を再利用するのみで、新たなスコア計算は行っていない。
+
+### 新規作成
+
+engines/portfolio_risk_engine.py
+
+Portfolio Risk計算エンジン（ルールベース）。calculate_portfolio_risk(holdings)。
+
+analysis/portfolio_risk.py
+
+Portfolio Risk分析モジュール（共通形式）。analyze_portfolio_risk(portfolio_rows,
+generate_ai_narrative=False)。portfolio_rowsはapp.py「💼 Portfolio」タブで
+既に構築済みの一覧（holding/data/score_result/errorのリスト）をそのまま渡す。
+generate_ai_narrative=Trueのときのみ_safe_ai経由でGeminiを呼び出す
+（AI考察のコスト制御のため、既定はFalse）。
+
+### 修正
+
+ai/ai_analysis.py
+
+generate_portfolio_risk_analysis(portfolio_raw) 追加。他のgenerate_X_analysisは
+単一銘柄のdataを第一引数に取るが、本関数はポートフォリオ全体のraw結果のみを
+引数に取る点が異なる（単一銘柄のdataが存在しないため）。
+
+report/report.py
+
+create_portfolio_risk_display() 追加（セクター別・国別・銘柄別構成比の
+一覧テーブルを含む）
+
+report/pdf_report.py
+
+generate_portfolio_pdf_report() 追加。単一銘柄向けgenerate_pdf_report()とは
+別の独立したPDF生成関数（PDFBuilderクラスは再利用）。
+
+app.py
+
+「💼 Portfolio」タブに「🎯 Portfolio Risk」セクションを追加
+（import / 表示 / AI考察ボタン / PDFダウンロードボタンの4箇所を編集）。
+Gemini呼び出しは「🤖 AIによる考察を追加する」ボタン押下時のみに限定し、
+タブの再描画のたびに自動実行しないようにした（既存のフルモード等と同様、
+コスト制御のため）。保有銘柄の構成（ティッカー集合）が変わった場合は、
+session_stateに保持していた古いAI考察を破棄する。
+
+health_check.py
+
+Sprint27検証を追加（engines/analysis/ai/report/pdfのimport確認、
+analyze_portfolio_risk()のスモークテスト）。portfolio_riskはbundle（単一銘柄の
+create_analysis_bundle()の戻り値）には含まれない設計のため、Sprint19〜26と
+異なりbundleへの組み込み確認は行わない。
+
+### スコア配分（190点満点、Sprint27時点。変更なし）
+
+Sprint26時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）から
+変更なし。Portfolio Riskは190点満点の外側にある、独立した10点満点の
+ポートフォリオレベル分析。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -1178,10 +1287,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint27
-
-Portfolio Analyzer
 
 Sprint28
 

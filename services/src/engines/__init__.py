@@ -10,6 +10,7 @@ from .share_buyback_engine import calculate_share_buyback
 from .debt_quality_engine import calculate_debt_quality
 from .moat_strength_engine import calculate_moat_strength
 from .backtest_engine import calculate_backtest
+from .portfolio_risk_engine import calculate_portfolio_risk
 
 __all__ = [
     "calculate_buffett_score",
@@ -23,5 +24,6 @@ __all__ = [
     "calculate_debt_quality",
     "calculate_moat_strength",
     "calculate_backtest",
+    "calculate_portfolio_risk",
 ]
 

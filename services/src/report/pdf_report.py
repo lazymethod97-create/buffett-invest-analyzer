@@ -394,3 +394,118 @@ def generate_pdf_report(
     )
 
     return pdf.save()
+
+
+####################################################
+# Portfolio Riskレポート（Sprint27）
+# 単一銘柄向けのgenerate_pdf_report()とは別の、独立したポートフォリオ全体向け
+# PDFレポート。PDFBuilder（上で定義済み）はそのまま再利用し、
+# 新たなPDF組み立てクラスは作らない（ルール14）。
+####################################################
+def generate_portfolio_pdf_report(portfolio_risk: dict) -> bytes:
+    """
+    Sprint27: Portfolio Risk（保有ポートフォリオのリスク分散評価）分析結果を
+    PDFレポートとして出力する。戻り値はPDFバイナリデータ
+    （st.download_buttonにそのまま渡せる）。
+
+    引数
+    ----
+    portfolio_risk: analysis.portfolio_risk.analyze_portfolio_risk()の戻り値
+        （共通形式。raw配下にengines.portfolio_risk_engine.calculate_portfolio_risk()
+        の戻り値をそのまま保持する）。
+    """
+    pdf = PDFBuilder()
+
+    raw = (portfolio_risk or {}).get("raw", {})
+    engine_raw = raw.get("raw", {})
+
+    # 表紙
+    pdf.add_title("Buffett Investment Analyzer")
+    pdf.add_paragraph("Portfolio Risk（保有ポートフォリオのリスク分散評価）レポート")
+    pdf.add_divider()
+
+    if not engine_raw.get("holding_count"):
+        pdf.add_heading("📊 Portfolio Risk")
+        pdf.add_paragraph(
+            (portfolio_risk or {}).get("summary", "分析可能な保有銘柄がありません。")
+        )
+        pdf.add_paragraph(
+            "⚠️ 本レポートは投資の参考情報です。実際の投資判断はご自身の責任で行ってください。",
+            size=8,
+        )
+        return pdf.save()
+
+    # Portfolio Riskスコア
+    pdf.add_heading("📊 Portfolio Riskスコア")
+    pdf.add_paragraph(
+        f"総合スコア：{portfolio_risk.get('score', 0)} / {portfolio_risk.get('max_score', 10)}点"
+    )
+    pdf.add_paragraph(f"評価：{portfolio_risk.get('summary', '')}")
+
+    weighted_avg = raw.get("weighted_avg_buffett_score")
+    weighted_max = raw.get("weighted_avg_buffett_max_score")
+    if weighted_avg is not None and weighted_max:
+        pdf.add_paragraph(
+            f"（参考）保有銘柄の加重平均Buffett Score：{weighted_avg:.1f} / {weighted_max}点"
+            "　※Portfolio Riskスコアには含まれません。"
+        )
+    pdf.add_divider()
+
+    # 4つの評価軸
+    pdf.add_heading("📋 評価軸詳細")
+    pdf.add_bullet(f"セクター分散度：{raw.get('sector_score', 0)}/3点 - {raw.get('sector_detail', '')}")
+    pdf.add_bullet(f"銘柄集中度：{raw.get('concentration_score', 0)}/3点 - {raw.get('concentration_detail', '')}")
+    pdf.add_bullet(f"地域分散度：{raw.get('region_score', 0)}/2点 - {raw.get('region_detail', '')}")
+    pdf.add_bullet(f"保有銘柄数の充足度：{raw.get('count_score', 0)}/2点 - {raw.get('count_detail', '')}")
+    pdf.add_divider()
+
+    # セクター別構成比
+    pdf.add_heading("🏭 セクター別構成比")
+    sector_weights = engine_raw.get("sector_weights", {})
+    for sector, w in sorted(sector_weights.items(), key=lambda kv: kv[1], reverse=True):
+        pdf.add_bullet(f"{sector}：{w*100:.1f}%")
+    pdf.add_divider()
+
+    # 国・地域別構成比
+    pdf.add_heading("🌏 国・地域別構成比")
+    country_weights = engine_raw.get("country_weights", {})
+    for country, w in sorted(country_weights.items(), key=lambda kv: kv[1], reverse=True):
+        pdf.add_bullet(f"{country}：{w*100:.1f}%")
+    pdf.add_divider()
+
+    # 保有銘柄別構成比
+    pdf.add_heading("📈 保有銘柄別構成比")
+    holding_weights = engine_raw.get("holding_weights", [])
+    for w in sorted(holding_weights, key=lambda x: x["weight"], reverse=True):
+        pdf.add_bullet(
+            f"{w.get('company_name', w.get('ticker',''))}（{w.get('ticker','')}）："
+            f"{w.get('weight',0)*100:.1f}%　[{w.get('sector','')}／{w.get('country','')}]"
+        )
+    pdf.add_divider()
+
+    # 警告
+    warnings = portfolio_risk.get("warnings", [])
+    if warnings:
+        pdf.add_heading("⚠️ 警告")
+        for w in warnings:
+            pdf.add_bullet(w)
+        pdf.add_divider()
+
+    # AI考察
+    buffet_view = portfolio_risk.get("buffet_view")
+    if buffet_view:
+        pdf.add_heading("🤖 AI考察（バフェット視点）")
+        pdf.add_paragraph(buffet_view)
+        if portfolio_risk.get("improvement_area"):
+            pdf.add_paragraph(f"改善点：{portfolio_risk.get('improvement_area')}")
+        if portfolio_risk.get("ai_conclusion"):
+            pdf.add_paragraph(f"総合結論：{portfolio_risk.get('ai_conclusion')}")
+        pdf.add_divider()
+
+    pdf.add_paragraph(
+        "⚠️ 本レポートは投資の参考情報です。実際の投資判断はご自身の責任で行ってください。"
+        "通貨は銘柄ごとに異なる場合があるため、構成比は時価評価額ベースの参考値です。",
+        size=8,
+    )
+
+    return pdf.save()

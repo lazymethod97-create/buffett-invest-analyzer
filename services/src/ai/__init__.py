@@ -20,6 +20,7 @@ from .ai_analysis import (
     generate_debt_quality_analysis,
     generate_moat_strength_analysis,
     generate_backtest_analysis,
+    generate_portfolio_risk_analysis,
 )
 
 __all__ = [
@@ -43,5 +44,6 @@ __all__ = [
     "generate_debt_quality_analysis",
     "generate_moat_strength_analysis",
     "generate_backtest_analysis",
+    "generate_portfolio_risk_analysis",
 ]
 

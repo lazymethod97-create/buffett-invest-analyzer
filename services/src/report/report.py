@@ -706,3 +706,97 @@ def create_backtest_display(backtest: Dict[str, Any]) -> str:
         for w in warnings:
             md += f"- {w}\n"
     return md
+
+
+def create_portfolio_risk_display(portfolio_risk: Dict[str, Any]) -> str:
+    """
+    Portfolio Risk（保有ポートフォリオのリスク分散評価）分析結果をMarkdown形式で
+    表示する（Sprint27）。単一銘柄向けの各create_X_displayとは異なり、複数銘柄
+    からなるポートフォリオ全体を対象とする。
+    """
+    if not portfolio_risk:
+        return "*Portfolio Risk分析結果がありません。*\n"
+
+    raw = portfolio_risk.get("raw", {})
+    # raw はengines.portfolio_risk_engine.calculate_portfolio_risk()の戻り値
+    # （engine_result）をそのまま保持しており、engine_result自身の詳細データ
+    # （銘柄別構成比等）はさらにその内側の raw["raw"] にネストされている
+    # （Sprint26 create_backtest_displayと同じ構造）。
+    engine_raw = raw.get("raw", {})
+    if not engine_raw.get("holding_count"):
+        return f"*{portfolio_risk.get('summary', 'Portfolio Risk分析結果がありません。')}*\n"
+
+    sector_score = raw.get("sector_score", 0)
+    sector_detail = raw.get("sector_detail", "")
+    concentration_score = raw.get("concentration_score", 0)
+    concentration_detail = raw.get("concentration_detail", "")
+    region_score = raw.get("region_score", 0)
+    region_detail = raw.get("region_detail", "")
+    count_score = raw.get("count_score", 0)
+    count_detail = raw.get("count_detail", "")
+
+    md = "#### Portfolio Risk（保有ポートフォリオのリスク分散評価）分析\n\n"
+    md += f"**スコア:** {portfolio_risk.get('score', 0)} / {portfolio_risk.get('max_score', 10)}点\n\n"
+    md += f"**評価:** {portfolio_risk.get('summary', '')}\n\n"
+
+    weighted_avg = raw.get("weighted_avg_buffett_score")
+    weighted_max = raw.get("weighted_avg_buffett_max_score")
+    if weighted_avg is not None and weighted_max:
+        md += (
+            f"**（参考）保有銘柄の加重平均Buffett Score:** {weighted_avg:.1f} / {weighted_max}点"
+            "　※時価評価額で加重。Portfolio Riskスコアそのものには含まれません。\n\n"
+        )
+
+    md += "#### 4つの評価軸\n"
+    md += f"- **セクター分散度:** {sector_score} / 3点\n  - {sector_detail}\n"
+    md += f"- **銘柄集中度:** {concentration_score} / 3点\n  - {concentration_detail}\n"
+    md += f"- **地域分散度:** {region_score} / 2点\n  - {region_detail}\n"
+    md += f"- **保有銘柄数の充足度:** {count_score} / 2点\n  - {count_detail}\n"
+
+    sector_weights = engine_raw.get("sector_weights", {})
+    if sector_weights:
+        md += "\n#### セクター別構成比（時価評価額ベース）\n"
+        md += "| セクター | 構成比 |\n|---|---|\n"
+        for sector, w in sorted(sector_weights.items(), key=lambda kv: kv[1], reverse=True):
+            md += f"| {sector} | {w*100:.1f}% |\n"
+
+    country_weights = engine_raw.get("country_weights", {})
+    if country_weights:
+        md += "\n#### 国・地域別構成比（時価評価額ベース）\n"
+        md += "| 国・地域 | 構成比 |\n|---|---|\n"
+        for country, w in sorted(country_weights.items(), key=lambda kv: kv[1], reverse=True):
+            md += f"| {country} | {w*100:.1f}% |\n"
+
+    holding_weights = engine_raw.get("holding_weights", [])
+    if holding_weights:
+        md += "\n#### 保有銘柄別構成比（時価評価額ベース）\n"
+        md += "| 銘柄 | セクター | 国・地域 | 構成比 |\n|---|---|---|---|\n"
+        for w in sorted(holding_weights, key=lambda x: x["weight"], reverse=True):
+            md += f"| {w.get('company_name', w.get('ticker',''))}（{w.get('ticker','')}） | {w.get('sector','')} | {w.get('country','')} | {w.get('weight',0)*100:.1f}% |\n"
+
+    md += "\n#### 計算方式\n```\n"
+    md += "Portfolio Risk = セクター分散度(3) + 銘柄集中度(3) + 地域分散度(2) + 保有銘柄数の充足度(2)\n"
+    md += "・セクター分散度: セクター別構成比のHHI（ハーフィンダール・ハーシュマン指数）で評価\n"
+    md += "・銘柄集中度: 時価評価額ベースで最大の構成比を持つ1銘柄の比率で評価\n"
+    md += "・地域分散度: 国内（日本）／海外の構成比の内訳で評価\n"
+    md += "・保有銘柄数の充足度: 分散効果を得るために必要な最低限の銘柄数が確保されているかで評価\n"
+    md += "・単一銘柄向けのBuffett Score（190点満点）とは評価単位が異なるため、\n"
+    md += "  総合判定（BUY/WATCH/PASS）には含まれない、独立したポートフォリオ分析です\n"
+    md += "```\n"
+
+    warnings = portfolio_risk.get("warnings", [])
+    if warnings:
+        md += "\n#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+
+    buffet_view = portfolio_risk.get("buffet_view")
+    if buffet_view:
+        md += "\n#### 🤖 AI考察（バフェット視点）\n"
+        md += f"{buffet_view}\n"
+        if portfolio_risk.get("improvement_area"):
+            md += f"\n**改善点:** {portfolio_risk.get('improvement_area')}\n"
+        if portfolio_risk.get("ai_conclusion"):
+            md += f"\n**総合結論:** {portfolio_risk.get('ai_conclusion')}\n"
+
+    return md

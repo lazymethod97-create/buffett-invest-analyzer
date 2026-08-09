@@ -38,6 +38,7 @@ from report import (
 	create_debt_quality_display,
 	create_moat_strength_display,
 	create_backtest_display,
+	create_portfolio_risk_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -74,6 +75,16 @@ from news_fetcher import get_latest_news
 from pdf_report import generate_pdf_report
 from dcf_analysis import calculate_dcf
 from earnings_material import extract_text_from_pdf
+
+####################################################
+# Sprint27: Portfolio Risk（保有ポートフォリオのリスク分散評価）
+# 単一銘柄向けの分析（analysis_bundle経由）とは評価単位が異なる独立機能のため、
+# 旧配置ラッパー（data_fetcher.py等）は触らず、新パッケージ（analysis / report）
+# から直接importする。generate_portfolio_pdf_reportはreportパッケージが
+# 再エクスポート済み（services/src/report/__init__.py）。
+####################################################
+from analysis.portfolio_risk import analyze_portfolio_risk
+from report import generate_portfolio_pdf_report
 
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
@@ -985,6 +996,97 @@ if (
 					if col_g.button("🗑 削除", key=f"portfolio_delete_{h.id}"):
 						portfolio_manager.delete(h.id)
 						st.rerun()
+
+			st.divider()
+
+			####################################################
+			# 🎯 Portfolio Risk（保有ポートフォリオのリスク分散評価）分析（Sprint27）
+			# 上で計算済みのportfolio_rows（cached_get_stock_data /
+			# calculate_buffett_scoreの結果）をそのまま再利用する。新たな
+			# データ取得・スコア再計算は行わない（ルール14）。
+			# 単一銘柄向けのBuffett Score（190点満点）とは評価単位が異なる
+			# （複数銘柄からなるポートフォリオ全体が対象）ため、既存の
+			# analysis_bundle / overall_eval（BUY/WATCH/PASS判定）には
+			# 組み込まない、独立した分析として表示する。
+			# Gemini呼び出しはボタン押下時のみに限定し、タブの再描画のたびに
+			# 自動実行しない（既存のフルモード等と同様、コストを抑えるため）。
+			####################################################
+			st.subheader("🎯 Portfolio Risk（保有ポートフォリオのリスク分散評価）")
+			st.caption(
+				"保有銘柄全体として、セクター・銘柄・地域のリスクがどれだけ分散されているかを評価します。"
+				"単一銘柄のBuffett Scoreとは別軸の評価であり、総合判定（BUY/WATCH/PASS）には含まれません。"
+			)
+
+			# 保有銘柄の構成（ティッカー集合）が変わったら、古いAI考察は破棄する
+			# （銘柄追加・削除後に、以前の構成に基づく考察が誤って表示されるのを防ぐ）
+			portfolio_signature = tuple(sorted(h.ticker for h in portfolio_holdings))
+			if st.session_state.get("portfolio_risk_signature") != portfolio_signature:
+				st.session_state.portfolio_risk_ai = None
+				st.session_state.portfolio_risk_signature = portfolio_signature
+			if "portfolio_risk_ai" not in st.session_state:
+				st.session_state.portfolio_risk_ai = None
+
+			portfolio_risk_result = analyze_portfolio_risk(portfolio_rows, generate_ai_narrative=False)
+
+			if st.session_state.portfolio_risk_ai:
+				portfolio_risk_result.update(st.session_state.portfolio_risk_ai)
+
+			pr_engine_raw = portfolio_risk_result.get("raw", {}).get("raw", {})
+			if not pr_engine_raw.get("holding_count"):
+				st.info(portfolio_risk_result.get("summary", "分析可能な保有銘柄がありません。"))
+			else:
+				pr_col1, pr_col2, pr_col3 = st.columns(3)
+				pr_col1.metric(
+					"Portfolio Riskスコア",
+					f"{portfolio_risk_result['score']} / {portfolio_risk_result['max_score']}点",
+				)
+				pr_weighted_avg = portfolio_risk_result.get("raw", {}).get("weighted_avg_buffett_score")
+				pr_weighted_max = portfolio_risk_result.get("raw", {}).get("weighted_avg_buffett_max_score")
+				if pr_weighted_avg is not None and pr_weighted_max:
+					pr_col2.metric(
+						"（参考）加重平均Buffett Score",
+						f"{pr_weighted_avg:.1f} / {pr_weighted_max}点",
+					)
+				pr_col3.metric("保有銘柄数（分析対象）", f"{pr_engine_raw.get('holding_count', 0)}銘柄")
+
+				st.write(portfolio_risk_result.get("summary", ""))
+
+				for w in portfolio_risk_result.get("warnings", []):
+					st.warning(w)
+
+				with st.expander("📋 詳細を見る（セクター・地域・銘柄別構成比）", expanded=False):
+					st.markdown(create_portfolio_risk_display(portfolio_risk_result))
+
+				pr_ai_col1, pr_ai_col2 = st.columns(2)
+				with pr_ai_col1:
+					if st.button("🤖 AIによる考察を追加する", key="portfolio_risk_ai_button"):
+						with st.spinner("Geminiが考察を生成中..."):
+							ai_added_result = analyze_portfolio_risk(
+								portfolio_rows, generate_ai_narrative=True
+							)
+						st.session_state.portfolio_risk_ai = {
+							k: ai_added_result.get(k)
+							for k in ("buffet_view", "competitive_advantage", "capital_efficiency",
+									  "improvement_area", "ai_conclusion")
+							if ai_added_result.get(k)
+						}
+						st.rerun()
+
+				if portfolio_risk_result.get("buffet_view"):
+					st.markdown("#### 🤖 AI考察（バフェット視点）")
+					st.write(portfolio_risk_result["buffet_view"])
+					if portfolio_risk_result.get("improvement_area"):
+						st.caption(f"改善点：{portfolio_risk_result['improvement_area']}")
+
+				with pr_ai_col2:
+					pr_pdf_bytes = generate_portfolio_pdf_report(portfolio_risk_result)
+					st.download_button(
+						label="📄 Portfolio Risk PDFをダウンロード",
+						data=pr_pdf_bytes,
+						file_name="portfolio_risk_report.pdf",
+						mime="application/pdf",
+						key="portfolio_risk_pdf_download",
+					)
 
 		####################################################
 		# 👀 ウォッチリスト（Sprint14）
