@@ -84,6 +84,15 @@ def t_sprint25_members():
     print("   moat_strength wired: engine/analysis/ai/report OK")
 check("Sprint25 members (moat_strength)", t_sprint25_members)
 
+# 3g) Sprint26 members (Backtest)
+def t_sprint26_members():
+    from engines import calculate_backtest
+    from analysis import analyze_backtest
+    from ai.ai_analysis import generate_backtest_analysis
+    from report.report import create_backtest_display
+    print("   backtest wired: engine/analysis/ai/report OK")
+check("Sprint26 members (backtest)", t_sprint26_members)
+
 # 4) bundle smoke (quick + full)
 def t_bundle():
     from analysis import create_analysis_bundle
@@ -101,6 +110,7 @@ def t_bundle():
     assert bf["share_buyback"] is not None, "Sprint23 regression: bundle['share_buyback'] is None in full mode"
     assert bf["debt_quality"] is not None, "Sprint24 regression: bundle['debt_quality'] is None in full mode"
     assert bf["moat_strength"] is not None, "Sprint25 regression: bundle['moat_strength'] is None in full mode"
+    assert bf["backtest"] is not None, "Sprint26 regression: bundle['backtest'] is None in full mode"
     assert bf["overall"]["detail"].get("roic", 0) >= 0, "roic score missing from overall detail"
     assert bf["overall"]["detail"].get("owner_earnings", 0) >= 0, "owner_earnings score missing from overall detail"
     assert bf["overall"]["detail"].get("intrinsic_value", 0) >= 0, "intrinsic_value score missing from overall detail"
@@ -108,13 +118,15 @@ def t_bundle():
     assert bf["overall"]["detail"].get("share_buyback", 0) >= 0, "share_buyback score missing from overall detail"
     assert bf["overall"]["detail"].get("debt_quality", 0) >= 0, "debt_quality score missing from overall detail"
     assert bf["overall"]["detail"].get("moat_strength", 0) >= 0, "moat_strength score missing from overall detail"
+    assert bf["overall"]["detail"].get("backtest", 0) >= 0, "backtest score missing from overall detail"
     print("   roic wired:", bf["roic"]["score"], "/", bf["roic"]["max_score"],
           " owner_earnings wired:", bf["owner_earnings"]["score"], "/", bf["owner_earnings"]["max_score"],
           " intrinsic_value wired:", bf["intrinsic_value"]["score"], "/", bf["intrinsic_value"]["max_score"],
           " capital_allocation wired:", bf["capital_allocation"]["score"], "/", bf["capital_allocation"]["max_score"],
           " share_buyback wired:", bf["share_buyback"]["score"], "/", bf["share_buyback"]["max_score"],
           " debt_quality wired:", bf["debt_quality"]["score"], "/", bf["debt_quality"]["max_score"],
-          " moat_strength wired:", bf["moat_strength"]["score"], "/", bf["moat_strength"]["max_score"])
+          " moat_strength wired:", bf["moat_strength"]["score"], "/", bf["moat_strength"]["max_score"],
+          " backtest wired:", bf["backtest"]["score"], "/", bf["backtest"]["max_score"])
 check("bundle smoke (quick/full)", t_bundle)
 
 # 5) app.py compiles

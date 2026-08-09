@@ -2191,3 +2191,87 @@ Economic Moat強化スコア：{total_score} / {max_score}点
         return result
     except Exception:
         return fallback
+
+
+def generate_backtest_analysis(data: dict, backtest_raw: dict) -> dict:
+    """
+    Sprint26: Backtest（簡易品質スコア × フォワードリターン検証）分析のAI考察を生成する。
+    ROIC / Owner Earnings / Intrinsic Value / Capital Allocation / Share Buyback /
+    Debt Quality / Economic Moat強化と同じく、ルールベースの数値(raw)は上書きせず、
+    Geminiの考察（buffet_view 等）だけを返す。AI不可時はfallback。
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    total_score = backtest_raw.get("total_score", 0)
+    max_score = backtest_raw.get("max_score", 10)
+    rating = backtest_raw.get("rating", "unknown")
+
+    fallback = {
+        "buffet_view": "Backtest分析のAI考察は利用できませんでした。",
+        "competitive_advantage": "ルールベースの評価を参照してください。",
+        "capital_efficiency": "ルールベースの評価を参照してください。",
+        "improvement_area": "高品質年vs低品質年のリターン差・最高品質期間の実績・一貫性・現在のスコアとの整合性の4軸で確認してください。",
+        "conclusion": backtest_raw.get("summary", "データ不足"),
+    }
+
+    if not api_key:
+        return fallback
+
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+あなたはウォーレン・バフェットの投資哲学を熟知した投資アナリストです。
+
+以下の企業のBacktest（簡易品質スコア×フォワードリターン検証）分析結果を、
+バフェットの視点から簡潔に考察してください。
+これは「過去に質の高い決算期で買っていたら、実際のリターンはどうだったか」を
+複数年の財務データ（AI判定やDCFを含まない簡易品質スコア代理指標）と実際の株価推移
+から検証したものです。バフェットは「時間を味方につける」長期保有と、質の高さが
+最終的に株価に反映されるという考えを重視します。
+
+会社名：{data.get("company_name")}
+
+Backtestスコア：{total_score} / {max_score}点
+評価：{rating}
+所見：{backtest_raw.get("summary", "")}
+
+高品質年vs低品質年のリターン差：{backtest_raw.get("edge_detail", "")}
+最高品質期間の実績リターン：{backtest_raw.get("best_period_detail", "")}
+一貫性（相関）：{backtest_raw.get("consistency_detail", "")}
+現在のBuffett Scoreとの整合性：{backtest_raw.get("current_consistency_detail", "")}
+
+以下のJSON形式だけで回答してください。
+{{
+  "buffet_view": "バフェット的視点から100文字以内の所見（質の高さが時間とともに報われたかを重視）",
+  "competitive_advantage": "50文字以内",
+  "capital_efficiency": "50文字以内",
+  "improvement_area": "改善点 50文字以内",
+  "conclusion": "総合結論 100文字以内"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+
+        result = json.loads(text)
+        result["id"] = "backtest"
+        result["title"] = "Backtest（簡易品質スコア × フォワードリターン検証）AI評価"
+        result["score"] = total_score
+        result["max_score"] = max_score
+        result["rating"] = rating
+        result["summary"] = result.get("conclusion", "")
+        result["details"] = []
+        result["warnings"] = []
+        if total_score < 6:
+            result["warnings"].append("Backtestスコアが低く、この銘柄では質の高さが過去のリターンに明確には繋がっていません。")
+        return result
+    except Exception:
+        return fallback

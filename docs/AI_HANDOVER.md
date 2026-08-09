@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint25完了。
+現在Sprint26完了。
 
-次回はSprint26（Backtest）から開始。
+次回はSprint27（Portfolio Analyzer）から開始。
 
 ---
 
@@ -1011,6 +1011,154 @@ D: 87点未満
 
 ---
 
+# Sprint26 完了内容
+
+## Backtest（簡易品質スコア × フォワードリターン検証）分析
+
+「過去のBuffett Score（総合判定）が高かった時点で買っていたら、実際のリターンは
+どうだったか」を検証する機能。
+
+過去の任意時点でフルのBuffett Score（DCF・AI定性MOAT判定・Red Team等を含む190点満点）
+を再計算することは、当時の市場前提やGemini判定を再現できないため事実上不可能。
+そのため、Sprint23〜25で取得済みの複数年データ（ROE・営業利益率・売上高・総負債の
+推移）から、AI判定やDCFを含まない「簡易品質スコア代理指標」を決算期ごとに
+ルールベースで算出し、実際のフォワードリターンと突き合わせて検証する簡易版とした
+（重複実装禁止・ルール14。既存のscoring_engine.pyは再利用のみで再実装しない）。
+
+### 設計上の重要な注意点（交絡の排除）
+
+当初、フォワードリターンを「決算期から現在までの累積リターン」として計算したところ、
+決算期が古いほど保有期間が長くなり複利で見かけ上リターンが伸びるという交絡
+（期間長の効果）により、質の高さとは無関係に古い年ほどリターンが高く出る現象が
+発生した。これを排除するため、フォワードリターンは「翌決算期（直近年のみ現在）
+までの約1年間」に統一し、各決算期の品質と「その後1年程度の株価の動き」を
+公平に比較できるようにした。
+
+### 新規作成
+
+engines/backtest_engine.py
+
+Backtest計算エンジン（ルールベース）
+
+4軸で評価（合計10点満点）：
+
+・高品質年 vs 低品質年のリターン差検証（3点）: 決算期を簡易品質スコアの中央値で
+　高品質群・低品質群に分け、フォワードリターンの平均差を検証する。
+・最高品質期間の実績リターン（3点）: 複数年の中で最も簡易品質スコアが高かった
+　決算期のフォワードリターンを評価する。
+・一貫性（順位相関）（2点）: 簡易品質スコアとフォワードリターンの相関係数
+　（Pearson、自前実装）で、質とリターンの関係が一貫していたかを検証する。
+・現在のBuffett Scoreとの整合性（2点）: score_result（scoring_engine.pyの計算結果、
+　再利用のみ）を引数として受け取り、「過去に質の高さがリターンに繋がっていたか」と
+　「現在のBuffett Scoreが高水準か（70点以上）」の整合性を検証する。乖離がある場合は
+　「過去は質の高さがリターンに繋がっていましたが、現在のBuffett Scoreは低下しています」
+　等の警告を出す。
+
+簡易品質スコア代理指標は、決算期ごとにROEティア・営業利益率ティア・売上成長率
+ティア・負債水準（対売上高）ティアを合算して算出する（AI判定・DCFは含まない）。
+
+いずれの軸も、フォワードリターンを算出できる決算期が3期未満の場合は中立評価
+（デフォルトスコア1点、Debt Quality／Economic Moat強化エンジンと同じ規約）とし、
+絶対に例外を投げない。
+
+analysis/backtest.py
+
+Backtest分析モジュール（共通形式）。analyze_backtest(data, score_result) が
+現在のBuffett Score（score_result）を引数で受け取り、整合性チェックに使う。
+
+### 修正
+
+data/data_fetcher.py
+
+Backtest関連フィールド追加
+
+fiscal_year_end_dates（決算期末日の複数年推移、income_stmtの列から取得。
+roe_history等Sprint25の各*_historyと同じ列インデックスに対応）
+
+historical_prices_at_fiscal_year_end（各決算期末日時点の終値、
+stock.history(period="10y")から該当日以前で直近の終値を検索して取得）
+
+analysis/analysis_bundle.py
+
+create_analysis_bundle() にbacktestを追加（is_full時）。現在のBuffett Score
+（score_result、既に引数として渡されている）をanalyze_backtest()に渡す。
+
+analysis/overall_eval.py
+
+_score_backtest() 追加（10点満点）
+
+判定基準を190点満点に合わせて全面更新（S:167 / A:138 / B:115 / C:92、
+Sprint22〜25の閾値増分パターンS+9/A+7/B+6/C+5を踏襲）
+
+ai/ai_analysis.py
+
+generate_backtest_analysis() 追加（Gemini評価、フォールバック付き。
+ルールベースのraw数値は上書きせず、buffet_view等の考察のみ追加）
+
+report/report.py
+
+create_backtest_display() 追加（決算期別の簡易品質スコア・フォワードリターンの
+一覧テーブルを含む）
+
+report/pdf_report.py
+
+PDFにBacktestセクション追加
+
+app.py
+
+定性分析タブ + PDFダウンロードにBacktest表示追加
+
+（import / bundle展開 / 表示 / PDF引数の4箇所を編集）
+
+health_check.py
+
+Sprint26検証を追加（engines/analysis/ai/reportのimport確認、
+bundle["backtest"]がNoneでないこと、overall detailへの配線確認）
+
+### スコア配分（190点満点、Sprint26時点）
+
+Buffett Score: 40点
+
+DCF: 20点
+
+MOAT: 15点
+
+ブランド: 10点
+
+経営者: 10点
+
+Red Team: 5点
+
+ROIC: 15点
+
+Owner Earnings: 10点
+
+Intrinsic Value: 15点
+
+Capital Allocation: 10点
+
+Share Buyback: 10点
+
+Debt Quality: 10点
+
+Economic Moat強化: 10点
+
+Backtest: 10点（新規）
+
+### 判定基準（Sprint26更新後）
+
+S: 167点以上
+
+A: 138点以上
+
+B: 115点以上
+
+C: 92点以上
+
+D: 92点未満
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -1030,10 +1178,6 @@ ai_analysis.py → ai/ai_analysis.py
 ---
 
 # 今後のSprint
-
-Sprint26
-
-Backtest
 
 Sprint27
 

@@ -37,6 +37,7 @@ from report import (
 	create_share_buyback_display,
 	create_debt_quality_display,
 	create_moat_strength_display,
+	create_backtest_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -316,6 +317,7 @@ if (
 	share_buyback = bundle.get("share_buyback")
 	debt_quality = bundle.get("debt_quality")
 	moat_strength = bundle.get("moat_strength")
+	backtest = bundle.get("backtest")
 
 	currency = "¥" if data.get("country") == "Japan" else "$"
 	st.caption(f"現在の分析モード: **{current_mode}**")
@@ -536,6 +538,16 @@ if (
 			_mode_locked_message("🔎 フル（すべて）")
 
 		st.divider()
+		st.subheader("📈 Backtest（簡易品質スコア × フォワードリターン検証）分析")
+		if is_full:
+			if backtest:
+				st.markdown(create_backtest_display(backtest))
+			else:
+				st.info("Backtest分析結果がありません。")
+		else:
+			_mode_locked_message("🔎 フル（すべて）")
+
+		st.divider()
 		st.subheader("🏷️ ブランド力評価")
 		if is_full:
 			st.markdown(create_brand_display(brand))
@@ -727,6 +739,7 @@ if (
 					share_buyback,
 					debt_quality,
 					moat_strength,
+					backtest,
 				)
 				st.download_button(
 					"⬇️ PDFをダウンロード",

@@ -18,6 +18,7 @@ from .capital_allocation import analyze_capital_allocation
 from .share_buyback import analyze_share_buyback
 from .debt_quality import analyze_debt_quality
 from .moat_strength import analyze_moat_strength
+from .backtest import analyze_backtest
 from ai.ai_analysis import (
     generate_ai_analysis,
     generate_news_summary,
@@ -34,6 +35,7 @@ from ai.ai_analysis import (
     generate_share_buyback_analysis,
     generate_debt_quality_analysis,
     generate_moat_strength_analysis,
+    generate_backtest_analysis,
 )
 
 
@@ -106,6 +108,7 @@ def create_analysis_bundle(
         "share_buyback": None,
         "debt_quality": None,
         "moat_strength": None,
+        "backtest": None,
         "overall": None,
     }
 
@@ -240,6 +243,23 @@ def create_analysis_bundle(
             )
             bundle["moat_strength"] = _merge_ai_narrative(moat_strength, ai_ms)
 
+            ####################################################
+            # Sprint26: Backtest（簡易品質スコア × フォワードリターン検証）分析
+            # 「過去のBuffett Scoreが高かった時点で買っていたら、実際のリターンは
+            # どうだったか」を検証する。フルのBuffett Score（DCF・AI定性MOAT判定・
+            # Red Team等を含む）を過去の任意時点で再計算することは事実上不可能なため、
+            # Sprint23〜25で取得済みの複数年データから算出する簡易品質スコア代理指標を
+            # 用いる。現在のBuffett Score（score_result、再計算しない）を整合性
+            # チェックの引数として渡す。同じ形式（ルールベース基礎 + AI考察の上乗せ）。
+            ####################################################
+            backtest = analyze_backtest(data, score_result=score_result)
+            ai_bt = _safe_ai(
+                generate_backtest_analysis,
+                data,
+                backtest.get("raw", {}),
+            )
+            bundle["backtest"] = _merge_ai_narrative(backtest, ai_bt)
+
         # Normalize bundle values (Sprint18)
     bundle["checklist"] = bundle["checklist"] or []
     bundle["news"] = bundle["news"] or []
@@ -259,6 +279,7 @@ def create_analysis_bundle(
         share_buyback=bundle["share_buyback"] or {},
         debt_quality=bundle["debt_quality"] or {},
         moat_strength=bundle["moat_strength"] or {},
+        backtest=bundle["backtest"] or {},
     )
 
     return bundle

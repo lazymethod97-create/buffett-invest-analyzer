@@ -1,4 +1,5 @@
 import yfinance as yf
+from datetime import datetime
 
 
 def _extract_buyback_amount(stock) -> float:
@@ -295,6 +296,61 @@ def _extract_roe_history(stock) -> list:
         return []
 
 
+def _extract_fiscal_year_dates(stock) -> list:
+    """
+    決算期末日の複数年推移を取得する（Sprint26、Backtestのフォワードリターン計算用）。
+    損益計算書（income_stmt）の列（決算期日）から、直近年から古い年の順で
+    ISO形式（YYYY-MM-DD）の日付文字列リストを返す。
+    roe_history等（Sprint25）と同じ列インデックスに対応する。
+    取得できない場合は空リストを返す（絶対に例外を投げない）。
+    """
+    try:
+        stmt = stock.income_stmt
+        if stmt is None or stmt.empty:
+            return []
+        dates = []
+        for col in stmt.columns:
+            try:
+                dates.append(str(col.date()))
+            except Exception:
+                dates.append(str(col))
+        return dates
+    except Exception:
+        return []
+
+
+def _extract_price_at_dates(stock, dates: list) -> list:
+    """
+    指定した決算期末日それぞれについて、当日以前で直近の終値を取得する（Sprint26）。
+    「その決算期末時点で買っていたら」のフォワードリターン計算の起点株価として使う。
+    過去10年分の値動き（stock.history(period="10y")）から検索する。
+    該当日以前のデータが無い場合はNoneをその位置に格納する（絶対に例外を投げない）。
+    """
+    try:
+        if not dates:
+            return []
+        hist = stock.history(period="10y")
+        if hist is None or hist.empty or "Close" not in hist.columns:
+            return [None for _ in dates]
+
+        closes = hist["Close"].dropna()
+        idx_dates = [ts.date() for ts in closes.index]
+        paired = sorted(zip(idx_dates, [float(v) for v in closes.values]), key=lambda x: x[0])
+
+        prices = []
+        for d in dates:
+            try:
+                target = datetime.strptime(d, "%Y-%m-%d").date()
+            except Exception:
+                prices.append(None)
+                continue
+            candidates = [p for dt, p in paired if dt <= target]
+            prices.append(candidates[-1] if candidates else None)
+        return prices
+    except Exception:
+        return [None for _ in dates]
+
+
 def get_stock_data(ticker: str) -> dict:
     """
     ティッカーシンボルから財務データを取得する。
@@ -385,6 +441,12 @@ def get_stock_data(ticker: str) -> dict:
             "gross_margin_history": _extract_gross_margin_history(stock),
             "roe_history": _extract_roe_history(stock),
         }
+
+        # Sprint26: Backtest分析用データ
+        # fiscal_year_end_datesは上記の各*_history（roe_history等）と同じ列インデックスに対応する。
+        fiscal_year_end_dates = _extract_fiscal_year_dates(stock)
+        data["fiscal_year_end_dates"] = fiscal_year_end_dates
+        data["historical_prices_at_fiscal_year_end"] = _extract_price_at_dates(stock, fiscal_year_end_dates)
 
         return {"success": True, "error": None, "data": data}
 

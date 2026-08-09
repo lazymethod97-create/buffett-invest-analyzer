@@ -649,3 +649,60 @@ def create_moat_strength_display(moat_strength: Dict[str, Any]) -> str:
         for w in warnings:
             md += f"- {w}\n"
     return md
+
+
+def create_backtest_display(backtest: Dict[str, Any]) -> str:
+    """Backtest（簡易品質スコア × フォワードリターン検証）分析結果をMarkdown形式で表示する（Sprint26）。"""
+    if not backtest:
+        return "*Backtest分析結果がありません。*\n"
+
+    raw = backtest.get("raw", {})
+    edge_score = raw.get("edge_score", 0)
+    edge_detail = raw.get("edge_detail", "")
+    best_period_score = raw.get("best_period_score", 0)
+    best_period_detail = raw.get("best_period_detail", "")
+    consistency_score = raw.get("consistency_score", 0)
+    consistency_detail = raw.get("consistency_detail", "")
+    current_consistency_score = raw.get("current_consistency_score", 0)
+    current_consistency_detail = raw.get("current_consistency_detail", "")
+    years = raw.get("raw", {}).get("years", [])
+
+    md = "#### Backtest（簡易品質スコア × フォワードリターン検証）分析\n\n"
+    md += f"**スコア:** {backtest.get('score', 0)} / {backtest.get('max_score', 10)}点\n\n"
+    md += f"**評価:** {backtest.get('summary', '')}\n\n"
+
+    md += "#### 4つの評価軸\n"
+    md += f"- **高品質年 vs 低品質年のリターン差検証:** {edge_score} / 3点\n  - {edge_detail}\n"
+    md += f"- **最高品質期間の実績リターン:** {best_period_score} / 3点\n  - {best_period_detail}\n"
+    md += f"- **一貫性（品質スコアとリターンの相関）:** {consistency_score} / 2点\n  - {consistency_detail}\n"
+    md += f"- **現在のBuffett Scoreとの整合性:** {current_consistency_score} / 2点\n  - {current_consistency_detail}\n"
+
+    if years:
+        md += "\n#### 決算期別の簡易品質スコア・フォワードリターン（翌決算期まで、直近年のみ現在）\n"
+        md += "| 決算期末 | 簡易品質スコア | フォワードリターン |\n"
+        md += "|---|---|---|\n"
+        for y in years:
+            r = y.get("forward_return")
+            r_text = f"{r*100:.1f}%" if r is not None else "算出不可"
+            md += f"| {y.get('date', '')} | {y.get('quality_proxy', 0)} | {r_text} |\n"
+
+    md += "\n#### 計算方式\n```\n"
+    md += "Backtest = リターン差検証(3) + 最高品質期間実績(3) + 一貫性(2) + 現在スコアとの整合性(2)\n"
+    md += "・簡易品質スコア代理指標: ROE・営業利益率・売上成長率・負債水準（対売上高）の\n"
+    md += "  複数年データ（Sprint23〜25で取得済み）からルールベースで算出（AI判定・DCFは含まない）\n"
+    md += "・フォワードリターン: 各決算期から翌決算期（直近年のみ現在）までの約1年間のリターン。\n"
+    md += "  現在までの累積リターンにすると決算期が古いほど保有期間が長くなり複利で\n"
+    md += "  見かけ上リターンが伸びる交絡が生じるため、期間を統一している\n"
+    md += "・リターン差検証: 決算期を品質スコアの中央値で高品質群・低品質群に分け、\n"
+    md += "  フォワードリターンの平均差で評価\n"
+    md += "・最高品質期間実績: 最も品質スコアが高かった決算期の実際のフォワードリターンで評価\n"
+    md += "・一貫性: 品質スコアとフォワードリターンの相関係数（Pearson）で評価\n"
+    md += "・現在スコアとの整合性: 過去の質とリターンの関係と、現在のBuffett Scoreの水準を突合\n"
+    md += "```\n"
+
+    warnings = backtest.get("warnings", [])
+    if warnings:
+        md += "#### 警告\n"
+        for w in warnings:
+            md += f"- {w}\n"
+    return md

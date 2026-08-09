@@ -298,3 +298,22 @@ Economic Moat強化（moat_strength）は、既存のMOAT定性判定（Sprint18
 評価データ・評価軸ともに重複しない、複数年の定量トレンドによる独立したルールベース検証軸である
 （ルール14）。既存MOAT判定は再計算せず、整合性チェックの引数として受け取るのみとする。
 
+# 23.
+
+Sprint26以降のスコア配分（190点満点）。
+
+Buffett Score: 40 / DCF: 20 / MOAT: 15 / ブランド: 10 / 経営者: 10 / Red Team: 5 / ROIC: 15 / Owner Earnings: 10 / Intrinsic Value: 15 / Capital Allocation: 10 / Share Buyback: 10 / Debt Quality: 10 / Economic Moat強化: 10 / Backtest: 10
+
+判定基準（S:167 / A:138 / B:115 / C:92 / D:92未満）の詳細はAI_HANDOVER.mdを参照。
+
+Backtest（backtest）は、過去の任意時点でフルのBuffett Score（DCF・AI定性MOAT判定・
+Red Team等を含む）を再計算することが事実上不可能なため、Sprint23〜25で取得済みの
+複数年データ（ROE・営業利益率・売上高・総負債の推移）からAI判定やDCFを含まない
+簡易品質スコア代理指標をルールベースで算出し、実際のフォワードリターンと突き合わせて
+検証する独立エンジンである（重複実装禁止・ルール14。既存のscoring_engine.pyは
+再利用のみで再実装しない）。
+
+フォワードリターンは「決算期から現在までの累積リターン」ではなく「翌決算期
+（直近年のみ現在）までの約1年間」に統一する。決算期が古いほど保有期間が長くなり
+複利で見かけ上リターンが伸びる交絡（期間長の効果）を避けるためである。
+

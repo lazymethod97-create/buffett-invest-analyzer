@@ -136,23 +136,29 @@ def _score_moat_strength(moat_strength: Dict) -> int:
     return min(score, 10)
 
 
+def _score_backtest(backtest: Dict) -> int:
+    """Sprint26: Backtestスコア（10点満点）"""
+    score = backtest.get("score", 0) if backtest else 0
+    return min(score, 10)
+
+
 def _grade(score):
     """
-    Sprint25: 180点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
+    Sprint26: 190点満点（Buffett40+DCF20+MOAT15+ブランド10+経営者10
     +RedTeam5+ROIC15+OwnerEarnings10+IntrinsicValue15+CapitalAllocation10
-    +ShareBuyback10+DebtQuality10+EconomicMoat強化10）に合わせた判定基準。
+    +ShareBuyback10+DebtQuality10+EconomicMoat強化10+Backtest10）に合わせた判定基準。
     """
 
-    if score >= 158:
+    if score >= 167:
         return "S"
 
-    if score >= 131:
+    if score >= 138:
         return "A"
 
-    if score >= 109:
+    if score >= 115:
         return "B"
 
-    if score >= 87:
+    if score >= 92:
         return "C"
 
     return "D"
@@ -160,16 +166,16 @@ def _grade(score):
 
 def _stars(score):
 
-    if score >= 158:
+    if score >= 167:
         return 5
 
-    if score >= 131:
+    if score >= 138:
         return 4
 
-    if score >= 109:
+    if score >= 115:
         return 3
 
-    if score >= 87:
+    if score >= 92:
         return 2
 
     return 1
@@ -245,6 +251,7 @@ def calculate_overall_grade(
     share_buyback=None,
     debt_quality=None,
     moat_strength=None,
+    backtest=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -267,8 +274,9 @@ def calculate_overall_grade(
     s11 = _score_share_buyback(share_buyback) if share_buyback else 0
     s12 = _score_debt_quality(debt_quality) if debt_quality else 0
     s13 = _score_moat_strength(moat_strength) if moat_strength else 0
+    s14 = _score_backtest(backtest) if backtest else 0
 
-    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11 + s12 + s13
+    total = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11 + s12 + s13 + s14
 
     grade = _grade(total)
 
@@ -310,6 +318,7 @@ def calculate_overall_grade(
             "share_buyback":s11,
             "debt_quality":s12,
             "moat_strength":s13,
+            "backtest":s14,
 
         }
 

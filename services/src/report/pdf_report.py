@@ -129,6 +129,7 @@ def generate_pdf_report(
     share_buyback: dict = None,
     debt_quality: dict = None,
     moat_strength: dict = None,
+    backtest: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -358,6 +359,22 @@ def generate_pdf_report(
         pdf.add_bullet(f"既存MOAT判定との整合性：{co_score}/2点 - {ms_raw.get('consistency_detail', '')}")
     else:
         pdf.add_paragraph("Economic Moat強化分析結果がありません。")
+    # Backtest（Sprint26）
+    pdf.add_heading("📈 Backtest（簡易品質スコア × フォワードリターン検証）分析")
+    if backtest and backtest.get("raw"):
+        bt_raw = backtest.get("raw", {})
+        pdf.add_paragraph(f"スコア：{backtest.get('score', 0)} / {backtest.get('max_score', 10)}点")
+        pdf.add_paragraph(f"評価：{backtest.get('summary', '')}")
+        eg_score = bt_raw.get("edge_score", 0)
+        bp_score = bt_raw.get("best_period_score", 0)
+        cs_score = bt_raw.get("consistency_score", 0)
+        cc_score = bt_raw.get("current_consistency_score", 0)
+        pdf.add_bullet(f"高品質年vs低品質年のリターン差検証：{eg_score}/3点 - {bt_raw.get('edge_detail', '')}")
+        pdf.add_bullet(f"最高品質期間の実績リターン：{bp_score}/3点 - {bt_raw.get('best_period_detail', '')}")
+        pdf.add_bullet(f"一貫性（品質スコアとリターンの相関）：{cs_score}/2点 - {bt_raw.get('consistency_detail', '')}")
+        pdf.add_bullet(f"現在のBuffett Scoreとの整合性：{cc_score}/2点 - {bt_raw.get('current_consistency_detail', '')}")
+    else:
+        pdf.add_paragraph("Backtest分析結果がありません。")
     # 投資仮説
     pdf.add_heading("📋 投資仮説管理")
     if hypotheses:
