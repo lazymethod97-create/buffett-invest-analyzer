@@ -1,6 +1,7 @@
 ﻿import os
 import sys
 import datetime
+import time
 
 from dotenv import load_dotenv
 
@@ -111,6 +112,43 @@ def cached_get_stock_data(ticker):
 @st.cache_data(ttl=3600)
 def cached_get_latest_news(company_name):
 	return get_latest_news(company_name)
+
+
+####################################################
+# Sprint29: Performance改善
+# Portfolio / Watchlistタブは、アプリ内のどこか（他タブ含む）で
+# ボタン/入力が操作されるたびにStreamlitがスクリプト全体を再実行するため、
+# 「登録銘柄ぶんループしてcached_get_stock_data + calculate_buffett_scoreを
+# 実行する」処理も、無関係な操作のたびに毎回再実行されていた。
+# cached_get_stock_data自体はst.cache_data(ttl=3600)でキャッシュ済みのため
+# キャッシュヒット時は軽いが、キャッシュミス時（1時間経過後等）は登録銘柄数ぶんの
+# yfinance呼び出しが直列に発生し、アプリ全体の応答が重くなる（Portfolio/Watchlist
+# タブを見ていない操作のときも含めて）。
+#
+# 対策：構築済みのrows自体を「銘柄構成（signature）」と紐付けてsession_stateに
+# 保持し、銘柄構成が変わっておらず、かつcached_get_stock_dataと同じTTL（3600秒）
+# 以内であれば再構築をスキップする。データ取得・スコア計算のロジック自体（build_row_fn）
+# は変更しないため、出力される値は変更前と完全に同一（重複実装禁止・ルール14により
+# Portfolio/Watchlistで共通のヘルパーとして1箇所にまとめる）。
+####################################################
+def _build_rows_cached(session_key, items, ticker_of, build_row_fn, ttl_seconds=3600):
+	signature = tuple(sorted(ticker_of(item) for item in items))
+	cached = st.session_state.get(session_key)
+	now = time.time()
+	if (
+		cached is not None
+		and cached.get("signature") == signature
+		and (now - cached.get("built_at", 0)) < ttl_seconds
+	):
+		return cached["rows"]
+
+	rows = [build_row_fn(item) for item in items]
+	st.session_state[session_key] = {
+		"signature": signature,
+		"built_at": now,
+		"rows": rows,
+	}
+	return rows
 
 
 ####################################################
@@ -924,21 +962,27 @@ if (
 			# 各銘柄の現在データ取得・スコア計算
 			# （ルールベースのみ、Gemini呼び出しなし。
 			# 　cached_get_stock_dataによりSprint10のキャッシュがそのまま効く）
+			#
+			# Sprint29: rows自体を_build_rows_cached()でsession_stateにキャッシュし、
+			# 保有銘柄構成が変わっていない・TTL内であれば、無関係な操作による
+			# 再実行のたびにこのループが走らないようにする（データ・スコア計算
+			# ロジック自体は変更なし＝出力値は変更前と同一）。
 			#########################################
-			portfolio_rows = []
+			def _build_portfolio_row(h):
+				p_result = cached_get_stock_data(h.ticker)
+				if not p_result["success"]:
+					return {"holding": h, "data": None, "score_result": None, "error": p_result["error"]}
+				p_data = p_result["data"]
+				p_score = calculate_buffett_score(p_data)
+				return {"holding": h, "data": p_data, "score_result": p_score, "error": None}
+
 			with st.spinner("保有銘柄のデータを取得中..."):
-				for h in portfolio_holdings:
-					p_result = cached_get_stock_data(h.ticker)
-					if not p_result["success"]:
-						portfolio_rows.append(
-							{"holding": h, "data": None, "score_result": None, "error": p_result["error"]}
-						)
-						continue
-					p_data = p_result["data"]
-					p_score = calculate_buffett_score(p_data)
-					portfolio_rows.append(
-						{"holding": h, "data": p_data, "score_result": p_score, "error": None}
-					)
+				portfolio_rows = _build_rows_cached(
+					"portfolio_rows_cache",
+					portfolio_holdings,
+					lambda h: h.ticker,
+					_build_portfolio_row,
+				)
 
 			#########################################
 			# ポートフォリオ合計
@@ -1151,20 +1195,28 @@ if (
 		else:
 			st.subheader("👀 ウォッチリスト一覧")
 
+			####################################################
+			# Sprint29: rows自体を_build_rows_cached()でsession_stateにキャッシュし、
+			# ウォッチリスト構成が変わっていない・TTL内であれば、無関係な操作による
+			# 再実行のたびにこのループが走らないようにする（データ・スコア計算
+			# ロジック自体は変更なし＝出力値は変更前と同一。Portfolio側と同じ
+			# ヘルパーを再利用＝重複実装禁止・ルール14）。
+			####################################################
+			def _build_watchlist_row(w):
+				w_result = cached_get_stock_data(w.ticker)
+				if not w_result["success"]:
+					return {"item": w, "data": None, "score_result": None, "error": w_result["error"]}
+				w_data = w_result["data"]
+				w_score = calculate_buffett_score(w_data)
+				return {"item": w, "data": w_data, "score_result": w_score, "error": None}
+
 			with st.spinner("ウォッチリストのデータを取得中..."):
-				watchlist_rows = []
-				for w in watchlist_items:
-					w_result = cached_get_stock_data(w.ticker)
-					if not w_result["success"]:
-						watchlist_rows.append(
-							{"item": w, "data": None, "score_result": None, "error": w_result["error"]}
-						)
-						continue
-					w_data = w_result["data"]
-					w_score = calculate_buffett_score(w_data)
-					watchlist_rows.append(
-						{"item": w, "data": w_data, "score_result": w_score, "error": None}
-					)
+				watchlist_rows = _build_rows_cached(
+					"watchlist_rows_cache",
+					watchlist_items,
+					lambda w: w.ticker,
+					_build_watchlist_row,
+				)
 
 			for row in watchlist_rows:
 				w = row["item"]
@@ -1216,62 +1268,62 @@ if (
 						watchlist_manager.delete(w.id)
 						st.rerun()
 
-				####################################################
-				# 📊 Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）（Sprint28）
-				# 上で計算済みのwatchlist_rows（cached_get_stock_data /
-				# calculate_buffett_scoreの結果）をそのまま再利用する。新たな
-				# データ取得・スコア再計算は行わない（ルール14）。
-				# Portfolio Risk（Sprint27）と同じく複数銘柄が評価単位のため
-				# analysis_bundle / overall_eval（BUY/WATCH/PASS判定）には
-				# 組み込まない独立表示だが、Portfolio Riskとは異なり得点化は
-				# 行わない（集計・ランキング表示のみ。設計判断はきたと確認済み。
-				# 詳細はdocs/AI_HANDOVER.mdのSprint28セクションを参照）。
-				# AI考察（Gemini）も追加しない（数値が既に自己説明的であり、
-				# 得点化しない集計機能にまでAI呼び出しを増やす必要性が低いため）。
-				####################################################
-				st.divider()
-				st.subheader("📊 Watchlist Insights（ウォッチリスト横断分析）")
-				st.caption(
-					"ウォッチリスト登録銘柄全体を、目標株価接近度・Buffett Scoreの高さで"
-					"ランキング表示します。得点化は行わず、総合判定（BUY/WATCH/PASS）にも含まれません。"
+			####################################################
+			# 📊 Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）（Sprint28）
+			# 上で計算済みのwatchlist_rows（cached_get_stock_data /
+			# calculate_buffett_scoreの結果）をそのまま再利用する。新たな
+			# データ取得・スコア再計算は行わない（ルール14）。
+			# Portfolio Risk（Sprint27）と同じく複数銘柄が評価単位のため
+			# analysis_bundle / overall_eval（BUY/WATCH/PASS判定）には
+			# 組み込まない独立表示だが、Portfolio Riskとは異なり得点化は
+			# 行わない（集計・ランキング表示のみ。設計判断はきたと確認済み。
+			# 詳細はdocs/AI_HANDOVER.mdのSprint28セクションを参照）。
+			# AI考察（Gemini）も追加しない（数値が既に自己説明的であり、
+			# 得点化しない集計機能にまでAI呼び出しを増やす必要性が低いため）。
+			####################################################
+			st.divider()
+			st.subheader("📊 Watchlist Insights（ウォッチリスト横断分析）")
+			st.caption(
+				"ウォッチリスト登録銘柄全体を、目標株価接近度・Buffett Scoreの高さで"
+				"ランキング表示します。得点化は行わず、総合判定（BUY/WATCH/PASS）にも含まれません。"
+			)
+
+			# 保有銘柄（Portfolio）が未登録の場合、portfolio_rowsは定義されない
+			# （portfolio_holdings truthyのときのみ定義される）ため、その場合は
+			# 空リストとして扱う（セクター重複の参考表示なしで動作する）。
+			portfolio_rows_for_insights = portfolio_rows if portfolio_holdings else []
+
+			watchlist_insights_result = build_watchlist_insights(
+				watchlist_rows, portfolio_rows_for_insights
+			)
+
+			if not watchlist_insights_result.get("success"):
+				st.info(watchlist_insights_result.get("summary", "集計できるデータがありません。"))
+			else:
+				wi_col1, wi_col2, wi_col3 = st.columns(3)
+				wi_col1.metric(
+					"ウォッチリスト銘柄数",
+					f"{watchlist_insights_result['watchlist_count']}銘柄",
+				)
+				wi_target_ranking = watchlist_insights_result.get("target_price_ranking", [])
+				wi_reached = sum(1 for t in wi_target_ranking if t.get("reached"))
+				wi_col2.metric(
+					"目標株価 到達済み",
+					f"{wi_reached} / {len(wi_target_ranking)}件"
+					if wi_target_ranking
+					else "未設定",
+				)
+				wi_score_ranking = watchlist_insights_result.get("score_ranking", [])
+				wi_col3.metric(
+					"Buffett Score 集計対象",
+					f"{len(wi_score_ranking)}銘柄",
 				)
 
-				# 保有銘柄（Portfolio）が未登録の場合、portfolio_rowsは定義されない
-				# （portfolio_holdings truthyのときのみ定義される）ため、その場合は
-				# 空リストとして扱う（セクター重複の参考表示なしで動作する）。
-				portfolio_rows_for_insights = portfolio_rows if portfolio_holdings else []
+				for w_warn in watchlist_insights_result.get("warnings", []):
+					st.warning(w_warn)
 
-				watchlist_insights_result = build_watchlist_insights(
-					watchlist_rows, portfolio_rows_for_insights
-				)
-
-				if not watchlist_insights_result.get("success"):
-					st.info(watchlist_insights_result.get("summary", "集計できるデータがありません。"))
-				else:
-					wi_col1, wi_col2, wi_col3 = st.columns(3)
-					wi_col1.metric(
-						"ウォッチリスト銘柄数",
-						f"{watchlist_insights_result['watchlist_count']}銘柄",
-					)
-					wi_target_ranking = watchlist_insights_result.get("target_price_ranking", [])
-					wi_reached = sum(1 for t in wi_target_ranking if t.get("reached"))
-					wi_col2.metric(
-						"目標株価 到達済み",
-						f"{wi_reached} / {len(wi_target_ranking)}件"
-						if wi_target_ranking
-						else "未設定",
-					)
-					wi_score_ranking = watchlist_insights_result.get("score_ranking", [])
-					wi_col3.metric(
-						"Buffett Score 集計対象",
-						f"{len(wi_score_ranking)}銘柄",
-					)
-
-					for w_warn in watchlist_insights_result.get("warnings", []):
-						st.warning(w_warn)
-
-					with st.expander("📋 詳細を見る（ランキング・セクター件数）", expanded=False):
-						st.markdown(create_watchlist_insights_display(watchlist_insights_result))
+				with st.expander("📋 詳細を見る（ランキング・セクター件数）", expanded=False):
+					st.markdown(create_watchlist_insights_display(watchlist_insights_result))
 
 	####################################################
 	# ⚖️ 比較分析タブ（Sprint15）

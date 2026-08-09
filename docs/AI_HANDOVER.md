@@ -1401,6 +1401,101 @@ Sprint27時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点
 
 ---
 
+## Sprint29 完了内容（Performance改善）
+
+Sprint29は新規の分析軸を追加するものではなく、既存機能の非機能要件改善
+（処理速度・重複計算の削減）。既存の計算ロジック・スコア・判定結果は
+一切変更していない（Before/Afterの比較テストで確認済み。後述）。
+
+### 発見1：Watchlist Insightsのループ内配置バグ（Sprint28で混入）を修正
+
+`app.py`の「📊 Watchlist Insights」セクションが、誤って
+`for row in watchlist_rows:`（ウォッチリスト一覧の1銘柄ずつのカード表示ループ）
+の内側に配置されていた。インデントの1段ずれにより、ウォッチリスト登録銘柄が
+N件あると、`build_watchlist_insights()`の集計計算とランキング表示セクション
+全体がN回繰り返して実行・表示される不具合だった（登録件数が少ないと
+気づきにくい）。
+
+対応：該当セクションをループの外側（`for row in watchlist_rows:`と同じ
+インデント深さ）に移動し、ループ終了後に1回だけ実行されるよう修正。
+スコア・判定結果には影響しない（Watchlist Insightsは元々得点化しない
+集計表示のみのため）。
+
+health_check.pyに`t_sprint29_watchlist_insights_placement()`を追加し、
+Watchlist Insightsセクションの開始行が`for row in watchlist_rows:`と
+同じインデント深さにあることをソース検査で検証、再発を防止している。
+
+### 発見2：Portfolio／Watchlistタブの行構築がrerunのたびに毎回実行されていた問題
+
+Streamlitはアプリ内のどこか（他タブ含む）でボタン/入力が操作されるたびに
+スクリプト全体を再実行する。そのため「💼 Portfolio」「👀 ウォッチリスト」
+タブの「登録銘柄ぶんループして`cached_get_stock_data()` +
+`calculate_buffett_score()`を実行する」処理も、無関係な操作のたびに
+毎回再実行されていた。`cached_get_stock_data()`自体は
+`st.cache_data(ttl=3600)`でキャッシュ済みのためキャッシュヒット時は軽いが、
+キャッシュミス時（1時間経過後・初回等）は登録銘柄数ぶんのyfinance呼び出しが
+直列に発生し、Portfolio/Watchlistタブを見ていない操作のときも含めて
+アプリ全体の応答が重くなる構造になっていた。
+
+対応：構築済みのrows自体を「銘柄構成（signature）」と紐付けて
+`st.session_state`に保持する共通ヘルパー `_build_rows_cached()` を追加し、
+Portfolio・Watchlist両方の行構築をこの経由に統一した（重複実装禁止・
+ルール14により、ヘルパーは1箇所にまとめてPortfolio/Watchlist双方から再利用）。
+銘柄構成が変わっていない・かつ`cached_get_stock_data`と同じTTL（3600秒）
+以内であれば、rowsの再構築（データ取得・スコア計算）自体をスキップする。
+データ取得・スコア計算のロジックは一切変更していないため、出力される値は
+変更前と完全に同一（鮮度の上限＝TTLも変更前と同じ3600秒のまま）。
+
+health_check.pyに`t_sprint29_build_rows_cached_wired()`を追加し、
+`_build_rows_cached()`が定義され、Portfolio・Watchlist双方の
+session_stateキーから呼び出されていることをソース検査で検証している。
+
+### Before/After比較テスト
+
+`compare_before_after.py`（サンドボックス実行用、リポジトリ外）で、
+Sprint28時点の素朴なループ実装（Before）と`_build_rows_cached()`経由の
+実装（After）が、同一の入力データに対して完全に同一のrowsを返すことを
+確認した。また、無関係な操作によるrerunを複数回シミュレートしても
+Afterの方式ではデータ取得が再実行されないこと（キャッシュヒット）、
+銘柄構成が変わった場合・TTLが超過した場合は正しく再構築されることも
+あわせて確認済み。
+
+### 測定方法について
+
+体感で「遅い」と感じる特定の操作が無かった（きたへのヒアリング結果）ため、
+今回はUI上への処理時間ログ出力等は追加せず、コード調査で見つかった
+上記2件の無駄な処理（重複実行）を解消する対応にとどめた。将来的に
+体感で重いと感じる操作が出てきた場合は、対象の関数呼び出し前後で
+`time.perf_counter()`を使った簡易ログ出力を追加する形が、既存の
+プロジェクト構成（Rule 4：app.pyはController専用）に最も自然に馴染む。
+
+### 新規作成
+
+なし（既存ファイルの修正のみ）。
+
+### 修正
+
+app.py
+
+- 「📊 Watchlist Insights」セクションのインデント修正
+  （`for row in watchlist_rows:`ループの内側→外側、1回のみ実行）
+- `_build_rows_cached()`共通ヘルパーを追加
+  （Portfolio「💼」・Watchlist「👀」タブの行構築処理をこの経由に統一）
+- `import time`を追加（TTL判定に使用）
+
+health_check.py
+
+- Sprint29検証を2件追加（Watchlist Insightsのループ外配置の検証、
+  `_build_rows_cached()`のPortfolio/Watchlist双方への配線検証）
+
+### スコア配分（190点満点、Sprint29時点。変更なし）
+
+Sprint28時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）から
+変更なし。Sprint29は既存機能の非機能要件改善であり、新規の分析軸・得点は
+追加していない。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。

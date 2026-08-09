@@ -196,4 +196,56 @@ def t_compile():
     py_compile.compile(BASE + r"\services\app.py", doraise=True)
 check("app.py compiles", t_compile)
 
+# 6) Sprint29 members (Performance改善)
+def t_sprint29_watchlist_insights_placement():
+    """
+    Sprint28で混入した不具合の再発防止：
+    「📊 Watchlist Insights」セクションが `for row in watchlist_rows:` ループの
+    内側に置かれていると、登録銘柄数ぶん集計・表示が重複実行されてしまう
+    （Sprint29で発見・修正）。app.pyのソースを直接検査し、insightsセクションの
+    開始行のインデント（タブ数）が、ループ行自身と同じ深さであること
+    （＝ループの外側にあること）を確認する。
+    """
+    app_path = BASE + r"\services\app.py"
+    with open(app_path, "r", encoding="utf-8-sig") as f:
+        lines = f.read().split("\n")
+
+    def tabs(line):
+        return len(line) - len(line.lstrip("\t"))
+
+    loop_idx = next(i for i, l in enumerate(lines) if l.strip() == "for row in watchlist_rows:")
+    insights_idx = next(
+        i for i, l in enumerate(lines)
+        if "Watchlist Insights" in l and "st.subheader" in l
+    )
+    assert insights_idx > loop_idx, "Sprint29 regression: watchlist insights header not found after the loop"
+    assert tabs(lines[insights_idx]) == tabs(lines[loop_idx]), (
+        "Sprint29 regression: Watchlist Insights section must sit at the same "
+        "indentation level as 'for row in watchlist_rows:' (i.e. run once, "
+        "after the per-item loop) - not nested inside it."
+    )
+    print("   watchlist insights placement OK: runs once, outside the per-item loop")
+check("Sprint29 members (watchlist insights placement)", t_sprint29_watchlist_insights_placement)
+
+# 6b) Sprint29 members (_build_rows_cached shared helper wired into both tabs)
+def t_sprint29_build_rows_cached_wired():
+    """
+    Portfolio/Watchlistの銘柄一覧構築は、無関係な操作による再実行のたびに
+    yfinance呼び出しループが走ってしまう問題を解消するため、
+    session_stateベースの共通キャッシュヘルパー _build_rows_cached() を
+    追加した（重複実装禁止・ルール14によりPortfolio/Watchlistで共通利用）。
+    app.pyのソースを直接検査し、ヘルパーが定義され、かつ両セクションから
+    呼び出されていることを確認する。
+    """
+    app_path = BASE + r"\services\app.py"
+    with open(app_path, "r", encoding="utf-8-sig") as f:
+        src = f.read()
+    assert "def _build_rows_cached(" in src, "Sprint29 regression: _build_rows_cached helper missing"
+    assert src.count('_build_rows_cached(\n\t\t\t\t"portfolio_rows_cache"') == 1 or \
+        '"portfolio_rows_cache"' in src, "Sprint29 regression: portfolio rows not wired through _build_rows_cached"
+    assert '"watchlist_rows_cache"' in src, "Sprint29 regression: watchlist rows not wired through _build_rows_cached"
+    print("   _build_rows_cached wired: portfolio + watchlist OK")
+check("Sprint29 members (_build_rows_cached wiring)", t_sprint29_build_rows_cached_wired)
+
+
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")
