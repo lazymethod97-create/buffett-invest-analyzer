@@ -381,9 +381,20 @@ def t_sprint32_pdf_report_accepts_overall():
 	"""
 	generate_pdf_report()にoverallパラメータを追加した。既存呼び出し
 	（overallを渡さない）でも壊れないこと（後方互換）、overallを渡した
-	場合は総合判定セクションがPDFに含まれる（バイト数が増える）ことを
-	確認する。
+	場合は総合判定セクションがPDFに実際に含まれることを確認する。
+
+	注：当初PDFのバイト長比較（overallあり＝より大きいはず）で検証して
+	いたが、環境（Windows/Linux、フォント・PDF内部構造の違い）によって
+	バイト長の増減が安定しないことが分かった（きたのWindows環境で
+	FAILし、サンドボックスでも実行のたびに増分が21〜169バイトと大きく
+	揺れた）。バイト長は実際の内容を保証しないため、pdfplumber
+	（既存の依存関係、earnings_material.pyで決算資料解析に使用中）で
+	PDFのテキストを直接抽出し、総合判定セクションの見出し文字列
+	「総合判定」が実際に含まれているかどうかで判定する、より直接的で
+	環境非依存な検証に変更した。
 	"""
+	import io
+	import pdfplumber
 	from report.pdf_report import generate_pdf_report
 	score_result = {"total_score": 82, "max_score": 100, "verdict": "test", "verdict_comment": "", "details": []}
 	data = {"company_name": "Test Corp", "sector": "Technology", "country": "United States"}
@@ -405,9 +416,19 @@ def t_sprint32_pdf_report_accepts_overall():
 		overall,
 	)
 	assert pdf_with[:4] == b"%PDF", "Sprint32 regression: generate_pdf_report broken when overall provided"
-	assert len(pdf_with) > len(pdf_without), \
-		"Sprint32 regression: PDF with overall should be larger (extra section) than without"
-	print("   generate_pdf_report: backward compatible without overall, adds section when provided")
+
+	with pdfplumber.open(io.BytesIO(pdf_without)) as pdf:
+		text_without = "\n".join(p.extract_text() or "" for p in pdf.pages)
+	with pdfplumber.open(io.BytesIO(pdf_with)) as pdf:
+		text_with = "\n".join(p.extract_text() or "" for p in pdf.pages)
+
+	assert "総合判定" not in text_without, \
+		"Sprint32 regression: overall section text present even when overall not passed"
+	assert "総合判定" in text_with, \
+		"Sprint32 regression: overall section text missing from PDF when overall was passed"
+	assert "BUY" in text_with and "Grade A" in text_with, \
+		"Sprint32 regression: overall section content (decision/grade) not rendered correctly"
+	print("   generate_pdf_report: backward compatible without overall, includes 総合判定 section when provided")
 check("Sprint32 members (PDF report overall param)", t_sprint32_pdf_report_accepts_overall)
 
 

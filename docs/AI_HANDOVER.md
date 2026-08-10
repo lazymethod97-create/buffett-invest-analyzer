@@ -1746,6 +1746,21 @@ Watchlist Insightsは元々BUY/WATCH/PASS判定に含まれないと明記され
   未実施。ロジック自体は上記の直接テストで検証済み）
 - health_check.py実行、Sprint32検証3件を含め`=== HEALTH: ALL OK ===`を確認
 
+### 追記：health_check.pyのPDF検証をバイト長比較からテキスト内容検証に修正
+
+きたのローカル（Windows）環境で`python health_check.py`を実行したところ、
+「PDF report overall param」テストのみFAILした（他はすべてPASS）。
+原因は、当初このテストが「overallを渡すとPDFのバイト数が増えるはず」という
+バイト長比較で検証していたが、PDF内部構造（フォント・ページ分割・
+ID等）の環境差により、増分がサンドボックスでも実行のたびに21〜169バイトと
+安定せず、Windows環境ではさらに増加しなかったため。
+
+計算ロジック自体（`generate_pdf_report()`本体）には問題がなく、
+テストの検証方法が環境依存で脆弱だったことが原因と判明したため、
+`pdfplumber`（既存の依存関係、`earnings_material.py`で決算資料解析に
+使用中）でPDFのテキストを直接抽出し、「総合判定」という見出し文字列の
+有無で判定する、より直接的で環境非依存な検証に変更した。
+
 ### スコア配分（190点満点、Sprint32時点。変更なし）
 
 計算ロジック（`calculate_overall_grade()`・各`_score_X()`）は一切変更して
