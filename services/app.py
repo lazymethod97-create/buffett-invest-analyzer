@@ -89,6 +89,17 @@ from analysis.portfolio_risk import analyze_portfolio_risk
 from report import generate_portfolio_pdf_report
 
 ####################################################
+# Sprint32: 総合判定(overall)をサマリータブに表示する。
+# create_analysis_bundle()はSprint18から毎回overall_eval.calculate_overall_grade()
+# を実行し bundle["overall"] に格納していたが、これまでapp.py側で一度も
+# 取り出して表示していなかった（計算はされるが画面に出ない状態）。
+# 表示部品はSprint18時点で用意されていたservices/src/ui/を再利用する
+# （重複実装禁止・ルール14）。render_decision_card()のみ、Sprint19〜26で
+# 追加された8項目に対応していなかったため中身を更新した。
+####################################################
+from ui import render_summary_card, render_decision_card
+
+####################################################
 # Sprint28: Watchlist Insights（ウォッチリスト横断の集計・ランキング表示）
 # Portfolio Risk（Sprint27）と同じく複数銘柄が評価単位のため独立機能とし、
 # 新パッケージ（analysis / report）から直接importする。得点化は行わない
@@ -288,6 +299,26 @@ with st.expander("📖 使い方 / 判定基準"):
 	st.markdown("""
 	**例**：`AAPL`（Apple）、`7203`（トヨタ自動車）、`9984`（ソフトバンクグループ）
 
+	### 総合判定（190点満点）
+
+	Buffett Score・DCF・MOAT・ブランド・経営者・Red Team・ROIC・
+	Owner Earnings・Intrinsic Value・Capital Allocation・Share Buyback・
+	Debt Quality・Economic Moat強化・Backtestの14項目を統合した判定です
+	（🔎フルモードで全項目が揃います）。
+
+	| Grade | 点数 | Action |
+	|-------|------|--------|
+	| S | 167点以上 | 積極的に投資候補 |
+	| A | 138点以上 | 買い候補 |
+	| B | 115点以上 | 監視継続 |
+	| C | 92点以上 | 慎重に様子見 |
+	| D | 92点未満 | 見送り |
+
+	総合判定（BUY🟢/WATCH🟡/PASS🔴）：S・Aかつリスク高でない→BUY、
+	Bかつリスク高でない→WATCH、それ以外→PASS
+
+	### Buffett Score（上記の1項目、100点満点）
+
 	| 項目 | 満点 | 合格ライン |
 	|------|------|-----------|
 	| ROE | 20点 | 15%以上 |
@@ -299,7 +330,7 @@ with st.expander("📖 使い方 / 判定基準"):
 	| PBR | 10点 | 3.0倍以下 |
 	| ROA | 5点 | 5%以上 |
 
-	**75点以上 → 投資推奨**
+	**75点以上 → 投資推奨**（Buffett Score単体の判定。総合判定とは別）
 	""")
 
 # ------------------------------------------------------------
@@ -395,6 +426,7 @@ if (
 	debt_quality = bundle.get("debt_quality")
 	moat_strength = bundle.get("moat_strength")
 	backtest = bundle.get("backtest")
+	overall = bundle.get("overall")
 
 	currency = "¥" if data.get("country") == "Japan" else "$"
 	st.caption(f"現在の分析モード: **{current_mode}**")
@@ -472,6 +504,24 @@ if (
 	# 新しいAI呼び出しは追加していない。
 	####################################################
 	with tab_summary:
+		####################################################
+		# Sprint32: 総合判定(overall)をサマリータブ最上部に表示する。
+		# bundle["overall"]はSprint18から毎回計算されていたが、これまで
+		# app.py側で一度も表示していなかった（詳細はdocs/AI_HANDOVER.md
+		# Sprint32セクション参照）。
+		# クイック/標準モードではMOAT・ROIC等の一部項目が未評価
+		# （calculate_overall_grade側で0点扱い）になるため、フルモードで
+		# ない場合はその旨を注記する。
+		####################################################
+		render_summary_card(overall, score_result)
+		if not is_full:
+			st.caption(
+				"⚠️ 現在の分析モードでは一部の項目（MOAT・ROIC等）が未評価のため、"
+				"総合判定は暫定値です。🔎フルモードで再分析すると全14項目で判定されます。"
+			)
+		render_decision_card(overall)
+
+		st.divider()
 		st.plotly_chart(
 			create_score_bar(score_result["total_score"], score_result["max_score"]),
 			use_container_width=True,
@@ -817,6 +867,7 @@ if (
 					debt_quality,
 					moat_strength,
 					backtest,
+					overall,
 				)
 				st.download_button(
 					"⬇️ PDFをダウンロード",
@@ -1076,7 +1127,7 @@ if (
 			# 上で計算済みのportfolio_rows（cached_get_stock_data /
 			# calculate_buffett_scoreの結果）をそのまま再利用する。新たな
 			# データ取得・スコア再計算は行わない（ルール14）。
-			# 単一銘柄向けのBuffett Score（190点満点）とは評価単位が異なる
+			# 単一銘柄向けの総合判定（190点満点、overall_eval）とは評価単位が異なる
 			# （複数銘柄からなるポートフォリオ全体が対象）ため、既存の
 			# analysis_bundle / overall_eval（BUY/WATCH/PASS判定）には
 			# 組み込まない、独立した分析として表示する。

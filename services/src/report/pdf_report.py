@@ -130,6 +130,7 @@ def generate_pdf_report(
     debt_quality: dict = None,
     moat_strength: dict = None,
     backtest: dict = None,
+    overall: dict = None,
 ) -> bytes:
     """
     Sprint8: 分析結果全体をPDFレポートとして出力する。
@@ -142,6 +143,24 @@ def generate_pdf_report(
     pdf.add_paragraph(f"分析レポート：{data.get('company_name', '不明')}")
     pdf.add_paragraph(f"セクター：{data.get('sector', '不明')}　国：{data.get('country', '不明')}")
     pdf.add_divider()
+
+    ####################################################
+    # Sprint32: 総合判定(overall)をPDFにも反映する。
+    # app.pyのbundle["overall"]（overall_eval.calculate_overall_grade()の
+    # 結果）はSprint18から毎回計算されていたが、これまでPDFレポートにも
+    # 表示されていなかった（詳細はdocs/AI_HANDOVER.md Sprint32セクション
+    # 参照）。190点満点・14項目を統合した最終結論のため、Buffett Score
+    # （14項目中の1項目）より先に表示する。
+    ####################################################
+    if overall:
+        pdf.add_heading("🎯 総合判定（190点満点）")
+        decision = overall.get("decision", "PASS")
+        grade = overall.get("grade", "-")
+        overall_score = overall.get("overall_score", 0)
+        pdf.add_paragraph(f"総合判定：{decision}（Grade {grade} / {overall_score}点）")
+        pdf.add_paragraph(f"リスク：{overall.get('risk', '-')}　確信度：{overall.get('confidence', '-')}")
+        pdf.add_paragraph(overall.get("action", ""))
+        pdf.add_divider()
 
     # Buffett Score
     pdf.add_heading("📊 Buffett Score")
