@@ -131,8 +131,17 @@ def cached_get_latest_news(company_name):
 # は変更しないため、出力される値は変更前と完全に同一（重複実装禁止・ルール14により
 # Portfolio/Watchlistで共通のヘルパーとして1箇所にまとめる）。
 ####################################################
-def _build_rows_cached(session_key, items, ticker_of, build_row_fn, ttl_seconds=3600):
-	signature = tuple(sorted(ticker_of(item) for item in items))
+####################################################
+# Sprint30: Performance改善（続き）
+# Sprint29の_build_rows_cached()が使っていた「signature + TTLでsession_state
+# キャッシュし、両方一致すれば再計算をスキップする」という仕組みは、
+# rows（Portfolio/Watchlistの銘柄一覧）以外の重い処理（例：PDFバイト列生成）
+# にも共通して使える汎用パターンである。重複実装禁止（ルール14）のため、
+# 汎用ヘルパー_cache_by_signature()を新設し、_build_rows_cached()自体も
+# これを呼び出す薄いラッパーに書き換える（signature計算・TTL判定・戻り値は
+# 完全に同一のため、Portfolio/Watchlist側の挙動・出力は一切変わらない）。
+####################################################
+def _cache_by_signature(session_key, signature, build_fn, ttl_seconds=3600):
 	cached = st.session_state.get(session_key)
 	now = time.time()
 	if (
@@ -140,15 +149,25 @@ def _build_rows_cached(session_key, items, ticker_of, build_row_fn, ttl_seconds=
 		and cached.get("signature") == signature
 		and (now - cached.get("built_at", 0)) < ttl_seconds
 	):
-		return cached["rows"]
+		return cached["value"]
 
-	rows = [build_row_fn(item) for item in items]
+	value = build_fn()
 	st.session_state[session_key] = {
 		"signature": signature,
 		"built_at": now,
-		"rows": rows,
+		"value": value,
 	}
-	return rows
+	return value
+
+
+def _build_rows_cached(session_key, items, ticker_of, build_row_fn, ttl_seconds=3600):
+	signature = tuple(sorted(ticker_of(item) for item in items))
+	return _cache_by_signature(
+		session_key,
+		signature,
+		lambda: [build_row_fn(item) for item in items],
+		ttl_seconds=ttl_seconds,
+	)
 
 
 ####################################################
@@ -1132,7 +1151,31 @@ if (
 						st.caption(f"改善点：{portfolio_risk_result['improvement_area']}")
 
 				with pr_ai_col2:
-					pr_pdf_bytes = generate_portfolio_pdf_report(portfolio_risk_result)
+					####################################################
+					# Sprint30: Performance改善（続き）
+					# st.download_buttonはdata=を毎回の再実行時に同期的に
+					# 用意する必要があるため、単一銘柄向けPDF（st.buttonで
+					# 生成タイミングを制御できる）と異なり、これまでは
+					# generate_portfolio_pdf_report()がアプリ内のどこかで
+					# 操作されるたびに（Portfolio Riskタブを見ていないときも
+					# 含めて）毎回ゼロから再生成されていた（PDF自体は画像を
+					# 含まないため1回あたりは軽いが、無駄な再計算ではある）。
+					# portfolio_risk_resultの内容は「保有銘柄構成
+					# （portfolio_signature）」と「AI考察の有無・内容
+					# （portfolio_risk_ai）」が変わらない限り変化しないため、
+					# 両方をsignatureとして_cache_by_signature()でPDFバイト列
+					# 自体をキャッシュし、変化が無ければ再生成をスキップする。
+					####################################################
+					_ai_state = st.session_state.get("portfolio_risk_ai")
+					_pdf_signature = (
+						portfolio_signature,
+						tuple(sorted(_ai_state.items())) if _ai_state else None,
+					)
+					pr_pdf_bytes = _cache_by_signature(
+						"portfolio_risk_pdf_cache",
+						_pdf_signature,
+						lambda: generate_portfolio_pdf_report(portfolio_risk_result),
+					)
 					st.download_button(
 						label="📄 Portfolio Risk PDFをダウンロード",
 						data=pr_pdf_bytes,

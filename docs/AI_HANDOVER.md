@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint28完了。
+現在Sprint30完了。
 
-次回はSprint29（Performance改善）から開始。
+次回はSprint31から開始。
 
 ---
 
@@ -1496,6 +1496,126 @@ Sprint28時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点
 
 ---
 
+## Sprint30 完了内容（Performance改善・続き）
+
+Sprint29に続き、新規の分析軸を追加するものではなく、既存機能の非機能要件
+改善（処理速度・重複計算の削減）。既存の計算ロジック・スコア・判定結果は
+一切変更していない。190点満点・スコア配分・判定基準（S:167/A:138/B:115/
+C:92/D:92未満）への影響もない。
+
+実装前に、候補2（フルモード一括計算）・候補3（PDF生成）を調査し、きたに
+報告・確認したうえで着手した。
+
+### 候補2（フルモード一括計算）：調査の結果、対応不要と判断
+
+`create_analysis_bundle()`のfullモードで計算される19分析軸
+（moat/brand/mgmt/red_team + roic〜backtestの14軸 + checklist等）と、
+`app.py`側の表示コード・PDF出力コードを突き合わせて調査した。
+
+- ROIC・Owner Earnings・Intrinsic Value・Capital Allocation・Share Buyback・
+  Debt Quality・Economic Moat強化・Backtestの8軸は、いずれも「🧠 定性分析」
+  タブ内で`if is_full: ... st.markdown(create_X_display(X))`という形で
+  個別に表示されている（app.py 531〜611行目付近）
+- moat・brand・mgmt・red_teamも同様に定性分析タブで表示されている
+- 上記すべてが`generate_pdf_report()`にも渡され、PDFレポートにも出力されている
+
+→ 計算だけして画面上どこにも表示されていないもの（無駄な計算）は
+見つからなかった。候補2は見送りとし、対応は行っていない。
+
+### 候補3（PDF生成）：調査結果と対応
+
+`report/pdf_report.py`の`generate_pdf_report()`・
+`generate_portfolio_pdf_report()`を調査した。
+
+調査で分かったこと：
+
+- チャート画像化：なし（ReportLabでテキスト・箇条書きを直接描画するのみ。
+  レーダーチャートはPlotlyでStreamlit画面表示専用に使われており、PDFには
+  埋め込まれていない）
+- フォント処理：`pdfmetrics.registerFont()`はモジュール読込時に1回だけ
+  実行されており、レポート生成のたびに毎回登録し直してはいない
+  （既に効率的）
+- 単一銘柄向け`generate_pdf_report()`：`st.button("📄 PDFレポートを生成")`
+  の中でのみ呼ばれており、ボタンを押すまで実行されない（無駄なし）
+
+きたへのヒアリングの結果、体感で「遅い」と感じる特定の操作は無かった。
+
+発見（候補3で見つかった無駄な処理）：
+
+`💼 Portfolio`タブ内の`generate_portfolio_pdf_report(portfolio_risk_result)`
+（Sprint29時点でapp.py 1135行目）が、単一銘柄向けPDFと異なり
+`st.button`で囲われておらず、`st.download_button`のdata引数として
+毎回無条件に呼ばれていた。Streamlitはアプリ内のどこかで操作されるたびに
+スクリプト全体を再実行するため（Sprint29の発見2と同じ構造）、保有銘柄が
+登録されている限り、Portfolio Risk PDFはユーザーがダウンロードするか
+どうかに関わらず、無関係な操作のたびに毎回ゼロから再生成されていた
+（PDF自体は画像を含まず軽量なので1回あたりの負荷は大きくないが、
+無駄な再計算であることは確かである）。
+
+対応：Sprint29の`_build_rows_cached()`が使っていた「signature + TTLで
+session_stateキャッシュし、両方一致すれば再計算をスキップする」仕組みを、
+rows構築以外にも使える汎用ヘルパー`_cache_by_signature()`として一般化し、
+`_build_rows_cached()`自体もこれを呼び出す薄いラッパーに書き換えた
+（重複実装禁止・ルール14。signature計算・TTL判定・戻り値の意味は完全に
+同一のため、Portfolio/Watchlist側の挙動・出力は一切変わらない）。
+
+Portfolio Risk PDFのバイト列生成は、この`_cache_by_signature()`経由に
+した。signatureは「保有銘柄構成（portfolio_signature、既存のAI考察
+リセット判定で使っているものと同じ）」と「AI考察の有無・内容
+（st.session_state.portfolio_risk_ai）」の組にしている。どちらも
+変わっていなければ`generate_portfolio_pdf_report()`を再実行せず、
+前回生成したバイト列をそのまま返す。TTLはPortfolio/Watchlistのrows
+キャッシュと同じ3600秒（cached_get_stock_dataのTTLに合わせている）。
+
+### Before/After比較テスト
+
+`compare_before_after_sprint30.py`（サンドボックス実行用、リポジトリ外）で、
+以下を確認した。
+
+- リファクタ後の`_build_rows_cached()`が、素朴なループ実装と完全に同一の
+  rowsを返すこと（Sprint29の挙動を壊していないこと）
+- `_cache_by_signature()`が、signatureが変わらない限り`build_fn()`を
+  再実行しないこと（無関係な操作によるrerunを複数回シミュレートしても
+  再生成されない）
+- 保有銘柄構成が変わった場合、AI考察が追加された場合は、それぞれ正しく
+  signatureが変わり再生成されること
+
+また、`generate_portfolio_pdf_report()`自体（キャッシュ層を経由しない
+関数そのもの）は変更していないため、同一入力に対する出力の同一性を
+health_check.pyのスモークテストで確認している（ReportLabは
+`canvas.save()`のたびにPDFの`/ID`（ランダムなドキュメント識別子、
+メタデータ）を新規生成する仕様のため、完全なバイト一致は元々成立しない。
+内容の同一性はバイト長の一致で確認した）。
+
+### 新規作成
+
+なし（既存ファイルの修正のみ）。
+
+### 修正
+
+app.py
+
+- `_cache_by_signature(session_key, signature, build_fn, ttl_seconds=3600)`
+  汎用ヘルパーを追加（Sprint29の`_build_rows_cached()`のキャッシュロジックを
+  一般化したもの）
+- `_build_rows_cached()`を`_cache_by_signature()`呼び出しに書き換え
+  （挙動・戻り値は変更前と完全に同一）
+- Portfolio Risk PDFバイト列生成（`generate_portfolio_pdf_report()`の
+  呼び出し）を`_cache_by_signature()`経由に変更
+
+health_check.py
+
+- Sprint30検証を2件追加（`_cache_by_signature()`の配線検証、
+  `generate_portfolio_pdf_report()`の出力安定性スモークテスト）
+
+### スコア配分（190点満点、Sprint30時点。変更なし）
+
+Sprint29時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）
+から変更なし。Sprint30は既存機能の非機能要件改善であり、新規の分析軸・
+得点は追加していない。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -1516,11 +1636,7 @@ ai_analysis.py → ai/ai_analysis.py
 
 # 今後のSprint
 
-Sprint29
-
-Performance改善
-
-Sprint30
+Sprint31
 
 Version2.0 Release
 

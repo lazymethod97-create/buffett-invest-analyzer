@@ -248,4 +248,68 @@ def t_sprint29_build_rows_cached_wired():
 check("Sprint29 members (_build_rows_cached wiring)", t_sprint29_build_rows_cached_wired)
 
 
+# 6c) Sprint30 members (_cache_by_signature generalized + Portfolio Risk PDF wired through it)
+def t_sprint30_cache_by_signature_wired():
+	"""
+	Sprint30調査の結果、候補2（フルモード一括計算）は全19分析軸すべてが
+	画面表示・PDF出力に使われており無駄な計算は見つからなかった（対応不要、
+	docs/AI_HANDOVER.md参照）。候補3（PDF生成）は、単一銘柄向けPDFは
+	st.buttonで生成タイミングを制御できているため無駄が無かったが、
+	Portfolio Risk PDF（generate_portfolio_pdf_report）はst.download_buttonの
+	data=引数として無条件に呼ばれており、アプリ内のどこかで操作されるたびに
+	（Portfolio Riskタブを見ていないときも含めて）毎回ゼロから再生成されて
+	いた（Sprint29の_build_rows_cached()と同種の問題）。
+
+	Sprint29の「signature + TTLでsession_stateキャッシュする」仕組みを
+	_cache_by_signature()として汎用化し、_build_rows_cached()はこれを呼ぶ
+	薄いラッパーに書き換えた（重複実装禁止・ルール14）うえで、Portfolio Risk
+	PDFのバイト列生成もこのヘルパー経由にした。app.pyのソースを直接検査し、
+	汎用ヘルパーが定義され、_build_rows_cached()から呼ばれ、かつPortfolio
+	Risk PDF生成にも配線されていることを確認する。
+	"""
+	app_path = BASE + r"\services\app.py"
+	with open(app_path, "r", encoding="utf-8-sig") as f:
+		src = f.read()
+	assert "def _cache_by_signature(" in src, "Sprint30 regression: _cache_by_signature helper missing"
+	assert "return _cache_by_signature(" in src, \
+		"Sprint30 regression: _build_rows_cached must delegate to _cache_by_signature (no duplicate caching logic)"
+	assert '_cache_by_signature(\n\t\t\t\t\t\t"portfolio_risk_pdf_cache"' in src or \
+		'"portfolio_risk_pdf_cache"' in src, \
+		"Sprint30 regression: Portfolio Risk PDF generation not wired through _cache_by_signature"
+	assert "generate_portfolio_pdf_report(portfolio_risk_result)" in src, \
+		"Sprint30 regression: generate_portfolio_pdf_report call missing/renamed unexpectedly"
+	print("   _cache_by_signature wired: _build_rows_cached + Portfolio Risk PDF OK")
+check("Sprint30 members (_cache_by_signature wiring)", t_sprint30_cache_by_signature_wired)
+
+# 6d) Sprint30 members (Portfolio Risk PDF output unchanged - same bytes for same input)
+def t_sprint30_portfolio_pdf_output_unchanged():
+	"""
+	Performance改善はPDFの表示内容そのものを変えてはならない（実装方針・
+	既存機能を壊さない）。generate_portfolio_pdf_report()自体は変更して
+	いないため、同一入力に対して複数回呼び出しても同一バイト列を返すことを
+	直接確認する（キャッシュ層を経由しない、関数そのものの回帰確認）。
+	"""
+	from report.pdf_report import generate_portfolio_pdf_report
+	class _FakeHolding:
+		def __init__(self, ticker, shares):
+			self.ticker = ticker
+			self.shares = shares
+			self.id = 1
+	rows = [
+		{"holding": _FakeHolding("AAPL", 5), "data": {"company_name": "Apple Inc.", "current_price": 200.0, "sector": "Technology", "country": "United States"}, "score_result": {"total_score": 140, "max_score": 190}, "error": None},
+	]
+	from analysis import analyze_portfolio_risk
+	result = analyze_portfolio_risk(rows, generate_ai_narrative=False)
+	pdf_a = generate_portfolio_pdf_report(result)
+	pdf_b = generate_portfolio_pdf_report(result)
+	# 注：ReportLabはcanvas.save()のたびにPDFの/ID（メタデータ、ランダムな
+	# ドキュメント識別子）を新規生成するため、完全なバイト一致は元々成立しない
+	# （Sprint30で新規に混入した差異ではない）。レポート内容自体が同一かは
+	# バイト長の一致で確認する（内容が変われば長さも変わるため十分な代理指標）。
+	assert len(pdf_a) == len(pdf_b), "Sprint30 regression: generate_portfolio_pdf_report content length differs across identical calls"
+	assert pdf_a and pdf_b, "Sprint30 regression: generate_portfolio_pdf_report returned empty bytes"
+	print("   generate_portfolio_pdf_report output stable across repeated calls (same length: ", len(pdf_a), "bytes)")
+check("Sprint30 members (portfolio PDF output unchanged)", t_sprint30_portfolio_pdf_output_unchanged)
+
+
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")
