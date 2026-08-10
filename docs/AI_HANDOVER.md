@@ -19,9 +19,9 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint30完了。
+現在Sprint31完了（Version 2.0 Release）。
 
-次回はSprint31から開始。
+次回のSprintは未定。
 
 ---
 
@@ -1616,6 +1616,57 @@ Sprint29時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点
 
 ---
 
+## Sprint31 完了内容（Version 2.0 Release）
+
+新規機能追加ではなく、Sprint1〜30までの実装を集約したリリース作業。
+きたに作業範囲を確認したうえで、以下3点を実施した。
+
+### 1. README.md更新
+
+- バージョン表記を「現在開発中 Version 0.3.0」→「Version 2.0.0」に更新
+- 「Version 1.0で実装予定」（Sprint1〜2時点の予定リストのまま放置されて
+  いた）を、実際にSprint1〜30で実装済みの機能一覧に置き換え
+- 起動方法の`streamlit run app.py`が実際のファイル配置
+  （`services/app.py`）と食い違っていたため`streamlit run services/app.py`
+  に修正
+- 使用技術にPlotly・ReportLab・pdfplumberを追加（requirements.txtには
+  含まれていたがREADMEに記載が無かった）
+- 「開発ルール」セクション（Sprint1〜2時点の5行サマリーのまま）は、
+  docs/PROJECT_RULES.md（25ルールまで拡張済み）との重複・乖離を避けるため、
+  重複記載をやめてdocs/PROJECT_RULES.mdへのリンクのみに変更
+- 「ドキュメント」セクションを実態に合わせて更新（PROJECT.md→
+  PROJECT_RULES.md、ROADMAP.mdは実際には作成されていないため削除、
+  AI_HANDOVER.md・CHANGELOG.mdの「今後追加」表記を削除）
+
+### 2. docs/CHANGELOG.md新規作成
+
+Sprint1〜31の変更履歴をまとめたCHANGELOG.mdを新規作成した。Sprint1〜9は
+詳細なSprint別記録がAI_HANDOVER.mdに残っていなかったため、app.py等の
+ソースコード中のSprintコメント（Sprint6投資仮説管理、Sprint7ニュース
+確認ポイント、Sprint8 PDFレポート、Sprint9 DCF分析等）から裏付けが
+取れた範囲のみを記載し、確認できない詳細は推測で補わなかった。
+Sprint10〜17もソースコードのコメントを根拠に一覧化した。Sprint18以降は
+docs/AI_HANDOVER.mdの各Sprintセクションを要約する形で記載している。
+
+### 3. リポジトリ内の不要ファイル整理
+
+以下5ファイルを削除した。いずれもdocs/・services/配下のどこからも
+参照されていないことを確認済み（過去のSprintでのコード配布用の一時
+ファイル、または既にmainへマージ済みのSprint25/26のgit bundle）。
+
+- fix.patch
+- fix_app.py
+- fix_bundle.py
+- sprint25.bundle
+- sprint26.bundle
+
+### スコア配分（190点満点、Sprint31時点。変更なし）
+
+Sprint30時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）
+から変更なし。Sprint31は新規の分析軸・得点を追加していない。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -1636,9 +1687,7 @@ ai_analysis.py → ai/ai_analysis.py
 
 # 今後のSprint
 
-Sprint31
-
-Version2.0 Release
+未定。次にきたと相談して決定する。
 
 ---
 
