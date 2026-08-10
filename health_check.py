@@ -312,4 +312,103 @@ def t_sprint30_portfolio_pdf_output_unchanged():
 check("Sprint30 members (portfolio PDF output unchanged)", t_sprint30_portfolio_pdf_output_unchanged)
 
 
+# 6e) Sprint32 members (overall grade wired into Summary tab + PDF report)
+def t_sprint32_overall_wired_in_app():
+	"""
+	Sprint18からcreate_analysis_bundle()は毎回calculate_overall_grade()を
+	実行しbundle["overall"]に格納していたが、app.py側で一度も取り出して
+	表示していなかった（計算されるが画面に一切出ない状態だった。詳細は
+	docs/AI_HANDOVER.md Sprint32セクション参照）。app.pyのソースを直接検査し、
+	overallがbundleから取り出され、render_summary_card / render_decision_card
+	（Sprint18製・Sprint32まで未使用だったui/の部品、重複実装禁止のため
+	新規実装ではなく再利用）に渡されていることを確認する。
+	"""
+	app_path = BASE + r"\services\app.py"
+	with open(app_path, "r", encoding="utf-8-sig") as f:
+		src = f.read()
+	assert 'overall = bundle.get("overall")' in src, \
+		"Sprint32 regression: overall not extracted from bundle in app.py"
+	assert "from ui import render_summary_card, render_decision_card" in src, \
+		"Sprint32 regression: ui card components not imported"
+	assert "render_summary_card(overall, score_result)" in src, \
+		"Sprint32 regression: render_summary_card not called in Summary tab"
+	assert "render_decision_card(overall)" in src, \
+		"Sprint32 regression: render_decision_card not called in Summary tab"
+	print("   overall wired: bundle extraction + render_summary_card + render_decision_card OK")
+check("Sprint32 members (overall wired in app.py)", t_sprint32_overall_wired_in_app)
+
+
+def t_sprint32_decision_card_covers_14_factors():
+	"""
+	Sprint18時点のrender_decision_card()は6項目・/100正規化のままで、
+	Sprint19〜26で追加された8項目（roic〜backtest）が欠けていた。
+	Sprint32で実際の14項目・正しい満点に更新した。calculate_overall_grade()
+	のdetailキー14個すべてに対応するラベルがrender_decision_card内に
+	存在すること、かつ満点の合計が190点になることを直接検証する。
+	"""
+	import inspect
+	from ui.decision_card import render_decision_card
+	from analysis.overall_eval import calculate_overall_grade
+	src = inspect.getsource(render_decision_card)
+
+	score_result = {"total_score": 90}
+	dcf_result = {"success": True, "margin_of_safety_pct": 30}
+	overall = calculate_overall_grade(
+		score_result=score_result, dcf_result=dcf_result,
+		moat={"rating": "wide", "stars": 5}, brand={"stars": 5}, mgmt={"stars": 5},
+		red_team={"conclusion": "", "summary": ""},
+		roic={"score": 15}, owner_earnings={"score": 10}, intrinsic_value={"score": 15},
+		capital_allocation={"score": 10}, share_buyback={"score": 10}, debt_quality={"score": 10},
+		moat_strength={"score": 10}, backtest={"score": 10},
+	)
+	detail_keys = list(overall["detail"].keys())
+	assert len(detail_keys) == 14, f"Sprint32 regression: overall detail should have 14 keys, got {len(detail_keys)}"
+	for key in detail_keys:
+		assert f'"{key}"' in src, f"Sprint32 regression: render_decision_card missing label for detail key '{key}'"
+	assert "/ 100.0" not in src, "Sprint32 regression: stale /100.0 normalization still present in render_decision_card"
+
+	# 満点(190点)で全項目が満点表示になることをスモークテストで確認
+	# (calculate_overall_grade自体はSprint26で確定済みのため計算ロジックは検証済み。
+	#  ここではrender_decision_card用のmax_score一覧が190点に合計されることのみ検証する)
+	import re
+	max_scores = [int(m) for m in re.findall(r'",\s*(\d+)\),', src)]
+	assert sum(max_scores) == 190, f"Sprint32 regression: decision_card max scores sum to {sum(max_scores)}, expected 190"
+	print("   render_decision_card covers all 14 factors, max scores sum to 190")
+check("Sprint32 members (decision_card 14 factors)", t_sprint32_decision_card_covers_14_factors)
+
+
+def t_sprint32_pdf_report_accepts_overall():
+	"""
+	generate_pdf_report()にoverallパラメータを追加した。既存呼び出し
+	（overallを渡さない）でも壊れないこと（後方互換）、overallを渡した
+	場合は総合判定セクションがPDFに含まれる（バイト数が増える）ことを
+	確認する。
+	"""
+	from report.pdf_report import generate_pdf_report
+	score_result = {"total_score": 82, "max_score": 100, "verdict": "test", "verdict_comment": "", "details": []}
+	data = {"company_name": "Test Corp", "sector": "Technology", "country": "United States"}
+	pdf_without = generate_pdf_report(
+		data, score_result, "analysis", "news", [], {}, {}, {}, {}, [], [],
+	)
+	assert pdf_without[:4] == b"%PDF", "Sprint32 regression: generate_pdf_report broken when overall omitted"
+
+	overall = {
+		"overall_score": 150, "grade": "A", "risk": "Low", "confidence": "Medium",
+		"action": "買い候補", "decision": "BUY",
+		"detail": {"buffett": 35, "dcf": 15, "moat": 15, "brand": 8, "management": 8, "redteam": 5,
+		           "roic": 12, "owner_earnings": 8, "intrinsic_value": 12, "capital_allocation": 8,
+		           "share_buyback": 7, "debt_quality": 9, "moat_strength": 8, "backtest": 7},
+	}
+	pdf_with = generate_pdf_report(
+		data, score_result, "analysis", "news", [], {}, {}, {}, {}, [], [],
+		None, None, None, None, None, None, None, None,
+		overall,
+	)
+	assert pdf_with[:4] == b"%PDF", "Sprint32 regression: generate_pdf_report broken when overall provided"
+	assert len(pdf_with) > len(pdf_without), \
+		"Sprint32 regression: PDF with overall should be larger (extra section) than without"
+	print("   generate_pdf_report: backward compatible without overall, adds section when provided")
+check("Sprint32 members (PDF report overall param)", t_sprint32_pdf_report_accepts_overall)
+
+
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")

@@ -19,7 +19,7 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint31完了（Version 2.0 Release）。
+現在Sprint32完了。
 
 次回のSprintは未定。
 
@@ -1664,6 +1664,93 @@ docs/AI_HANDOVER.mdの各Sprintセクションを要約する形で記載して�
 
 Sprint30時点のスコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）
 から変更なし。Sprint31は新規の分析軸・得点を追加していない。
+
+---
+
+## Sprint32 完了内容（総合判定(overall)をサマリータブ・PDFレポートに表示）
+
+きたからの質問（サマリータブの「使い方 / 判定基準」・「75点以上→投資推奨」は
+現在の想定と合っているか）をきっかけに全体調査を行い、その結果を踏まえて
+きたに実装を依頼された。
+
+### 発見した問題
+
+`create_analysis_bundle()`はSprint18から毎回`overall_eval.calculate_overall_grade()`
+を実行し、`bundle["overall"]`（190点満点・S〜Dグレード・BUY/WATCH/PASS判定、
+Sprint19〜26で追加された14項目すべてを反映済み）を計算していたが、
+`app.py`側でこれを取り出して表示している箇所が一つもなかった（Summary・
+Portfolio・ウォッチリスト・比較分析・PDFレポート、いずれも未使用）。
+代わりにすべての画面で`calculate_buffett_score()`（100点満点、14項目中の
+1項目にすぎない）だけが表示され続けていた。
+
+さらに、`services/src/ui/`にはSprint18時点で総合判定表示専用に作られた
+部品（`render_summary_card`・`render_decision_card`等）が存在したが、
+一度も`app.py`からimportされておらず未使用のままだった。うち
+`render_decision_card`は6項目・`/100`正規化のままで、Sprint19〜26で
+追加された8項目（ROIC等）に対応していなかった。
+
+（「75点以上→投資推奨」自体は`calculate_buffett_score()`自身の判定
+ロジックとは一致しており、その点は誤りではなかった。問題は「本来の
+総合判定システムがどこにも表示されていない」ことだった。）
+
+### 対応内容
+
+1. **`render_decision_card()`を14項目・正しい満点に更新**
+   （Buffett40/DCF20/MOAT15/ブランド10/経営者10/RedTeam5/ROIC15/
+   OwnerEarnings10/IntrinsicValue15/CapitalAllocation10/ShareBuyback10/
+   DebtQuality10/EconomicMoat強化10/Backtest10、合計190点）。
+   計算ロジック（`calculate_overall_grade()`）自体は変更していない。
+
+2. **サマリータブ最上部に総合判定を表示**
+   `bundle.get("overall")`を取り出し、Sprint18製で未使用だった
+   `render_summary_card()`・`render_decision_card()`をそのまま再利用
+   （新規実装ではなく既存部品の活用、ルール14）。クイック/標準モードでは
+   MOAT・ROIC等の一部項目が未評価（0点扱い）になるため、フルモードで
+   ない場合は暫定値である旨のキャプションを追加した。
+
+3. **「使い方 / 判定基準」の説明を更新**
+   190点満点・S〜Dグレード・BUY/WATCH/PASSの基準を追記し、既存の
+   Buffett Score（100点満点）の表はその1項目という位置づけが分かるように
+   した。「75点以上→投資推奨」の表記自体は残しつつ、「Buffett Score単体の
+   判定。総合判定とは別」と明記した。
+
+4. **PDFレポートに総合判定セクションを追加**
+   `generate_pdf_report()`に`overall`パラメータ（デフォルト`None`、既存
+   呼び出しとの後方互換を維持）を追加し、表紙の直後・Buffett Scoreより
+   前に総合判定（Grade・決定・リスク・確信度・アクション）を出力する
+   ようにした。
+
+5. **軽微な修正**：Portfolio Riskセクションのコード内コメントで
+   「Buffett Score（190点満点）」とBuffett Score（実際は100点満点の一部品）
+   と総合判定（190点満点）を混同していた表現を修正した
+   （ユーザー非表示のコメントのみ）。
+
+Portfolio／ウォッチリスト／比較分析タブは対象外とした（Portfolio Risk・
+Watchlist Insightsは元々BUY/WATCH/PASS判定に含まれないと明記されている
+独立機能のため）。
+
+### 検証
+
+- `calculate_overall_grade()`のdetailが14項目であること、
+  `render_decision_card()`が14項目すべてに対応するラベルを持ち、満点の
+  合計が190点であることをhealth_check.pyで直接検証
+- `render_summary_card()` / `render_decision_card()`をfake streamlitで
+  実行し、正しいラベル・比率・テキストが生成されることをサンドボックスで
+  確認
+- `generate_pdf_report()`を`overall`ありなし両方で呼び出し、有効なPDFが
+  生成されること、`overall`ありの場合はバイト数が増える（総合判定
+  セクションが追加されている）ことを確認
+- Streamlit `AppTest`で`app.py`をロードし、`ui`パッケージのimportを含めて
+  例外なく初期表示できることを確認（yfinance等の外部ネットワークが
+  必要な実際のティッカー分析実行はサンドボックスのネットワーク制限のため
+  未実施。ロジック自体は上記の直接テストで検証済み）
+- health_check.py実行、Sprint32検証3件を含め`=== HEALTH: ALL OK ===`を確認
+
+### スコア配分（190点満点、Sprint32時点。変更なし）
+
+計算ロジック（`calculate_overall_grade()`・各`_score_X()`）は一切変更して
+いない。既存の計算結果を画面・PDFに表示するようにしただけであり、
+スコア配分・判定基準（S:167/A:138/B:115/C:92/D:92点未満）に変更なし。
 
 ---
 

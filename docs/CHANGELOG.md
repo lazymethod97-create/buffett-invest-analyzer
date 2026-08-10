@@ -182,3 +182,12 @@ data引数として無条件に毎回再生成されていた問題を発見し�
 README.md・CHANGELOG.mdの整備、リポジトリ内の旧配布物
 （fix.patch / fix_app.py / fix_bundle.py / sprint25.bundle /
 sprint26.bundle）の削除。新規機能追加なし。
+
+### Sprint32：総合判定(overall)をサマリータブ・PDFレポートに表示
+
+`bundle["overall"]`（190点満点・S〜Dグレード・BUY/WATCH/PASS判定）は
+Sprint18から毎回計算されていたが、画面にもPDFにも一度も表示されていな
+かった問題を発見・修正。Sprint18製で未使用だった`render_summary_card`・
+`render_decision_card`（後者は14項目対応に更新）を再利用してサマリー
+タブに表示し、PDFレポートにも総合判定セクションを追加した。計算ロジック
+（`calculate_overall_grade()`）自体の変更なし。
