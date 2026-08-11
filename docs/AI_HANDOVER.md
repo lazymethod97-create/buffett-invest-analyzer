@@ -1769,6 +1769,90 @@ ID等）の環境差により、増分がサンドボックスでも実行のた
 
 ---
 
+## Sprint33 完了内容（未使用コード・重複実装の削除）
+
+きたから「アプリに使われていないコードや冗長な部分、バグがあれば修正してほしい」
+と依頼を受け、リポジトリ全体を調査した。実際に動いているロジックに明確な
+バグは見つからなかったが、どこからもimportされていない孤立ファイルと、
+ルール14（重複処理禁止）に反する重複実装が見つかったため、きたに調査結果を
+報告・確認のうえ削除した。
+
+### 発見した問題と対応
+
+**1. どこからもimportされていない孤立ファイル（5件、削除）**
+
+- `services/market_data.py`：Sprint初期のデバッグ用スタブ
+  （`print(f"DEBUG: ...")`とダミーデータを返すだけの関数）。どこからも
+  参照されていなかった。
+- `services/src/checklist_engine.py`：Sprint18の旧import互換ラッパー
+  だが、実際には`data_fetcher.py`等の他ラッパーと違いapp.pyからも
+  どこからも`import`されていなかった。
+- `services/src/overall_eval.py`：同上、未使用の互換ラッパー。
+- `services/src/gemini.py`：同上、未使用の互換ラッパー。
+- `services/src/engines/dcf_analysis.py`：`engines`パッケージ内の
+  重複ラッパー。app.pyは`src`直下の`dcf_analysis.py`経由で
+  `engines.dcf_engine`を直接呼んでおり、こちらは完全に迂回されていた。
+
+**2. 重複実装（ルール14違反）かつ未使用（削除）**
+
+- `services/src/engines/checklist_engine.py`内の`create_radar_chart` /
+  `create_score_bar` / `create_checklist_display`の3関数：
+  `report/report.py`に同名の別実装があり、app.pyが実際に使っているのは
+  そちら側。engines側の3関数は丸ごとデッドコードだった（同ファイル内の
+  `generate_buffett_checklist_rule`のみ実際に使用されているため、これは
+  残した）。ファイル冒頭の`import plotly.graph_objects as go`も、この3関数
+  でのみ使われていたため合わせて削除した。
+- `services/src/ai/ai_analysis.py`内の`_generate_rule_checklist()`：
+  `engines/checklist_engine.py`の`generate_buffett_checklist_rule()`と
+  ほぼ同一のロジック（経営圏・MOAT・財務健全性等の判定）を持つ関数だが、
+  AI呼び出し失敗時のフォールバックは実際には`generate_buffett_checklist_rule`
+  の方を呼んでおり（279行目）、`_generate_rule_checklist`自体はどこからも
+  呼ばれていなかった。
+
+**3. Sprint18で作られたが未配線のままのUI部品（Sprint32で見つかった
+`render_decision_card`と同じパターン、削除）**
+
+- `services/src/ui/score_card.py`（`render_score_card`）：app.pyは同等の
+  表示を`create_score_bar`の直接呼び出しでインライン実装済みで、
+  こちらは一度もimportされていなかった。
+- `services/src/ui/chart_panel.py`（`render_chart_panel`）：同上、
+  `create_radar_chart`の直接呼び出しと重複しており未使用だった。
+- `services/src/ui/financial_table.py`（`render_financial_table`）：
+  対応する代替のインライン実装すら無く、機能自体がどの画面にも
+  表示されていなかった。Sprint32の`render_decision_card`のように
+  「配線して活かす」選択肢もきたに提示したが、削除の方針で確認を得た。
+
+`services/src/ui/__init__.py`は、削除した3部品のimportを取り除き
+`render_summary_card` / `render_decision_card`のみを公開するよう更新した。
+
+### 検証
+
+- 削除前に、各ファイル・各関数について`grep`でリポジトリ全体を検索し、
+  他のどこからも参照されていないことを確認したうえで削除した。
+- 削除・編集した既存ファイルはRule 18に従い編集前後でBOM有無を確認した
+  （`services/src/ai/ai_analysis.py`はBOM付きUTF-8のため、`_generate_rule_checklist`
+  部分のみを置換しBOMを維持。他の削除・書き換えファイルはBOM無しのまま維持）。
+- health_check.pyに新規Sprint33検証を1件追加し、削除したファイルが
+  実際に存在しないこと、`engines.checklist_engine`に
+  `generate_buffett_checklist_rule`のみが残っていること、
+  `ai.ai_analysis`から`_generate_rule_checklist`が削除されていること、
+  `ui`パッケージが`render_summary_card` / `render_decision_card`のみを
+  公開していることを直接検証するようにした。
+- 併せて、既存のSprint検証（1件目「legacy wrappers import」と3件目
+  「Phase3 members」）が、今回削除した`checklist_engine` / `gemini` /
+  `overall_eval`（旧トップレベル互換ラッパー）や
+  `render_financial_table` / `render_score_card` / `render_chart_panel`
+  （旧UI部品）をimportし続けていたため、削除に合わせてテスト対象の
+  リストを更新した（放置すると削除自体がFAILの原因になってしまうため）。
+- health_check.py実行、Sprint33検証を含め`=== HEALTH: ALL OK ===`を確認。
+
+### スコア配分（190点満点、Sprint33時点。変更なし）
+
+未使用コードの削除と重複実装の整理のみであり、計算ロジック・スコア配分・
+判定基準（S:167/A:138/B:115/C:92/D:92点未満）に変更はない。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。

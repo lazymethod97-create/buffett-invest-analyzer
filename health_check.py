@@ -16,7 +16,7 @@ def check(label, fn):
 
 # 1) legacy wrappers
 def t_wrappers():
-    for mod in ["data_fetcher","news_fetcher","scoring_engine","dcf_analysis","checklist_engine","gemini","ai_analysis","pdf_report","overall_eval"]:
+    for mod in ["data_fetcher","news_fetcher","scoring_engine","dcf_analysis","ai_analysis","pdf_report"]:
         importlib.import_module(mod)
         print("   wrapper:", mod, "OK")
 check("legacy wrappers import", t_wrappers)
@@ -31,7 +31,7 @@ check("new packages import", t_packages)
 # 3) Phase3 members
 def t_members():
     from engines import generate_buffett_checklist_rule
-    from ui import render_summary_card, render_decision_card, render_financial_table, render_score_card, render_chart_panel
+    from ui import render_summary_card, render_decision_card
     from analysis import create_analysis_bundle, calculate_overall_grade
 check("Phase3 members (checklist rule + ui)", t_members)
 
@@ -430,6 +430,62 @@ def t_sprint32_pdf_report_accepts_overall():
 		"Sprint32 regression: overall section content (decision/grade) not rendered correctly"
 	print("   generate_pdf_report: backward compatible without overall, includes 総合判定 section when provided")
 check("Sprint32 members (PDF report overall param)", t_sprint32_pdf_report_accepts_overall)
+
+
+# 7) Sprint33 members (未使用コード・重複実装の削除)
+def t_sprint33_dead_code_removed():
+	"""
+	きたからの依頼（未使用コード・冗長な部分の洗い出しと修正）を受けた
+	全体調査で見つかった、どこからもimportされていない孤立ファイル・
+	重複実装（ルール14違反）を削除した。回帰防止のため、以下を確認する。
+
+	- 削除したファイルが実際に存在しないこと
+	  （services/market_data.py、src/checklist_engine.py、src/overall_eval.py、
+	  src/gemini.py、src/engines/dcf_analysis.py、
+	  src/ui/{score_card,chart_panel,financial_table}.py）
+	- engines.checklist_engine には generate_buffett_checklist_rule のみが
+	  残り、report.report と重複していた create_radar_chart / create_score_bar /
+	  create_checklist_display が削除されていること
+	- ai.ai_analysis から、どこにも呼ばれていなかった重複ロジック
+	  _generate_rule_checklist が削除されていること
+	- ui パッケージが render_summary_card / render_decision_card のみを
+	  公開していること（Sprint18で作られたが未配線のままだった
+	  render_score_card / render_chart_panel / render_financial_table は
+	  対象外）
+	"""
+	import os as _os
+
+	removed_files = [
+		r"\services\market_data.py",
+		r"\services\src\checklist_engine.py",
+		r"\services\src\overall_eval.py",
+		r"\services\src\gemini.py",
+		r"\services\src\engines\dcf_analysis.py",
+		r"\services\src\ui\score_card.py",
+		r"\services\src\ui\chart_panel.py",
+		r"\services\src\ui\financial_table.py",
+	]
+	for rel in removed_files:
+		path = BASE + rel
+		assert not _os.path.exists(path), f"Sprint33 regression: dead file should be removed but still exists: {path}"
+
+	import engines.checklist_engine as checklist_engine_mod
+	assert hasattr(checklist_engine_mod, "generate_buffett_checklist_rule"), \
+		"Sprint33 regression: generate_buffett_checklist_rule missing from engines.checklist_engine"
+	for stale in ("create_radar_chart", "create_score_bar", "create_checklist_display"):
+		assert not hasattr(checklist_engine_mod, stale), \
+			f"Sprint33 regression: duplicate function '{stale}' should have been removed from engines.checklist_engine (kept only in report.report)"
+
+	import ai.ai_analysis as ai_analysis_mod
+	assert not hasattr(ai_analysis_mod, "_generate_rule_checklist"), \
+		"Sprint33 regression: unused duplicate _generate_rule_checklist should have been removed from ai.ai_analysis"
+
+	import ui as ui_mod
+	assert set(ui_mod.__all__) == {"render_summary_card", "render_decision_card"}, \
+		f"Sprint33 regression: ui package should export only render_summary_card/render_decision_card, got {ui_mod.__all__}"
+
+	print("   dead files removed, duplicate checklist/UI functions cleaned up, ui package exports only active components")
+check("Sprint33 members (dead code cleanup)", t_sprint33_dead_code_removed)
 
 
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")
