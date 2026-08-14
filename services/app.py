@@ -374,8 +374,8 @@ if analyze_button and ticker_input:
 	else:
 		news = cached_get_latest_news(data["company_name"])
 
-	dcf_result = globals().get("dcf_result") or {}
-
+	# Sprint34-1: calculate the default DCF before building the analysis bundle.
+	dcf_result = calculate_dcf(data)
 	with st.spinner("🤖 AIが分析中...（初回のみ少し時間がかかります）"):
 		bundle = create_analysis_bundle(
 			data=data,
