@@ -2152,3 +2152,31 @@ GitHub最新版を必ず確認。
 ニュースは新しい採点項目ではないため、190点満点の配点・Grade閾値は変更しない。
 またニュース取得失敗やGemini失敗を減点扱いにしない。Rule 13に従いBUY/WATCH/PASSの
 決定は`overall_eval.py`だけで行う。
+
+## Sprint34-4 追加修正（health_checkで発見した配線・回帰テスト不整合）
+
+Windows環境で`python health_check.py`を実行した結果、Sprint34-4に2件の問題が発見された。
+
+### 問題1：`bundle['news_impact']`の未初期化
+
+`create_analysis_bundle()`ではニュース取得時のみ`bundle["news_impact"]`を設定していたため、
+quick/fullモードでニュースが空の場合、`bundle["news_impact"]`キー自体が存在しなかった。
+
+これはニュースが無い場合でも「影響なし」を明示的に扱うSprint34-4の設計と不整合だったため、
+bundle初期値へ`"news_impact": None`を追加した。これによりニュース無しでも
+`overall_eval`へ安全に空評価が渡る。
+
+### 問題2：Sprint34-4回帰テストの期待値誤り
+
+テスト用の基準ケースは190点満点相当でGrade Sとなり、既存DecisionがBUYだった。
+そのため「重大・高信頼ネガティブニュース」の正しい期待値はBUY→WATCHであり、
+テストが`PASS`を期待していたのが誤りだった。
+
+テスト期待値をBUY→WATCHへ修正し、同時にquick/fullのニュース無しbundleへ
+`news_impact is None`が必ず存在することを追加検証した。
+
+### 検証
+
+- `python -m py_compile`：対象ファイルPASS
+- `git diff --check`：PASS
+- 190点満点のスコア計算ロジック、ニュースによるDecision降格ロジック自体は変更していない。

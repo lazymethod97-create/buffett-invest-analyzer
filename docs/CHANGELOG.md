@@ -235,3 +235,9 @@ BUY→WATCH、WATCH→PASSへ一段階引き下げる。ニュース取得不能
 
 app.pyにはニュース影響の表示を追加し、health_check.pyにスコア不変・重大ニュース時の
 Decision降格・ニュース無し時の中立動作を検証する回帰テストを追加した。
+
+### Sprint34-4 追加修正：初回health_checkで発見した2件のテスト/配線問題
+
+Windows実環境のhealth_checkで、ニュース無し時に`bundle["news_impact"]`キーが未生成となる問題と、
+重大ネガティブニュースの回帰テスト期待値がBUY→WATCHではなくPASSになっていた問題を修正。
+ニュース評価ロジック・190点満点スコア・Grade閾値は変更なし。

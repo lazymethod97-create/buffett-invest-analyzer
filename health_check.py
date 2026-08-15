@@ -173,6 +173,8 @@ def t_bundle():
     assert bf["debt_quality"] is not None, "Sprint24 regression: bundle['debt_quality'] is None in full mode"
     assert bf["moat_strength"] is not None, "Sprint25 regression: bundle['moat_strength'] is None in full mode"
     assert bf["backtest"] is not None, "Sprint26 regression: bundle['backtest'] is None in full mode"
+    assert "news_impact" in bq and bq["news_impact"] is None, "Sprint34-4 regression: quick bundle must expose news_impact as None"
+    assert "news_impact" in bf and bf["news_impact"] is None, "Sprint34-4 regression: full bundle without news must expose news_impact as None"
     assert bf["overall"]["detail"].get("roic", 0) >= 0, "roic score missing from overall detail"
     assert bf["overall"]["detail"].get("owner_earnings", 0) >= 0, "owner_earnings score missing from overall detail"
     assert bf["overall"]["detail"].get("intrinsic_value", 0) >= 0, "intrinsic_value score missing from overall detail"
@@ -229,7 +231,7 @@ def t_sprint34_4_news_integration():
         },
     )
     assert severe["overall_score"] == base["overall_score"], "Sprint34-4 regression: news changed 190-point score"
-    assert severe["decision"] == "PASS", "Sprint34-4 regression: severe negative news must downgrade WATCH to PASS or BUY to WATCH"
+    assert severe["decision"] == "WATCH", "Sprint34-4 regression: severe negative news must downgrade BUY to WATCH (or WATCH to PASS)"
     assert severe["news_adjusted"] is True, "Sprint34-4 regression: news_adjusted flag missing"
 
     medium_conf = calculate_overall_grade(

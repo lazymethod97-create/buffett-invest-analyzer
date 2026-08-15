@@ -94,6 +94,7 @@ def create_analysis_bundle(
         "analysis": None,
         "summary": None,
         "confirmation_points": None,
+        "news_impact": None,
         "checklist": None,
         "moat": None,
         "brand": None,
