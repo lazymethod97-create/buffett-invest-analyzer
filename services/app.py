@@ -413,6 +413,7 @@ if (
 	analysis = bundle.get("analysis")
 	summary = bundle.get("summary")
 	confirmation_points = bundle.get("confirmation_points")
+	news_impact = bundle.get("news_impact")
 	checklist = bundle.get("checklist")
 	moat = bundle.get("moat")
 	brand = bundle.get("brand")
@@ -532,6 +533,25 @@ if (
 				"総合判定は暫定値です。🔎フルモードで再分析すると全14項目で判定されます。"
 			)
 		render_decision_card(overall)
+
+		# Sprint34-4: ニュースは190点満点の加点/減点ではなく、重大リスクが
+		# ある場合のみ最終Decisionの安全装置として表示する。
+		if news_impact and news_impact.get("available"):
+			impact_label = {"positive": "ポジティブ", "neutral": "中立", "negative": "ネガティブ"}.get(
+				news_impact.get("impact"), "不明"
+			)
+			severity_label = {"low": "低", "medium": "中", "high": "高"}.get(
+				news_impact.get("severity"), "不明"
+			)
+			confidence_label = {"low": "低", "medium": "中", "high": "高"}.get(
+				news_impact.get("confidence"), "不明"
+			)
+			st.info(
+				f"📰 ニュース評価：{impact_label} / 重大度：{severity_label} / 信頼度：{confidence_label}\n\n"
+				f"{news_impact.get('reason', '')}"
+			)
+		elif is_standard_plus and news:
+			st.caption("📰 ニュース評価は利用できないため、総合判定には影響していません。")
 
 		st.divider()
 		st.plotly_chart(
@@ -730,6 +750,20 @@ if (
 			st.success(summary)
 		else:
 			st.info("要約するニュースがありません。")
+
+		st.divider()
+		st.subheader("⚖️ 総合判定へのニュース影響")
+		if not is_standard_plus:
+			_mode_locked_message("📊 標準（+AI定性分析・要約）")
+		elif news_impact and news_impact.get("available"):
+			if overall.get("news_adjusted"):
+				st.warning("⚠️ 重大かつ信頼度の高いネガティブニュースを考慮し、最終判定を一段階引き下げています。190点満点のスコア自体は変更していません。")
+			else:
+				st.success("✅ ニュースによる最終判定の引き下げはありません。190点満点のスコア自体は変更していません。")
+		elif news:
+			st.info("ニュース評価を実行できなかったため、総合判定には影響していません。")
+		else:
+			st.info("ニュースが取得できないため、総合判定には影響していません。")
 
 		st.divider()
 		st.subheader("🔍 ニュースから確認すべきポイント")

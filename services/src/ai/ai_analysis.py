@@ -107,12 +107,50 @@ def generate_rule_analysis(data, score_result):
 
 
 def generate_news_summary(news):
+    """ニュース要約文字列を返す（Sprint34-4）。"""
+    result = generate_news_summary_result(news)
+    return result.get("summary", "ニュースは取得できませんでした。")
+
+
+def generate_news_summary_result(news):
+    """
+    ニュース要約と総合判定用の構造化ニュース評価を1回のGemini呼び出しで生成する。
+
+    Returns:
+        {
+            "summary": str,
+            "news_impact": {
+                "available": bool,
+                "impact": "positive" | "neutral" | "negative",
+                "severity": "low" | "medium" | "high",
+                "confidence": "low" | "medium" | "high",
+                "reason": str,
+            }
+        }
+
+    AIが利用できない場合はニュース評価を「利用不能」として返し、
+    総合判定側では一切のペナルティを発生させない。
+    """
+    default = {
+        "summary": "ニュースは取得できませんでした。",
+        "news_impact": {
+            "available": False,
+            "impact": "neutral",
+            "severity": "low",
+            "confidence": "low",
+            "reason": "ニュース評価を実行できませんでした。総合判定への影響はありません。",
+        },
+    }
+
     if not news:
-        return "ニュースは取得できませんでした。"
+        return default
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return _generate_rule_news_summary(news)
+        fallback = _generate_rule_news_summary(news)
+        default["summary"] = fallback
+        default["news_impact"]["reason"] = "Gemini APIキー未設定のためニュース評価は総合判定に使用しません。"
+        return default
 
     try:
         client = genai.Client(api_key=api_key)
@@ -121,10 +159,10 @@ def generate_news_summary(news):
         for article in news:
             news_text += f"""
 タイトル
-{article['title']}
+{article.get('title', '')}
 
 本文
-{article.get('content','')}
+{article.get('content', '')}
 
 -----------------------
 """
@@ -136,69 +174,64 @@ def generate_news_summary(news):
 
 {news_text}
 
-以下のルールで日本語で分析してください。
+短期的な株価変動だけではなく、企業価値・競争優位性・財務・経営・長期投資への影響を重視してください。
 
-【分析方針】
+以下のJSON形式のみで回答してください。余計な文章・Markdown・コードブロックは禁止です。
+{{
+  "summary": "200文字以内の日本語要約",
+  "news_impact": {{
+    "impact": "positive または neutral または negative",
+    "severity": "low または medium または high",
+    "confidence": "low または medium または high",
+    "reason": "投資判断に影響する理由を100文字以内で日本語で記述"
+  }},
+  "full_analysis": "以下の見出しを含む既存UI向けの分析本文:\n# ニュース要約\n# 重要ニュース\n# ポジティブ要因\n# ネガティブ要因\n# MOAT（競争優位性）への影響\n# ブランド力への影響\n# 価格決定力への影響\n# 経営陣への印象\n# 短期的な株価への影響\n# 長期投資への影響\n# Buffettならどう考えるか\n# 結論"
+}}
 
-・短期的な株価変動より企業価値を重視する
-・一時的なニュースと長期的な変化を区別する
-・競争優位性（MOAT）を重視する
-・ブランド力を評価する
-・価格決定力を評価する
-・経営陣の質を評価する
-・財務への影響も考慮する
-
-以下の形式で回答してください。
-
-# ニュース要約
-200文字以内
-
-# 重要ニュース
-★★★★★〜★☆☆☆☆で重要度を付ける
-
-# ポジティブ要因
-箇条書き
-
-# ネガティブ要因
-箇条書き
-
-# MOAT（競争優位性）への影響
-
-# ブランド力への影響
-
-# 価格決定力への影響
-
-# 経営陣への印象
-
-# 短期的な株価への影響
-
-# 長期投資への影響
-
-# Buffettならどう考えるか
-
-最後に
-
-【結論】
-
-買い
-
-様子見
-
-見送り
-
-のいずれかを理由付きで示してください。
-
+【重要ルール】
+- ニュース取得失敗や記事本文不足を理由に negative にしない。
+- 一時的なニュースより構造的な企業価値への影響を優先する。
+- severity=high は企業価値・MOAT・財務・経営など長期投資判断を明確に損なう重大材料に限る。
+- confidence=high はニュース本文など十分な根拠がある場合に限る。
 """
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
         )
-        return response.text
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        payload = json.loads(text.strip())
+
+        impact = payload.get("news_impact") or {}
+        allowed = {
+            "impact": {"positive", "neutral", "negative"},
+            "severity": {"low", "medium", "high"},
+            "confidence": {"low", "medium", "high"},
+        }
+        if any(impact.get(k) not in values for k, values in allowed.items()):
+            raise ValueError("invalid news_impact values")
+
+        default["summary"] = payload.get("full_analysis") or payload.get("summary") or _generate_rule_news_summary(news)
+        default["news_impact"] = {
+            "available": True,
+            "impact": impact["impact"],
+            "severity": impact["severity"],
+            "confidence": impact["confidence"],
+            "reason": str(impact.get("reason", ""))[:200],
+        }
+        return default
 
     except Exception:
-        return _generate_rule_news_summary(news)
-
+        fallback = _generate_rule_news_summary(news)
+        default["summary"] = fallback
+        default["news_impact"]["reason"] = "AIニュース評価に失敗したため総合判定への影響はありません。"
+        return default
 
 def _generate_rule_news_summary(news):
     """ルールベースでニュース要約を生成する（APIキー未設定時・クォータ超過時のフォールバック）"""

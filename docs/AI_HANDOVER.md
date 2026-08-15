@@ -19,7 +19,7 @@ GitHubを唯一の正とする。
 
 Buffett Investment Analyzer Ver2
 
-現在Sprint32完了。
+現在Sprint34-4完了。
 
 次回のSprintは未定。
 
@@ -2089,8 +2089,9 @@ ai_analysis.py → ai/ai_analysis.py
 
 # 今後のSprint
 
-Sprint34全体の最終目標（ニュース結果の190点総合判定への統合等）は
-未着手。次にきたと相談して決定する。
+Sprint34-4まで完了。次SprintはGitHub最新版を再確認したうえで、Sprint34全体の
+最終目標（ティッカー入力だけでの自動評価、決算資料PDFのオプション化等）の
+残作業を洗い出して決定する。
 
 ---
 
@@ -2107,3 +2108,47 @@ GitHub最新版を必ず確認。
 計算ロジックはenginesへ。
 
 画面はuiへ。
+
+
+## Sprint34-4 完了内容（ニュース結果の総合判定への安全な統合）
+
+### 目的
+
+ニュース取得・Gemini要約は既存実装で完了していたが、ニュース評価が190点満点の
+`overall` / BUY-WATCH-PASSへ直接反映されていなかった。Sprint34-4では、
+190点満点の各項目を増減させず、重大かつ信頼度の高いネガティブニュースのみを
+最終Decisionの安全装置として利用する方式を採用した。
+
+### 設計
+
+- `services/src/ai/ai_analysis.py`
+  - `generate_news_summary_result()`を追加。
+  - 既存のニュース要約と、`impact / severity / confidence / reason`の構造化評価を
+    1回のGemini呼び出しで取得する。
+  - APIキー未設定・Gemini失敗・ニュース空の場合は`available=False`を返し、
+    総合判定へ一切影響させない。
+  - 既存`generate_news_summary()`は後方互換のため文字列を返すラッパーとして維持。
+- `services/src/analysis/analysis_bundle.py`
+  - `bundle["news_impact"]`を追加。
+  - ニュース要約と構造化評価を同時にbundleへ格納。
+  - `overall_eval.calculate_overall_grade()`へ`news_impact`を渡す。
+- `services/src/analysis/overall_eval.py`
+  - 190点満点の`overall_score`と14項目の内訳は変更しない。
+  - `negative + high severity + high confidence`のニュースだけ、
+    BUY→WATCH、WATCH→PASSへ一段階引き下げる。
+  - PASSはさらに下げない。ニュースによってBUYへ昇格させない。
+  - `base_decision` / `news_adjusted` / `news_impact`を返す。
+- `services/app.py`
+  - サマリー/ニュースタブにニュース影響を表示。
+  - 「ニュース取得不能」「AI評価不能」は総合判定に影響しないことを明示。
+- `health_check.py`
+  - ニュース無しで既存判定が変わらないことを検証。
+  - 重大・高信頼ネガティブニュースでDecisionだけが一段階下がることを検証。
+  - 190点満点のスコアが変わらないことを検証。
+  - 信頼度不足ではDecisionを変更しないことを検証。
+
+### 重要な判断
+
+ニュースは新しい採点項目ではないため、190点満点の配点・Grade閾値は変更しない。
+またニュース取得失敗やGemini失敗を減点扱いにしない。Rule 13に従いBUY/WATCH/PASSの
+決定は`overall_eval.py`だけで行う。

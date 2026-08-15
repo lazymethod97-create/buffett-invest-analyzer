@@ -191,6 +191,64 @@ def t_bundle():
           " backtest wired:", bf["backtest"]["score"], "/", bf["backtest"]["max_score"])
 check("bundle smoke (quick/full)", t_bundle)
 
+# 4b) Sprint34-4 news integration
+
+def t_sprint34_4_news_integration():
+    from analysis.overall_eval import calculate_overall_grade
+    from ai.ai_analysis import generate_news_summary_result
+
+    base_kwargs = dict(
+        score_result={"total_score": 100},
+        dcf_result={"success": True, "margin_of_safety_pct": 30},
+        moat={"rating": "wide"},
+        brand={"stars": 5},
+        mgmt={"stars": 5},
+        red_team={"conclusion": ""},
+        roic={"score": 15},
+        owner_earnings={"score": 10},
+        intrinsic_value={"score": 15},
+        capital_allocation={"score": 10},
+        share_buyback={"score": 10},
+        debt_quality={"score": 10},
+        moat_strength={"score": 10},
+        backtest={"score": 10},
+    )
+    base = calculate_overall_grade(**base_kwargs)
+    no_news = calculate_overall_grade(**base_kwargs, news_impact={})
+    assert base["overall_score"] == no_news["overall_score"], "Sprint34-4 regression: no-news score changed"
+    assert base["decision"] == no_news["decision"], "Sprint34-4 regression: no-news decision changed"
+
+    severe = calculate_overall_grade(
+        **base_kwargs,
+        news_impact={
+            "available": True,
+            "impact": "negative",
+            "severity": "high",
+            "confidence": "high",
+            "reason": "重大な構造悪化",
+        },
+    )
+    assert severe["overall_score"] == base["overall_score"], "Sprint34-4 regression: news changed 190-point score"
+    assert severe["decision"] == "PASS", "Sprint34-4 regression: severe negative news must downgrade WATCH to PASS or BUY to WATCH"
+    assert severe["news_adjusted"] is True, "Sprint34-4 regression: news_adjusted flag missing"
+
+    medium_conf = calculate_overall_grade(
+        **base_kwargs,
+        news_impact={
+            "available": True,
+            "impact": "negative",
+            "severity": "high",
+            "confidence": "medium",
+            "reason": "根拠不足",
+        },
+    )
+    assert medium_conf["decision"] == base["decision"], "Sprint34-4 regression: insufficient confidence should not change decision"
+
+    no_data = generate_news_summary_result([])
+    assert no_data["news_impact"]["available"] is False, "Sprint34-4 regression: empty news must be unavailable"
+    print("   news integration: score preserved / severe-risk downgrade / unavailable-news neutrality OK")
+check("Sprint34-4 news integration", t_sprint34_4_news_integration)
+
 # 5) app.py compiles
 def t_compile():
     py_compile.compile(BASE + r"\services\app.py", doraise=True)

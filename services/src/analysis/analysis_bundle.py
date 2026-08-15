@@ -4,7 +4,7 @@ Run all analyses at once.
 app.py calls only create_analysis_bundle().
 
 Returns a bundle dict (keys compatible with the legacy app.py bundle):
-  mode, news, analysis, summary, confirmation_points, checklist,
+  mode, news, analysis, summary, confirmation_points, news_impact, checklist,
   moat, brand, mgmt (alias: management), red_team, roic, owner_earnings, overall
 """
 
@@ -21,7 +21,6 @@ from .moat_strength import analyze_moat_strength
 from .backtest import analyze_backtest
 from ai.ai_analysis import (
     generate_ai_analysis,
-    generate_news_summary,
     generate_buffett_checklist,
     generate_moat_analysis,
     generate_brand_analysis,
@@ -113,9 +112,12 @@ def create_analysis_bundle(
     }
 
     if not is_quick:
-        # news summary
+        # Sprint34-4: ニュース要約と総合判定用の構造化評価を1回のAI呼び出しで生成。
         if news:
-            bundle["summary"] = _safe_ai(generate_news_summary, news) or ""
+            from ai.ai_analysis import generate_news_summary_result
+            news_result = _safe_ai(generate_news_summary_result, news) or {}
+            bundle["summary"] = news_result.get("summary", "")
+            bundle["news_impact"] = news_result.get("news_impact")
 
         # main AI analysis
         bundle["analysis"] = _safe_ai(generate_ai_analysis, data, score_result)
@@ -280,6 +282,7 @@ def create_analysis_bundle(
         debt_quality=bundle["debt_quality"] or {},
         moat_strength=bundle["moat_strength"] or {},
         backtest=bundle["backtest"] or {},
+        news_impact=bundle["news_impact"] or {},
     )
 
     return bundle

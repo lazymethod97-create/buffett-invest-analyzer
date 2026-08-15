@@ -237,6 +237,30 @@ def _decision(grade, risk):
     return "PASS"
 
 
+def _apply_news_risk(decision, grade, news_impact):
+    """
+    Sprint34-4: 190点満点のスコアは変更せず、重大かつ信頼度の高い
+    ネガティブニュースだけで最終Decisionを一段階下げる。
+
+    ニュースが無い・AI失敗・confidence不足・severity不足の場合は
+    既存判定をそのまま返す。ニュースでBUYへ昇格させることもしない。
+    """
+    if not news_impact or not news_impact.get("available"):
+        return decision, False
+
+    if (
+        news_impact.get("impact") == "negative"
+        and news_impact.get("severity") == "high"
+        and news_impact.get("confidence") == "high"
+    ):
+        if decision == "BUY":
+            return "WATCH", True
+        if decision == "WATCH":
+            return "PASS", True
+
+    return decision, False
+
+
 def calculate_overall_grade(
     score_result,
     dcf_result,
@@ -252,6 +276,7 @@ def calculate_overall_grade(
     debt_quality=None,
     moat_strength=None,
     backtest=None,
+    news_impact=None,
 ):
 
     buffett_score = score_result["total_score"]
@@ -281,6 +306,18 @@ def calculate_overall_grade(
     grade = _grade(total)
 
     risk = _risk(s6)
+    base_decision = _decision(grade, risk)
+    decision, news_adjusted = _apply_news_risk(
+        base_decision, grade, news_impact or {}
+    )
+
+    action = _action(grade)
+    if news_adjusted:
+        action = (
+            "ニュース重大リスクを考慮し様子見"
+            if decision == "WATCH"
+            else "ニュース重大リスクを考慮し見送り"
+        )
 
     return {
 
@@ -294,9 +331,15 @@ def calculate_overall_grade(
 
         "confidence": _confidence(buffett_score),
 
-        "action": _action(grade),
+        "action": action,
 
-        "decision": _decision(grade, risk),
+        "decision": decision,
+
+        "base_decision": base_decision,
+
+        "news_adjusted": news_adjusted,
+
+        "news_impact": news_impact or {},
 
         "detail":{
 

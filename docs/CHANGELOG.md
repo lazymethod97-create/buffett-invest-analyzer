@@ -220,3 +220,18 @@ Sprint34-2と同型のバグ（データ欠損時に初期値0＝最低評価の
 中立評価に修正。debt_quality_engine.py・moat_strength_engine.py・
 backtest_engine.py・intrinsic_engine.pyは調査の結果、既に正しく
 実装されていたため変更なし。190点満点の構造・判定基準に変更なし。
+
+
+### Sprint34-4：ニュース結果の190点総合判定への安全な統合
+
+既存のニュース取得・Gemini要約を、190点満点の総合判定へ安全に接続。
+ニュース自体を新しい採点項目にはせず、190点満点のスコア・配点・Grade閾値は変更しない。
+
+`generate_news_summary_result()`でニュース要約と構造化評価（positive/neutral/negative、
+severity、confidence）を1回のGemini呼び出しで取得し、
+`overall_eval.py`では「negative + high severity + high confidence」の場合のみ
+BUY→WATCH、WATCH→PASSへ一段階引き下げる。ニュース取得不能・AI失敗・信頼度不足では
+総合判定を変更しない。
+
+app.pyにはニュース影響の表示を追加し、health_check.pyにスコア不変・重大ニュース時の
+Decision降格・ニュース無し時の中立動作を検証する回帰テストを追加した。
