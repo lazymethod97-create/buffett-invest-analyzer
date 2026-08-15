@@ -41,7 +41,10 @@ def calculate_capital_allocation(
     失敗時: success=False, error（データ不足の理由）
     """
     # --- 軸1: 再投資効率（4点）---
-    reinvestment_score = 0
+    # Sprint34-3: ROICデータが取得できない場合は「悪い」（0点）ではなく
+    # 中立評価（4点満点中2点）とする。payout_score/buyback_scoreの
+    # 欠損時の扱いと足並みを揃える。
+    reinvestment_score = 2
     reinvestment_detail = ""
     if roic_result:
         roic = roic_result.get("roic")
@@ -62,9 +65,9 @@ def calculate_capital_allocation(
                 reinvestment_score = 0
                 reinvestment_detail = f"ROIC {roic*100:.1f}%は低く、再投資による価値創造ができていません。"
         else:
-            reinvestment_detail = "ROICデータが不足しているため、再投資効率を評価できません。"
+            reinvestment_detail = "ROICデータが不足しているため、再投資効率を評価できません（中立評価）。"
     else:
-        reinvestment_detail = "ROICデータが不足しているため、再投資効率を評価できません。"
+        reinvestment_detail = "ROICデータが不足しているため、再投資効率を評価できません（中立評価）。"
 
     # --- 軸2: 株主還元の規律（3点）---
     payout_score = 0

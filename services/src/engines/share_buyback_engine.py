@@ -48,7 +48,10 @@ def calculate_share_buyback(data: Dict[str, Any]) -> Dict[str, Any]:
     trailing_eps = data.get("trailing_eps")
 
     # --- 軸1: 買い入れの一貫性（3点）---
-    consistency_score = 0
+    # Sprint34-3: 複数年データが無い場合は「悪い」（0点）ではなく
+    # 中立評価（3点満点中1点）とする。同ファイルのbalance_score/timing_score
+    # の欠損時の扱いと足並みを揃える。
+    consistency_score = 1
     consistency_detail = ""
     years_with_buyback = 0
     total_years = len(buyback_history)
@@ -68,10 +71,12 @@ def calculate_share_buyback(data: Dict[str, Any]) -> Dict[str, Any]:
             consistency_score = 0
             consistency_detail = f"直近{total_years}年間、自社株買いの実施が確認できません。"
     else:
-        consistency_detail = "自社株買いの複数年データが不足しているため、継続性を評価できません。"
+        consistency_detail = "自社株買いの複数年データが不足しているため、継続性を評価できません（中立評価）。"
 
     # --- 軸2: 発行済株式数の減少効果（3点）---
-    reduction_score = 0
+    # Sprint34-3: 複数年データが無い／不正な場合は「悪い」（0点）ではなく
+    # 中立評価（3点満点中1点）とする。
+    reduction_score = 1
     reduction_detail = ""
     reduction_rate = None
     if len(shares_history) >= 2:
@@ -92,9 +97,9 @@ def calculate_share_buyback(data: Dict[str, Any]) -> Dict[str, Any]:
                 reduction_score = 0
                 reduction_detail = f"発行済株式数はむしろ{abs(reduction_rate)*100:.1f}%増加しており、希薄化が進んでいます。"
         else:
-            reduction_detail = "発行済株式数データが不正なため、減少効果を評価できません。"
+            reduction_detail = "発行済株式数データが不正なため、減少効果を評価できません（中立評価）。"
     else:
-        reduction_detail = "発行済株式数の複数年データが不足しているため、減少効果を評価できません。"
+        reduction_detail = "発行済株式数の複数年データが不足しているため、減少効果を評価できません（中立評価）。"
 
     # --- 軸3: 財務健全性とのバランス（2点）---
     balance_score = 1

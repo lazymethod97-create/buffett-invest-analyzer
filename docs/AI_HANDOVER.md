@@ -1862,6 +1862,213 @@ AI_HANDOVER.md・PROJECT_RULES.mdと合わせて必ず読むこと。
 
 ---
 
+## Sprint34-1 完了内容（DCF未計算バグの修正）
+
+以前の`services/app.py`では、分析開始時に
+
+```python
+dcf_result = globals().get("dcf_result") or {}
+```
+
+としており、この時点ではまだDCFが一度も計算されていなかった（DCFは定量分析タブの
+スライダー操作時に初めて`calculate_dcf()`が呼ばれる構造だったため）。その結果、
+`create_analysis_bundle()`へは常に空の`{}`が渡されており、初回分析時のAI総合判定が
+DCF結果を反映しないまま生成されていた。
+
+修正は1箇所のみ。
+
+```python
+# Sprint34-1: calculate the default DCF before building the analysis bundle.
+dcf_result = calculate_dcf(data)
+```
+
+（定量分析タブ側でスライダー付きの`calculate_dcf()`呼び出しが別途あるが、これは
+ユーザーがパラメータを変更した場合の再計算用であり、Rule 14の重複実装には当たらない。
+初回のデフォルトDCFを用意する箇所が抜けていただけ。）
+
+### 検証
+
+- `python -m py_compile services/app.py` → PASS
+- 変更前後でBOM有無（BOM付き）・改行コード（LFのみ）が変わっていないことを確認。
+
+### 補足（2026-08-15）
+
+このSprint34-1の修正は、きたがローカルで別途手動適用していたコミット
+（`1cc2c36 Sprint34-1: calculate DCF before integrated analysis`）として
+GitHub main へ先に反映された。本セッションで作成したbundleは、その
+コミットを土台に作り直し、Sprint34-2・Sprint34-3のみを積み増す形に
+更新している（内容自体は完全に同一の修正）。
+
+## Sprint34-2 完了内容（データ取得不能を減点扱いにしない）
+
+### 発見した問題
+
+`services/src/engines/scoring_engine.py`の`calculate_buffett_score()`は、
+ROE・営業利益率・D/E・PER・FCF・売上成長率・PBR・ROAの8項目を採点するが、
+データが取得できない項目は`scores`（達成点リスト）に加算されない一方で、
+`max_score`（分母）は常に固定の100点のままだった。そのため、取得できた項目が
+少ないほど`total_score`が下がる＝「データが取得できなかっただけ」で暗黙に
+減点される構造になっていた。加えて、データなし項目も`"passed": False`と
+なるため、UI（`app.py`の採点詳細）では「悪い評価」と見分けがつかず、
+どちらも❌アイコンで表示されていた。
+
+### 設計方針
+
+修正は`services/src/engines/scoring_engine.py`のみに閉じた（`overall_eval.py`の
+`_score_buffett()`は、0〜100点の`total_score`をバケット分けするだけの既存ロジックを
+変更せず利用できるため、190点満点の統合ロジックには一切手を入れていない）。
+
+- 各項目の`details`エントリに`data_available`（bool）を追加。既存の
+  `"value": "データなし"`マーカーが8項目すべてで一貫して使われていたため、
+  それを再利用して判定し、新たな条件分岐の重複（Rule 14）を避けた。
+- `total_score`は、データが取得できた項目の実得点合計 ÷ データが取得できた
+  項目の`max_score`合計 × 100 で算出するよう変更（達成率ベースの正規化）。
+  データ取得不能な項目は分子・分母の両方から除外されるため、減点として
+  作用しなくなる。全項目が取得できない場合のみ`total_score = 0`とする
+  フォールバックを維持（採点材料が皆無の場合は「未評価」より「0点」として
+  扱い、`data_coverage`側で0%であることを明示する設計とした）。
+- 戻り値に`data_coverage`（`available_items` / `total_items` / `coverage_pct`）
+  を追加し、何割のデータが取得できたかを外部から参照できるようにした。
+- `verdict`（✅/🟡/⚠️/❌）や190点満点の判定基準（S:167等）は変更なし。
+
+### app.py側の対応
+
+- 採点詳細の各項目アイコンを、`data_available`が`False`の場合は❓（未評価）、
+  それ以外は従来通り✅/❌（`passed`）で出し分けるよう変更。
+- 採点詳細セクションの直下に「データ取得率: n/8項目（xx.x%）」のキャプションを
+  追加し、`data_coverage`を可視化した。
+
+### 検証
+
+- `python -m py_compile` → `services/app.py` / `services/src/engines/scoring_engine.py`
+  ともにPASS。
+- 編集前後でBOM有無・改行コードが変わっていないことを確認
+  （`app.py`：BOM付き・LF、`scoring_engine.py`：BOM無し・LF、いずれも維持）。
+- health_check.py（Windowsパス依存のためサンドボックスでは一時的にパスのみ
+  差し替えて実行）：Gemini APIキー未設定によるFAIL以外は全てPASS。
+  既存のSprint29/30/32回帰テスト（app.pyのソースを直接検査するもの）も
+  引き続きPASSしており、既存配線を壊していないことを確認した。
+- `calculate_buffett_score()`単体で以下4パターンを検証し、期待通りの
+  挙動であることを確認：
+  1. 全8項目データあり・全て優良 → 100/100
+  2. 3項目のみデータあり（全て優良）・残り5項目欠損 →
+     100/100（データ取得率37.5%を明示、欠損による減点なし）
+  3. 全項目データなし → 0/100（`data_coverage`は0%として明示）
+  4. 5項目データあり（全て悪い評価）・3項目欠損 →
+     0/100（悪い値は正しく減点され、欠損はスコアに影響しない）
+
+### 副次対応：.gitignoreの文字化け修正
+
+調査時に、`.gitignore`末尾付近でUTF-16とUTF-8が混在した破損データ
+（`.envs`の直後にヌルバイト混じりの`print22.patch`という文字列が挿入され、
+本来別行のはずの`*.bundle`エントリと結合してしまっていた）を発見した。
+きたに確認のうえ、破損箇所を除去し、`*.bundle`エントリのみをクリーンな
+1行として復元した（改行コードはCRLFのまま維持）。
+
+### 今回発見したが対応を見送った点（次Sprint以降の候補）
+
+- `services/src/engines/roic_engine.py`など他の採点エンジンにも、
+  `scoring_engine.py`と同様に「データ取得不能→暗黙の減点」パターンが
+  ある可能性がある（ざっと確認した限り類似コードが見られた）。
+  今回はきたの指示通り`scoring_engine.py`（Buffett Score）に対象を絞った。
+- `overall_eval.py`の`_confidence()`はBuffett Scoreの値そのものを見て
+  Confidence（High/Medium/Low）を判定しているため、データ取得率が
+  極端に低いのに達成率が高いケース（例：8項目中2項目しか無いが両方優良）
+  では、実態よりConfidenceが高く表示される可能性がある。今回のSprintでは
+  スコープを広げず未対応とした。
+- Sprint34全体の最終目標（ティッカー入力のみでの自動評価、ニュースの
+  総合判定への統合等）は未着手。まずSprint34-2の「データなし≠減点」の
+  是正のみを完了した段階。
+
+### 次のSprintに向けて
+
+Sprint34-3の候補：ニュース結果を190点総合判定へどう統合するか、
+または上記roic_engine.py等の同型問題への対応。きたと相談のうえ決定する。
+
+---
+
+## Sprint34-3 完了内容（他エンジンの同型「データ欠損=暗黙の減点」バグ調査・修正）
+
+Sprint34-2完了後、きたの指示で`services/src/engines/`配下の全9エンジンを
+横断調査し、同種の問題がないか確認した。
+
+### 調査結果
+
+**同型バグが見つかったファイル（2件、修正）**
+
+- `capital_allocation_engine.py`（Sprint22）：`reinvestment_score`
+  （4点満点）が、ROICデータ取得不能時に初期値`0`のまま変更されず
+  返されていた（最低評価と同じ扱い）。
+- `share_buyback_engine.py`（Sprint23）：`consistency_score`・
+  `reduction_score`（各3点満点）が、複数年データ不足時に初期値`0`の
+  まま変更されず返されていた。同ファイル内の`balance_score`・
+  `timing_score`は既に中立評価（1点）で正しく実装されており、
+  一貫性がなかった。
+
+**すでに正しく実装されていたファイル（問題なし）**
+
+- `debt_quality_engine.py`（Sprint24）・`moat_strength_engine.py`
+  （Sprint25）・`backtest_engine.py`（Sprint26）：全軸とも、データ欠損時は
+  最初から中立評価（各軸max3点→1点、max2点→1点）を返す設計になっていた。
+- `intrinsic_engine.py`（Sprint21）：「データ不足の方式はスキップし、
+  利用可能な方式のみで重みを再正規化する」と設計時から明記されており、
+  Sprint34-2と同種の正規化が既に実装済みだった。
+
+**対象外と判断したファイル**
+
+- `roic_engine.py`（Sprint19）・`owner_earnings_engine.py`（Sprint20）：
+  固定満点に対する複数項目集計ではなく単一指標（比率）を返す設計のため、
+  データ欠損時は`rating: "unknown"`として素直にスキップされ、
+  「暗黙の減点」構造自体が存在しない。
+- `portfolio_risk_engine.py`：Rule 24によりそもそも単一銘柄190点満点とは
+  別枠（複数銘柄のポートフォリオ構成分析）。`score = 0`はHHI計算前の
+  初期値であり、データ欠損時の減点とは別種の話のため対象外。
+
+この結果から、「データ欠損=暗黙の減点」バグはSprint19〜23（開発初期）の
+エンジンにのみ存在し、Sprint24（debt_quality）以降は開発チーム自身が
+学習して既に是正済みだったことが確認できた。
+
+### 修正内容
+
+Sprint34-2で確立した「中立評価」の考え方を、既に是正済みの他エンジン
+（debt_quality/moat_strength/backtest）と同じ水準（3点満点軸→1点、
+4点満点軸→2点）に合わせて適用した。
+
+- `capital_allocation_engine.py`：`reinvestment_score`の初期値を`0`→`2`
+  （4点満点中の中間、`payout_score`/`buyback_score`の既存の欠損時扱いと
+  足並みを揃えた）に変更。
+- `share_buyback_engine.py`：`consistency_score`・`reduction_score`の
+  初期値をそれぞれ`0`→`1`（3点満点中、同ファイルの`balance_score`/
+  `timing_score`と同水準）に変更。データが存在するが実績がゼロ
+  （例：自社株買い実施年数0年）の場合は、従来通り正しく0点のまま。
+
+`total_score`の判定基準（Excellent/Good/Average等の閾値）・190点満点
+構造・他エンジンとの重複判定（Rule 14/24/25）に変更なし。
+
+### 検証
+
+- `python -m py_compile` → 両ファイルともPASS。
+- 編集前後でBOM有無（両ファイルともBOM無し）・改行コード（LFのみ）が
+  変わっていないことを確認。
+- health_check.py（Sprint34-2と同様、サンドボックスでは一時的にパスのみ
+  差し替えて実行）：Gemini APIキー未設定によるFAIL（Sprint34-2実行時と
+  同一パターン）以外、新規の回帰なし。
+- `calculate_capital_allocation()` / `calculate_share_buyback()`
+  単体で以下を検証：
+  1. 全データ欠損 → `capital_allocation`は4/10（Average）、
+     `share_buyback`は4/10（Average）。旧実装ならPoor（0点近辺）に
+     なっていたところが中立評価になることを確認。
+  2. ROIC優秀（30%）の場合、`reinvestment_score`は従来通り4/4満点。
+  3. データはあるが自社株買い実施年数が0年の場合、`consistency_score`は
+     従来通り正しく0/3のまま（「悪い」実績への減点は維持されている）。
+
+### 次のSprintに向けて
+
+Sprint34全体の最終目標（ニュース結果の190点総合判定への統合等）は
+未着手。次はニュース統合に進むか、きたと相談のうえ決定する。
+
+---
+
 # 互換ラッパーについて
 
 services/src直下には、旧import互換のためのラッパーが残っている。
@@ -1882,7 +2089,8 @@ ai_analysis.py → ai/ai_analysis.py
 
 # 今後のSprint
 
-未定。次にきたと相談して決定する。
+Sprint34全体の最終目標（ニュース結果の190点総合判定への統合等）は
+未着手。次にきたと相談して決定する。
 
 ---
 

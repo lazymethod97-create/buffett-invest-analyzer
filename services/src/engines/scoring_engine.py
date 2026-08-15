@@ -153,7 +153,23 @@ def calculate_buffett_score(data: dict) -> dict:
         details.append({"item": "ROA（総資産利益率）", "value": "データなし",
                          "score": 0, "max_score": 5, "passed": False, "comment": "データを取得できませんでした。"})
 
-    total_score = sum(scores)
+    # Sprint34-2: データ未取得の項目は減点扱いにせず、取得できた項目だけで
+    # 達成率を計算し、100点満点へ正規化する。「悪い」と「データなし」を
+    # data_available で明示的に区別する（Rule 14: 既存の "データなし" マーカーを
+    # 再利用し、新たな判定ロジックの重複を避ける）。
+    for d in details:
+        d["data_available"] = d["value"] != "データなし"
+
+    total_items = len(details)
+    available_items = sum(1 for d in details if d["data_available"])
+    available_max = sum(d["max_score"] for d in details if d["data_available"])
+
+    if available_max > 0:
+        total_score = round(sum(scores) / available_max * 100)
+    else:
+        total_score = 0
+
+    data_coverage_pct = round(available_items / total_items * 100, 1) if total_items else 0.0
 
     if total_score >= 75:
         verdict, color, comment = "✅ 投資推奨", "green", "バフェット基準を高水準でクリアしています。長期投資の有力候補です。"
@@ -171,4 +187,9 @@ def calculate_buffett_score(data: dict) -> dict:
         "verdict_color": color,
         "verdict_comment": comment,
         "details": details,
+        "data_coverage": {
+            "available_items": available_items,
+            "total_items": total_items,
+            "coverage_pct": data_coverage_pct,
+        },
     }

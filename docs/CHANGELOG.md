@@ -191,3 +191,32 @@ Sprint18から毎回計算されていたが、画面にもPDFにも一度も表
 `render_decision_card`（後者は14項目対応に更新）を再利用してサマリー
 タブに表示し、PDFレポートにも総合判定セクションを追加した。計算ロジック
 （`calculate_overall_grade()`）自体の変更なし。
+
+### Sprint34-1：DCF未計算バグの修正
+
+分析開始時に`dcf_result = globals().get("dcf_result") or {}`となっており、
+まだ計算されていないDCF結果（常に空`{}`）が`create_analysis_bundle()`へ
+渡っていた問題を修正。`dcf_result = calculate_dcf(data)`を分析開始時に
+実行するよう変更。
+
+### Sprint34-2：データ取得不能を減点扱いにしない
+
+Buffett Score（`calculate_buffett_score()`、8項目・100点満点）が、
+データを取得できなかった項目を暗黙のうちに減点として扱っていた（分母が
+常に固定100点のままだったため）問題を修正。データを取得できた項目の
+達成率のみでスコアを正規化し、`data_coverage`（データ取得率）を新たに
+返すよう変更。app.py側では「データなし」（❓）と「悪い評価」（❌）を
+UI上で区別し、データ取得率のキャプションを追加した。190点満点の構造・
+判定基準（S:167等）に変更なし。あわせて`.gitignore`の文字化け
+（UTF-16/UTF-8混在）を修正。
+
+### Sprint34-3：他エンジンの同型「データ欠損=暗黙の減点」バグ調査・修正
+
+Sprint34-2完了後、`services/src/engines/`配下の全9エンジンを横断調査。
+`capital_allocation_engine.py`（reinvestment_score）と
+`share_buyback_engine.py`（consistency_score・reduction_score）に、
+Sprint34-2と同型のバグ（データ欠損時に初期値0＝最低評価のまま返される）
+を発見し、他エンジン（debt_quality/moat_strength/backtest）と同水準の
+中立評価に修正。debt_quality_engine.py・moat_strength_engine.py・
+backtest_engine.py・intrinsic_engine.pyは調査の結果、既に正しく
+実装されていたため変更なし。190点満点の構造・判定基準に変更なし。

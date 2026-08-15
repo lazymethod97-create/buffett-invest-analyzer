@@ -461,8 +461,20 @@ if (
 
 		st.divider()
 		st.subheader("📋 採点詳細")
+		coverage = score_result.get("data_coverage")
+		if coverage:
+			st.caption(
+				f"データ取得率: {coverage['available_items']}/{coverage['total_items']}項目"
+				f"（{coverage['coverage_pct']}%） ※データ未取得の項目は減点せず、"
+				f"取得できた項目のみで採点しています。"
+			)
 		for d in score_result["details"]:
-			icon = "✅" if d["passed"] else "❌"
+			# Sprint34-2: 「データなし」は減点対象外のため、悪い評価（❌）と
+			# 区別して未評価（❓）として表示する。
+			if not d.get("data_available", True):
+				icon = "❓"
+			else:
+				icon = "✅" if d["passed"] else "❌"
 			col_a, col_b, col_c, col_d = st.columns([3, 2, 1, 4])
 			col_a.write(f"{icon} **{d['item']}**")
 			col_b.write(f"📊 {d['value']}")
