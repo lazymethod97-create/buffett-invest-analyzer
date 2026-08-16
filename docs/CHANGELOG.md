@@ -261,3 +261,42 @@ Windows実環境のhealth_checkで、ニュース無し時に`bundle["news_impac
 - `pytest`：6 passed
 - `health_check.py`：`=== HEALTH: ALL OK ===`
 - `git diff --check`：PASS
+
+### Sprint36：スコア履歴の自動保存（保存導線のみ）
+
+Sprint35で作った永続化層(storage)を、単一銘柄の分析実行時に自動保存する
+導線としてapp.pyへ配線。時系列表示UIは含まない（次Sprint以降の候補）。
+
+- `services/src/storage/snapshot_builder.py`を新設
+  - `resolve_snapshot_mode()`：UIの分析モードラベル→storageのmode変換
+  - `build_score_snapshot()`：analysis_bundleの`overall`とBuffett Score結果
+    からScoreSnapshotを組み立て
+- `services/src/storage/__init__.py`：上記2関数をpackage APIとして公開
+- `services/app.py`
+  - `BASE_DIR`配下の`data/history/`を保存先として`JsonScoreStorage`を初期化
+  - 分析実行（analyze_button）のたびに`ScoreSnapshot`を自動保存
+  - 保存失敗時は`st.warning`で通知し、分析結果の表示自体は継続（既存機能を壊さない）
+- `health_check.py`にSprint36検証項目を追加
+  - モードラベル変換の回帰確認
+  - `build_score_snapshot`が`ScoreSnapshot`を返すことの確認
+- `tests/test_snapshot_builder.py`を新設（6件）
+
+設計上の重要事項：
+
+- 190点満点のスコア構造・overall_evalの判定責務は変更していない
+- app.py側にはUIモード変換やScoreSnapshot組み立てロジックを書かず、
+  storageパッケージへ切り出した（ルール4：app.pyへ分析ロジックを書かない）
+- Portfolio Risk / Watchlist Insightsは引き続きScoreSnapshotへ混在させない
+
+検証：
+
+- `py_compile`：PASS（`services/app.py` / `services/src/storage/*.py` /
+  `tests/test_snapshot_builder.py`）
+- `pytest`：`tests/test_storage.py` + `tests/test_snapshot_builder.py` →
+  12 passed
+- `health_check.py`：Sprint36検証項目（`Sprint36 members (score snapshot
+  auto-save wiring)`）はPASS。他項目のFAILはAIサンドボックス環境固有の
+  差異（Windows固定BASEパス・Gemini APIキー未設定）によるもので、
+  Sprint36の変更による回帰ではない（ローカルWindows環境での
+  `python health_check.py`実行結果での最終確認を推奨）
+- `git diff --check`：PASS

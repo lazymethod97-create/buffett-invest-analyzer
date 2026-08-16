@@ -548,4 +548,36 @@ def t_sprint33_dead_code_removed():
 check("Sprint33 members (dead code cleanup)", t_sprint33_dead_code_removed)
 
 
+# 8) Sprint36 members (score snapshot auto-save wiring)
+def t_sprint36_snapshot_builder():
+	"""
+	Sprint36では、Sprint35の永続化層(storage)をapp.pyから呼び出し、
+	単一銘柄の分析実行のたびにScoreSnapshotを自動保存する導線を追加した。
+	app.py自体にはUI mode -> storage mode変換やScoreSnapshot組み立てロジックを
+	書かず、storage.build_score_snapshot / storage.resolve_snapshot_modeへ
+	切り出している（ルール4：app.pyへ分析ロジックを書かない）ため、
+	ここではその公開APIの存在とマッピングの回帰を確認する。
+	"""
+	from storage import JsonScoreStorage, ScoreSnapshot, build_score_snapshot, resolve_snapshot_mode
+
+	assert resolve_snapshot_mode("⚡ クイック（財務スコアのみ）") == "quick", \
+		"Sprint36 regression: quick mode label should map to 'quick'"
+	assert resolve_snapshot_mode("📊 標準（+AI定性分析・要約）") == "standard", \
+		"Sprint36 regression: standard mode label should map to 'standard'"
+	assert resolve_snapshot_mode("🔎 フル（すべて）") == "full", \
+		"Sprint36 regression: full mode label should map to 'full'"
+
+	snapshot = build_score_snapshot(
+		ticker="AAPL",
+		mode_label="🔎 フル（すべて）",
+		overall={"overall_score": 150, "grade": "A", "decision": "BUY"},
+		score_result={"total_score": 80},
+	)
+	assert isinstance(snapshot, ScoreSnapshot), \
+		"Sprint36 regression: build_score_snapshot must return a ScoreSnapshot"
+
+	print("   score snapshot auto-save wiring: storage.build_score_snapshot/resolve_snapshot_mode OK")
+check("Sprint36 members (score snapshot auto-save wiring)", t_sprint36_snapshot_builder)
+
+
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")

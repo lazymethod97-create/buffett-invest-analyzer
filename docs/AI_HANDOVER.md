@@ -2320,3 +2320,113 @@ ScoreSnapshotを利用した、
 - 複数銘柄一括スクリーニング
 
 を候補とする。
+
+# Sprint36：スコア履歴の自動保存（保存導線のみ）
+
+## 完了日
+
+2026-08-16
+
+## 目的
+
+Sprint35で新設した永続化層(storage)を、実際にapp.pyから呼び出し、
+単一銘柄の分析結果を自動的に履歴として蓄積できるようにする。
+
+docs/DESIGN_HISTORY_AND_SCREENING.mdの段階的実装ステップでは
+「履歴保存＝保存導線＋時系列表示UI」を1ステップとしていたが、
+ルール5（1 Sprint = 1つの明確な機能単位）に従い、Sprint36では
+保存導線のみに範囲を絞った。時系列グラフ等の表示UIは次Sprint以降の
+候補とする。
+
+保存タイミングはきたの指示により「分析実行のたびに自動保存」を採用。
+
+## 実装内容
+
+### services/src/storage/snapshot_builder.py（新設）
+
+- `resolve_snapshot_mode(mode_label)`
+  - app.pyの分析モードラジオボタンのラベル
+    （"⚡ クイック（財務スコアのみ）" / "📊 標準（+AI定性分析・要約）" /
+    "🔎 フル（すべて）"）を、ScoreSnapshotが要求する
+    "quick" / "standard" / "full" へ変換する。
+- `build_score_snapshot(ticker, mode_label, overall, score_result=None)`
+  - `bundle["overall"]`（`overall_eval.calculate_overall_grade()`の戻り値）
+    から`overall_score` / `grade` / `decision`を取り出す。
+  - `score_result`（`calculate_buffett_score()`の戻り値）から
+    `total_score`（0〜100）を取り出し`buffett_score`として使う。
+    `total_score`が存在しない、または整数以外の場合は`buffett_score`を
+    `None`のまま`ScoreSnapshot`を組み立てる（履歴の主目的である
+    overall_score/grade/decisionの保存自体は失敗させない）。
+
+app.py本体にモード変換やスナップショット組み立てロジックを書かせず、
+storageパッケージ側に置くことで、ルール4（app.pyへ分析ロジックを
+書かない。Controllerのみ）を維持している。
+
+### services/src/storage/__init__.py
+
+`build_score_snapshot` / `resolve_snapshot_mode`をpackage APIとして
+追加公開。
+
+### services/app.py
+
+- 既存の`BASE_DIR`（ファイル冒頭で定義済みのプロジェクトルート）配下に
+  `data/history/`を保存先として`JsonScoreStorage`を初期化
+  （`score_storage = JsonScoreStorage(SCORE_HISTORY_DIR)`）。
+  新しいパス解決の仕組みは作らず、既存の`BASE_DIR`をそのまま再利用した
+  （ルール14：重複処理禁止）。
+- `analyze_button and ticker_input`ブロック内、
+  `st.session_state.analysis_bundle = bundle`の直後で、
+  `build_score_snapshot()`→`score_storage.save()`を呼び出し、
+  分析実行のたびに自動保存する。
+- 保存処理は`try/except`で囲み、失敗時は`st.warning()`で通知するのみで、
+  分析結果自体の表示は止めない（ルール6：既存機能を壊さない。
+  永続化はあくまで副次的な機能であり、保存の失敗が分析結果閲覧という
+  主機能を止めてはならないため）。
+
+### health_check.py
+
+Sprint36検証項目（`Sprint36 members (score snapshot auto-save wiring)`）
+を追加。
+
+- モードラベル→storage mode変換の回帰確認（quick/standard/full）
+- `build_score_snapshot()`が`ScoreSnapshot`を返すことの確認
+
+### tests/test_snapshot_builder.py（新設・6件）
+
+- モード変換3パターン（quick/standard/full）
+- `overall` + `score_result`からの`ScoreSnapshot`組み立て
+- `score_result`省略時に`buffett_score`が`None`になること
+- `total_score`が数値以外の異常値のとき、`buffett_score`のみ省略され
+  `overall_score`等の保存は影響を受けないこと
+
+## 検証結果
+
+- `python -m py_compile`（`services/app.py` /
+  `services/src/storage/snapshot_builder.py` /
+  `tests/test_snapshot_builder.py`）：PASS
+- `pytest`（`tests/test_storage.py` + `tests/test_snapshot_builder.py`）：
+  12 passed
+- `health_check.py`：Sprint36の検証項目単体はPASS。他項目のFAILは
+  AIサンドボックス環境固有の差異（health_check.py冒頭の
+  `BASE = r"C:\Users\t.k\buffett-invest-analyzer"`固定パス、および
+  Gemini APIキー未設定）によるものであり、Sprint36による回帰ではない。
+  ローカルWindows環境（APIキー設定済み）での`python health_check.py`
+  実行による最終確認を推奨する。
+- `git diff --check`：PASS
+
+## 設計上の重要事項
+
+Sprint36では既存の190点満点スコア構造・`overall_eval.py`の
+BUY/WATCH/PASS判定責務を一切変更していない。`create_analysis_bundle()`
+の戻り値（`bundle["overall"]`）を「読み取って保存する」だけであり、
+計算ロジックそのものには手を入れていない。
+
+Portfolio Risk / Watchlist InsightsをScoreSnapshotへ混在させない設計
+（Sprint35から継続）も維持している。
+
+## 次の候補
+
+- 履歴の時系列表示UI（折れ線グラフ等。
+  docs/DESIGN_HISTORY_AND_SCREENING.md ステップ2の残り部分）
+- 過去評価との比較
+- 複数銘柄一括スクリーニング（同ステップ3）

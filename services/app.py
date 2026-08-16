@@ -107,6 +107,18 @@ from ui import render_summary_card, render_decision_card
 ####################################################
 from analysis.watchlist_insights import build_watchlist_insights
 
+####################################################
+# Sprint36: 単一銘柄の分析実行結果をScoreSnapshotとして自動保存する。
+# 永続化層（Sprint35）はUI・analysis_bundle・overall_evalから独立させたまま、
+# app.py側は「ScoreSnapshotを組み立てて保存する」呼び出し口を持つだけに留める
+# （ロジック本体はstorage.build_score_snapshotへ切り出し、ルール4準拠）。
+# 保存先はBASE_DIR配下のdata/history/（.gitignoreでgit管理対象外）。
+####################################################
+from storage import JsonScoreStorage, build_score_snapshot
+
+SCORE_HISTORY_DIR = os.path.join(BASE_DIR, "data", "history")
+score_storage = JsonScoreStorage(SCORE_HISTORY_DIR)
+
 st.set_page_config(page_title="Buffett Investment Analyzer", page_icon="📈", layout="wide")
 
 ####################################################
@@ -388,6 +400,24 @@ if analyze_button and ticker_input:
 		)
 
 	st.session_state.analysis_bundle = bundle
+
+	####################################################
+	# Sprint36: 分析実行のたびにScoreSnapshotを自動保存する（きたの選択）。
+	# 保存は履歴機能のための副作用であり、保存に失敗しても分析結果の
+	# 表示自体は止めない（ルール6：既存機能を壊さない）。
+	####################################################
+	try:
+		snapshot = build_score_snapshot(
+			ticker=data["ticker"],
+			mode_label=analysis_mode,
+			overall=bundle["overall"],
+			score_result=score_result,
+		)
+		score_storage.save(snapshot)
+	except Exception as history_error:
+		st.warning(
+			f"評価結果の履歴保存に失敗しました（分析結果自体には影響ありません）: {history_error}"
+		)
 
 # ------------------------------------------------------------
 # 結果表示
