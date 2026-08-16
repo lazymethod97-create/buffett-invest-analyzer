@@ -42,6 +42,7 @@ from report import (
 	create_portfolio_risk_display,
 	create_watchlist_insights_display,
 	create_score_history_chart,
+	create_score_comparison_display,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -665,6 +666,15 @@ if (
 				f"{latest_snapshot.overall_score}点 ／ Grade {latest_snapshot.grade} ／ "
 				f"{latest_snapshot.decision} ／ モード: {latest_snapshot.mode}"
 			)
+
+			####################################################
+			# Sprint38: 過去評価との比較（差分表示）
+			# Sprint37で読み込み済みのscore_historyをそのまま再利用し、
+			# 追加のload_history呼び出しは行わない（ルール14：重複禁止）。
+			# 差分の組み立てはreport.create_score_comparison_display側に
+			# 切り出し、app.pyは呼び出しと結果の表示のみを担う（ルール4）。
+			####################################################
+			st.markdown(create_score_comparison_display(score_history))
 
 	####################################################
 	# 🧠 定性分析タブ

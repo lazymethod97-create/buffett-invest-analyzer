@@ -79,6 +79,65 @@ def create_score_history_chart(history: List[Any]) -> go.Figure:
     return fig
 
 
+def create_score_comparison_display(history: List[Any]) -> str:
+    """
+    Sprint38: 直近の評価と1つ前の評価の差分をMarkdown形式で表示する。
+
+    history: storage.JsonScoreStorage.load_history()等が返す、保存順に
+    並んだスナップショットのリスト（Sprint37のcreate_score_history_chartと
+    同じ入力形式）。report層はSprint37同様storageパッケージを直接importせず、
+    evaluated_at / overall_score / grade / decision / mode / buffett_score
+    属性を持つオブジェクトであれば動作する（ダックタイピングによる独立性維持）。
+
+    比較対象が2件未満の場合は比較不能である旨のメッセージを返す
+    （表示可否の分岐はapp.py側ではなくここで完結させ、app.py側は
+    st.markdown()で結果をそのまま表示するだけにする）。
+    """
+    if len(history) < 2:
+        return "*比較対象となる過去の記録がありません（2回目以降の分析から表示されます）。*\n"
+
+    previous = history[-2]
+    current = history[-1]
+
+    score_diff = current.overall_score - previous.overall_score
+    if score_diff > 0:
+        score_diff_text = f"+{score_diff}点 ⬆️"
+    elif score_diff < 0:
+        score_diff_text = f"{score_diff}点 ⬇️"
+    else:
+        score_diff_text = "±0点 ➡️"
+
+    md = "#### 📊 前回評価との比較\n\n"
+    md += f"- **前回:** {previous.evaluated_at}（{previous.overall_score}点 / Grade {previous.grade} / {previous.decision} / モード: {previous.mode}）\n"
+    md += f"- **今回:** {current.evaluated_at}（{current.overall_score}点 / Grade {current.grade} / {current.decision} / モード: {current.mode}）\n\n"
+    md += f"**スコア差分:** {score_diff_text}\n\n"
+
+    if current.grade != previous.grade:
+        md += f"**グレード変化:** {previous.grade} → {current.grade}\n\n"
+    else:
+        md += f"**グレード変化:** 変化なし（{current.grade}）\n\n"
+
+    if current.decision != previous.decision:
+        md += f"**判定変化:** {previous.decision} → {current.decision}\n\n"
+    else:
+        md += f"**判定変化:** 変化なし（{current.decision}）\n\n"
+
+    if current.buffett_score is not None and previous.buffett_score is not None:
+        buffett_diff = current.buffett_score - previous.buffett_score
+        if buffett_diff != 0:
+            sign = "+" if buffett_diff > 0 else ""
+            md += f"**Buffett Score差分:** {sign}{buffett_diff}点（前回 {previous.buffett_score} → 今回 {current.buffett_score}）\n\n"
+
+    if current.mode != previous.mode:
+        md += (
+            "⚠️ **注意:** 前回と今回で分析モードが異なります"
+            f"（{previous.mode} → {current.mode}）。項目網羅度が異なるため、"
+            "スコア差分は単純比較ではなく参考値としてご覧ください。\n"
+        )
+
+    return md
+
+
 def create_score_bar(score: float, max_score: float = 100) -> go.Figure:
     """スコアをゲージ（インジケーター）チャートとして表示する"""
     if score >= 75:

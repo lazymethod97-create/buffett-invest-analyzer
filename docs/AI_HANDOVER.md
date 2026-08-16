@@ -2527,3 +2527,109 @@ Portfolio Risk / Watchlist InsightsをScoreSnapshotへ混在させない設計
   どう変わったかの差分表示）
 - 複数銘柄一括スクリーニング
   （docs/DESIGN_HISTORY_AND_SCREENING.md ステップ3）
+
+# Sprint38：過去評価との比較（差分表示）
+
+## 完了日
+
+2026-08-16
+
+## 目的
+
+Sprint37で表示できるようになったスコア履歴のうち、直近2件
+（前回評価・今回評価）を比較し、スコア差分・グレード変化・判定変化を
+サマリータブ上でひと目で分かるようにする。
+docs/AI_HANDOVER.md・docs/DESIGN_HISTORY_AND_SCREENING.mdの
+「次の候補」1番目にあたる。
+
+## 実装内容
+
+### services/src/report/report.py
+
+`create_score_comparison_display(history)`を追加。
+
+- 入力：`create_score_history_chart()`と同じ、保存順に並んだ
+  ScoreSnapshotのリスト（`score_storage.load_history()`の戻り値）
+- 件数が2件未満の場合は「比較対象となる過去の記録がありません」を
+  返す（表示可否の判断はapp.py側に持たせず、report層側で完結させる。
+  Sprint37のFigure空返しと同じ設計方針）
+- 2件以上の場合、末尾2件（`history[-2]`＝前回、`history[-1]`＝今回）
+  を比較し、Markdown文字列を組み立てて返す
+  - スコア差分（+/-点、⬆️/⬇️/➡️アイコン付き）
+  - グレード変化（変化なしの場合もその旨を明記）
+  - 判定変化（変化なしの場合もその旨を明記）
+  - Buffett Score差分（両方の値が存在する場合のみ、差分がある場合のみ）
+  - 分析モードが前回と異なる場合、単純比較ではなく参考値である旨の
+    注意書きを追加（docs/DESIGN_HISTORY_AND_SCREENING.md 原則D、
+    Sprint37のホバーテキストと同じ考え方）
+- report層はSprint37と同様storageパッケージを直接importせず、
+  evaluated_at/overall_score/grade/decision/mode/buffett_score属性を
+  持つオブジェクトとしてダックタイピングで扱う
+
+`report/__init__.py`は`from .report import *`のワイルドカードで
+公開しているため、`__init__.py`自体の変更は不要だった（Sprint37と同じ）。
+
+### services/app.py
+
+- importに`create_score_comparison_display`を追加
+- サマリータブの「📈 スコア推移（履歴）」セクション内、
+  `score_history`が1件以上あるブロックの末尾に比較表示を追加
+  - Sprint37で読み込み済みの`score_history`をそのまま再利用し、
+    `load_history()`の再呼び出しは行っていない（ルール14：重複禁止）
+  - `st.markdown(create_score_comparison_display(score_history))`のみ
+
+永続化層（Sprint35）・保存導線（Sprint36）・履歴チャート（Sprint37）
+には一切手を入れていない。既存の`score_history`変数を読み取って
+表示するだけ。
+
+### health_check.py
+
+Sprint38検証項目
+（`Sprint38 members (score comparison with previous evaluation)`）を追加。
+
+- 0件・1件のとき「比較対象となる過去の記録がありません」を返すことの確認
+- 2件のとき、スコア差分・グレード変化・判定変化が期待通り
+  文字列に含まれることの確認
+
+### tests/test_score_comparison.py（新設・10件）
+
+- 0件・1件→比較不能メッセージ
+- スコア増加→+N点・⬆️
+- スコア減少→-N点・⬇️
+- スコア変化なし→±0点・➡️
+- グレード変化あり／なしの両方が正しく表示されること
+- 判定変化あり／なしの両方が正しく表示されること
+- Buffett Score差分が両方存在する場合に表示されること
+- 分析モードが異なる場合に注意書きが付くこと／同じ場合は付かないこと
+- 3件以上の履歴でも直近2件のみが比較対象になること
+
+## 検証結果
+
+- `python -m py_compile`（`services/app.py` /
+  `services/src/report/report.py` / `health_check.py` /
+  `tests/test_score_comparison.py`）：PASS
+- `pytest`（`test_score_comparison.py` + `test_score_history_chart.py`）：
+  14 passed
+- `git diff --check`：PASS
+- `health_check.py`：AIサンドボックス環境（Linux、Windows固定BASEパス
+  未対応・Gemini APIキー未設定）では実行不可のため未実行。
+  ローカルWindows環境での`python health_check.py`実行による
+  最終確認を推奨する。
+
+## 設計上の重要事項
+
+Sprint38では190点満点のスコア構造・overall_evalの判定責務・
+Sprint35〜37の永続化層／表示ロジックを一切変更していない。
+既に読み込み済みのScoreSnapshotのリストを比較して文字列化するだけの、
+既存機能に対する読み取り専用の追加である。
+
+Portfolio Risk / Watchlist InsightsをScoreSnapshotへ混在させない設計
+（Sprint35から継続）も維持している。
+
+## 次の候補
+
+- 複数銘柄一括スクリーニング
+  （docs/DESIGN_HISTORY_AND_SCREENING.md ステップ3。着手する場合は
+  実装前に同ドキュメントを読み、「点数化して優劣を判定する機能か」
+  「Watchlist Insightsのように集計・参考表示にとどめる機能か」を
+  きたに確認すること：ルール25）

@@ -329,3 +329,36 @@ Sprint36で自動保存しているScoreSnapshotを、サマリータブ末尾�
   `test_score_history_chart.py`(4) → 16 passed
 - `health_check.py`：Sprint37検証項目PASS
 - `git diff --check`：PASS
+
+### Sprint38：過去評価との比較（差分表示）
+
+Sprint37で表示できるようになったスコア履歴のうち、直近2件（前回・今回）
+を比較し、スコア差分・グレード変化・判定変化をサマリータブ上に表示。
+保存・読み込みロジックには手を入れず、Sprint37で読み込み済みの
+`score_history`を再利用して比較・整形するだけ。
+
+- `services/src/report/report.py`
+  - `create_score_comparison_display(history)`を追加
+  - 直近2件（`history[-2]`＝前回、`history[-1]`＝今回）を比較し、
+    スコア差分（⬆️/⬇️/➡️）・グレード変化・判定変化・Buffett Score差分
+    （両方存在する場合）をMarkdown文字列として組み立てて返す
+  - 分析モードが前回と異なる場合は参考値である旨の注意書きを追加
+  - 2件未満の場合は比較不能メッセージを返す（表示要否の判断は
+    report層側で完結、app.pyは呼び出しと表示のみ）
+- `services/app.py`
+  - importに`create_score_comparison_display`を追加
+  - 「📈 スコア推移（履歴）」セクション内、`score_history`が
+    1件以上あるブロックの末尾に比較表示を追加
+  - Sprint37で読み込み済みの`score_history`を再利用し、
+    `load_history()`の再呼び出しは行わない
+- `health_check.py`にSprint38検証項目を追加
+- `tests/test_score_comparison.py`を新設（10件）
+
+検証：
+
+- `py_compile`：PASS
+- `pytest`：`test_score_comparison.py`(10) +
+  `test_score_history_chart.py`(4) → 14 passed
+- `health_check.py`：Sprint38検証項目（コード上のロジックを確認済み。
+  実機Windows環境での`python health_check.py`実行はきた側で最終確認）
+- `git diff --check`：PASS

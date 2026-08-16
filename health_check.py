@@ -616,4 +616,64 @@ def t_sprint37_history_chart():
 check("Sprint37 members (score history chart display)", t_sprint37_history_chart)
 
 
+# 10) Sprint38 members (score comparison with previous evaluation)
+def t_sprint38_score_comparison():
+	"""
+	Sprint38では、Sprint37までに構築した履歴（score_history）の直近2件を
+	比較し、スコア差分・グレード変化・判定変化・モード不一致注意をMarkdown
+	として組み立てる導線を追加した。差分の組み立てはreport.report側に
+	切り出し、app.pyは呼び出しと表示のみを担う（ルール4）。
+	Streamlit非依存の部分（比較表示生成関数）の存在と基本的な入出力を
+	ここで確認する。
+	"""
+	from report.report import create_score_comparison_display
+	from storage import ScoreSnapshot
+
+	no_history_result = create_score_comparison_display([])
+	assert "比較対象となる過去の記録がありません" in no_history_result, \
+		"Sprint38 regression: 0 snapshots should report no comparison available"
+
+	one_snapshot = ScoreSnapshot.create(
+		ticker="AAPL",
+		mode="full",
+		overall_score=150,
+		grade="A",
+		decision="BUY",
+		buffett_score=80,
+		evaluated_at="2026-08-16T09:00:00+00:00",
+	)
+	one_snapshot_result = create_score_comparison_display([one_snapshot])
+	assert "比較対象となる過去の記録がありません" in one_snapshot_result, \
+		"Sprint38 regression: 1 snapshot should report no comparison available"
+
+	previous_snapshot = ScoreSnapshot.create(
+		ticker="AAPL",
+		mode="full",
+		overall_score=120,
+		grade="B",
+		decision="WATCH",
+		buffett_score=70,
+		evaluated_at="2026-08-01T09:00:00+00:00",
+	)
+	current_snapshot = ScoreSnapshot.create(
+		ticker="AAPL",
+		mode="full",
+		overall_score=150,
+		grade="A",
+		decision="BUY",
+		buffett_score=85,
+		evaluated_at="2026-08-16T09:00:00+00:00",
+	)
+	comparison_result = create_score_comparison_display([previous_snapshot, current_snapshot])
+	assert "+30点" in comparison_result, \
+		"Sprint38 regression: score diff should be reported"
+	assert "グレード変化:** B → A" in comparison_result, \
+		"Sprint38 regression: grade change should be reported"
+	assert "判定変化:** WATCH → BUY" in comparison_result, \
+		"Sprint38 regression: decision change should be reported"
+
+	print("   score comparison wired: report.create_score_comparison_display OK")
+check("Sprint38 members (score comparison with previous evaluation)", t_sprint38_score_comparison)
+
+
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")
