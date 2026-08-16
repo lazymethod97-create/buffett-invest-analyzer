@@ -220,3 +220,4 @@ venv/
 __pycache__/
 *.pyc
 *.bundle
+data/history/

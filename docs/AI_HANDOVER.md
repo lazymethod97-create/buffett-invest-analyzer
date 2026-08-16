@@ -2180,3 +2180,143 @@ bundle初期値へ`"news_impact": None`を追加した。これによりニュ�
 - `python -m py_compile`：対象ファイルPASS
 - `git diff --check`：PASS
 - 190点満点のスコア計算ロジック、ニュースによるDecision降格ロジック自体は変更していない。
+
+# Sprint35：永続化層
+
+## 完了日
+
+2026-08-16
+
+## 目的
+
+単一銘柄の評価結果を将来的に履歴として保存できる基盤を、
+既存の分析ロジック・UI・overall_evalから独立した永続化層として追加。
+
+## 実装内容
+
+### services/src/storage/__init__.py
+
+永続化層の公開API。
+
+- ScoreSnapshot
+- JsonScoreStorage
+
+をexport。
+
+### services/src/storage/models.py
+
+ScoreSnapshotを追加。
+
+保存対象：
+
+- ticker
+- evaluated_at
+- mode
+- overall_score
+- grade
+- decision
+- buffett_score
+
+modeは以下に限定：
+
+- quick
+- standard
+- full
+
+gradeは以下に限定：
+
+- S
+- A
+- B
+- C
+- D
+
+decisionは以下に限定：
+
+- BUY
+- WATCH
+- PASS
+
+overall_scoreは0〜190点。
+
+buffett_scoreは任意項目で0〜100点。
+
+### services/src/storage/json_storage.py
+
+JSON形式のScoreSnapshot永続化を実装。
+
+銘柄ごとに、
+
+data/history/<TICKER>.json
+
+へ保存。
+
+保存時は一時ファイルを作成してからos.replace()する
+atomic write方式を採用。
+
+永続化層は以下から独立：
+
+- Streamlit UI
+- analysis_bundle
+- overall_eval
+- Portfolio Risk
+- Watchlist Insights
+
+### tests/test_storage.py
+
+以下を検証。
+
+- ScoreSnapshot round trip
+- JSON save/load
+- 銘柄ごとのファイル生成
+- 不正入力拒否
+- Portfolio Risk / Watchlist Insightsの混入防止
+- mode / grade / decision / score範囲の検証
+
+## Git管理
+
+分析履歴本体はGitHubへ保存しない。
+
+.gitignoreへ、
+
+data/history/
+
+を追加。
+
+## 検証結果
+
+python -m py_compile：
+
+PASS
+
+pytest：
+
+6 passed
+
+health_check.py：
+
+=== HEALTH: ALL OK ===
+
+git diff --check：
+
+PASS
+
+## 設計上の重要事項
+
+Sprint35では既存の190点満点スコア構造を変更していない。
+
+Portfolio Risk / Watchlist InsightsをScoreSnapshotへ混ぜていない。
+
+BUY / WATCH / PASSの判定責務も変更していない。
+
+analysis_bundleやoverall_evalへの配線は次Sprint以降で必要性を検討する。
+
+## 次の候補
+
+ScoreSnapshotを利用した、
+
+- スコア履歴保存
+- 過去評価との比較
+- 複数銘柄一括スクリーニング
+
+を候補とする。

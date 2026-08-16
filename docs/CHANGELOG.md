@@ -241,3 +241,23 @@ Decision降格・ニュース無し時の中立動作を検証する回帰テス
 Windows実環境のhealth_checkで、ニュース無し時に`bundle["news_impact"]`キーが未生成となる問題と、
 重大ネガティブニュースの回帰テスト期待値がBUY→WATCHではなくPASSになっていた問題を修正。
 ニュース評価ロジック・190点満点スコア・Grade閾値は変更なし。
+
+### Sprint35：永続化層
+
+単一銘柄評価結果を保存するための独立した永続化層を追加。
+
+- `services/src/storage/`を新設
+- `ScoreSnapshot`データモデルを追加
+- `JsonScoreStorage`を追加
+- 銘柄ごとのJSON履歴保存に対応
+- `data/history/`をGit管理対象外へ追加
+- Portfolio Risk / Watchlist Insightsを単一銘柄Snapshotへ混在させない設計を維持
+- 永続化層をUI・analysis_bundle・overall_evalから独立
+- storage専用テスト6件を追加
+
+検証：
+
+- `py_compile`：PASS
+- `pytest`：6 passed
+- `health_check.py`：`=== HEALTH: ALL OK ===`
+- `git diff --check`：PASS
