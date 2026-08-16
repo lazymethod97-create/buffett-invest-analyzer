@@ -41,6 +41,7 @@ from report import (
 	create_backtest_display,
 	create_portfolio_risk_display,
 	create_watchlist_insights_display,
+	create_score_history_chart,
 )
 from hypothesis import (
 	HypothesisManager,
@@ -631,6 +632,39 @@ if (
 			st.warning(red_team.get("conclusion", "結論なし"))
 		else:
 			_mode_locked_message("🔎 フル（すべて）")
+
+		####################################################
+		# Sprint37: スコア推移（履歴）
+		# Sprint36で自動保存しているScoreSnapshotを読み込んで表示するだけ。
+		# 保存・読み込みロジックはstorageパッケージ、チャート描画は
+		# report.create_score_history_chart側に置き、app.pyは
+		# 呼び出しと0件時のメッセージ分岐のみを担う（ルール4）。
+		####################################################
+		st.divider()
+		st.markdown("### 📈 スコア推移（履歴）")
+		st.caption(
+			"分析を実行するたびに、総合スコア・グレード・判定をこの端末に自動保存しています"
+			"（Gitでは管理していない個人のローカルデータです）。"
+		)
+		try:
+			score_history = score_storage.load_history(data["ticker"])
+		except Exception as history_load_error:
+			score_history = []
+			st.warning(f"履歴の読み込みに失敗しました: {history_load_error}")
+
+		if not score_history:
+			st.info("この銘柄の履歴はまだありません。分析を実行すると自動的に記録されます。")
+		else:
+			st.plotly_chart(
+				create_score_history_chart(score_history),
+				use_container_width=True,
+			)
+			latest_snapshot = score_history[-1]
+			st.caption(
+				f"直近の記録：{latest_snapshot.evaluated_at} ／ "
+				f"{latest_snapshot.overall_score}点 ／ Grade {latest_snapshot.grade} ／ "
+				f"{latest_snapshot.decision} ／ モード: {latest_snapshot.mode}"
+			)
 
 	####################################################
 	# 🧠 定性分析タブ

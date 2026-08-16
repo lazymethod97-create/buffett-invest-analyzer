@@ -35,6 +35,50 @@ def create_radar_chart(details: List[Dict[str, Any]]) -> go.Figure:
     return fig
 
 
+def create_score_history_chart(history: List[Any]) -> go.Figure:
+    """
+    Sprint37: 単一銘柄のスコア推移（履歴）を折れ線チャートとして表示する。
+
+    history: storage.JsonScoreStorage.load_history()等が返す、保存順に
+    並んだスナップショットのリスト。各要素は evaluated_at / overall_score /
+    grade / decision / mode 属性を持つオブジェクトであればよい
+    （report層はstorageパッケージを直接importせず、値の受け渡しのみで
+    独立性を保つ。Sprint35/36の「永続化層はUI/analysis_bundle/overall_eval
+    から独立」という設計方針の延長）。
+
+    空リストの場合、空のFigureを返す（呼び出し側で件数を見て
+    「履歴がありません」等のメッセージ表示を制御する）。
+    """
+    if not history:
+        return go.Figure()
+
+    x_values = [snapshot.evaluated_at for snapshot in history]
+    y_values = [snapshot.overall_score for snapshot in history]
+    hover_text = [
+        f"Grade {snapshot.grade} / {snapshot.decision} / {snapshot.mode}"
+        for snapshot in history
+    ]
+
+    fig = go.Figure(
+        data=go.Scatter(
+            x=x_values,
+            y=y_values,
+            mode="lines+markers",
+            name="総合スコア",
+            text=hover_text,
+            hovertemplate="%{x}<br>スコア: %{y}/190点<br>%{text}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        yaxis=dict(title="総合スコア（190点満点）", range=[0, 190]),
+        xaxis=dict(title="評価日時"),
+        height=320,
+        margin=dict(l=10, r=10, t=30, b=10),
+        title="スコア推移",
+    )
+    return fig
+
+
 def create_score_bar(score: float, max_score: float = 100) -> go.Figure:
     """スコアをゲージ（インジケーター）チャートとして表示する"""
     if score >= 75:

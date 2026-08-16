@@ -580,4 +580,40 @@ def t_sprint36_snapshot_builder():
 check("Sprint36 members (score snapshot auto-save wiring)", t_sprint36_snapshot_builder)
 
 
+# 9) Sprint37 members (score history chart display)
+def t_sprint37_history_chart():
+	"""
+	Sprint37では、Sprint36で自動保存しているScoreSnapshotを読み込み、
+	サマリータブの末尾に折れ線チャートとして表示する導線を追加した。
+	チャート生成そのものはreport.create_score_history_chart側に切り出し、
+	app.pyは呼び出しと0件時のメッセージ分岐のみを担う（ルール4）。
+	Streamlit非依存の部分（チャート生成関数）の存在と基本的な入出力を
+	ここで確認する。
+	"""
+	from report.report import create_score_history_chart
+	from storage import ScoreSnapshot
+
+	empty_fig = create_score_history_chart([])
+	assert len(empty_fig.data) == 0, \
+		"Sprint37 regression: empty history should produce an empty figure"
+
+	snapshot = ScoreSnapshot.create(
+		ticker="AAPL",
+		mode="full",
+		overall_score=150,
+		grade="A",
+		decision="BUY",
+		buffett_score=80,
+		evaluated_at="2026-08-16T09:00:00+00:00",
+	)
+	fig = create_score_history_chart([snapshot])
+	assert len(fig.data) == 1, \
+		"Sprint37 regression: non-empty history should produce exactly one trace"
+	assert list(fig.data[0].y) == [150], \
+		"Sprint37 regression: chart y-values should be overall_score"
+
+	print("   score history chart wired: report.create_score_history_chart OK")
+check("Sprint37 members (score history chart display)", t_sprint37_history_chart)
+
+
 print("=== HEALTH:", "ALL OK" if ok else "ISSUES FOUND", "===")

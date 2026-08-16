@@ -300,3 +300,32 @@ Sprint35で作った永続化層(storage)を、単一銘柄の分析実行時に
   Sprint36の変更による回帰ではない（ローカルWindows環境での
   `python health_check.py`実行結果での最終確認を推奨）
 - `git diff --check`：PASS
+
+### Sprint37：スコア推移（履歴）の表示UI
+
+Sprint36で自動保存しているScoreSnapshotを、サマリータブ末尾に折れ線
+チャートとして表示。保存・読み込みロジックには手を入れず、既存の
+`JsonScoreStorage.load_history()`を読み取って表示するだけ。
+
+- `services/src/report/report.py`
+  - `create_score_history_chart(history)`を追加
+  - ScoreSnapshotのリストから`evaluated_at`/`overall_score`を折れ線に、
+    `grade`/`decision`/`mode`をホバーテキストに表示
+  - 空リストのときは空のFigureを返す（表示要否の判断はapp.py側）
+- `services/app.py`
+  - サマリータブ末尾（Red Teamセクションの後）に
+    「📈 スコア推移（履歴）」セクションを追加
+  - `score_storage.load_history(data["ticker"])`を呼び、
+    0件なら「履歴はまだありません」、1件以上ならチャート＋直近の
+    記録テキストを表示
+  - 読み込み失敗時は`st.warning`で通知し、他の表示は継続
+- `health_check.py`にSprint37検証項目を追加
+- `tests/test_score_history_chart.py`を新設（4件）
+
+検証：
+
+- `py_compile`：PASS
+- `pytest`：`test_storage.py`(6) + `test_snapshot_builder.py`(6) +
+  `test_score_history_chart.py`(4) → 16 passed
+- `health_check.py`：Sprint37検証項目PASS
+- `git diff --check`：PASS

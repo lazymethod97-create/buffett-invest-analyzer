@@ -2430,3 +2430,100 @@ Portfolio Risk / Watchlist InsightsをScoreSnapshotへ混在させない設計
   docs/DESIGN_HISTORY_AND_SCREENING.md ステップ2の残り部分）
 - 過去評価との比較
 - 複数銘柄一括スクリーニング（同ステップ3）
+
+# Sprint37：スコア推移（履歴）の表示UI
+
+## 完了日
+
+2026-08-16
+
+## 目的
+
+Sprint36で自動保存し始めたScoreSnapshotを、実際にサマリータブへ
+折れ線チャートとして表示する。docs/DESIGN_HISTORY_AND_SCREENING.md
+ステップ2の残り部分（表示UI）にあたる。
+
+## 実装内容
+
+### services/src/report/report.py
+
+`create_score_history_chart(history)`を追加。
+
+- 入力：`storage.JsonScoreStorage.load_history()`が返す、保存順に
+  並んだScoreSnapshotのリスト
+- `evaluated_at`をx軸、`overall_score`をy軸（0〜190固定レンジ）とした
+  折れ線チャートを生成
+- ホバーテキストに`grade`/`decision`/`mode`を表示し、モードが違う
+  評価が混ざっていることが視覚的にも分かるようにした
+  （docs/DESIGN_HISTORY_AND_SCREENING.md 原則D参照）
+- 空リストのときは空のFigureを返す。「履歴なし」メッセージを出すか
+  どうかの判断はapp.py側に委ねる（report層はStreamlit非依存のまま
+  保つ）
+- report層はstorageパッケージを直接importせず、
+  evaluated_at/overall_score/grade/decision/mode属性を持つ
+  オブジェクトとしてダックタイピングで扱う
+
+`report/__init__.py`は`from .report import *`のワイルドカードで
+公開しているため、`__init__.py`自体の変更は不要だった。
+
+### services/app.py
+
+- importに`create_score_history_chart`を追加
+- サマリータブ（tab_summary）の末尾、Red Teamセクションの直後に
+  「📈 スコア推移（履歴)」セクションを追加
+  - `score_storage.load_history(data["ticker"])`を呼び出し
+  - 0件：「この銘柄の履歴はまだありません」を表示
+  - 1件以上：`create_score_history_chart()`の結果を
+    `st.plotly_chart()`で表示し、直近の記録（評価日時・スコア・
+    グレード・判定・モード）をキャプションで表示
+  - 読み込み失敗時は`st.warning()`で通知するのみで、他のタブ内容の
+    表示は継続する（ルール6：既存機能を壊さない）
+
+保存導線（Sprint36）・永続化層本体（Sprint35）には一切手を入れて
+いない。読み取って表示するだけ。
+
+### health_check.py
+
+Sprint37検証項目（`Sprint37 members (score history chart display)`）
+を追加。
+
+- 空履歴のとき空のFigureが返ることの確認
+- 1件のときトレース数が1、y値がoverall_scoreと一致することの確認
+
+### tests/test_score_history_chart.py（新設・4件）
+
+- 空履歴→空Figure
+- 複数件の履歴→x/yが時系列順に正しくプロットされること
+- ホバーテキストにgrade/decision/modeが含まれること
+- yaxisのレンジが0〜190に固定されていること
+
+## 検証結果
+
+- `python -m py_compile`（`services/app.py` /
+  `services/src/report/report.py` / `tests/test_score_history_chart.py`）：
+  PASS
+- `pytest`（`test_storage.py` + `test_snapshot_builder.py` +
+  `test_score_history_chart.py`）：16 passed
+- `health_check.py`：Sprint37の検証項目単体はPASS。他項目のFAILは
+  引き続きAIサンドボックス環境固有の差異（Windows固定BASEパス・
+  Gemini APIキー未設定）によるものであり、Sprint37による回帰ではない。
+  ローカルWindows環境での`python health_check.py`実行による最終確認を
+  推奨する。
+- `git diff --check`：PASS
+
+## 設計上の重要事項
+
+Sprint37では190点満点のスコア構造・overall_evalの判定責務・
+Sprint35/36の永続化層（保存ロジック）を一切変更していない。
+保存済みデータを読み取って表示するだけの、既存永続化層に対する
+読み取り専用のUI追加である。
+
+Portfolio Risk / Watchlist InsightsをScoreSnapshotへ混在させない設計
+（Sprint35から継続）も維持している。
+
+## 次の候補
+
+- 過去評価との比較（例：直近の分析と1つ前の分析でスコア・判定が
+  どう変わったかの差分表示）
+- 複数銘柄一括スクリーニング
+  （docs/DESIGN_HISTORY_AND_SCREENING.md ステップ3）
